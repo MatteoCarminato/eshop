@@ -1,0 +1,277 @@
+@extends('layouts.app')
+
+@section('title', 'Editar Cliente')
+
+@section('content')
+    <div class="page-content">
+        <div class="container-fluid">
+
+            <!-- start page title -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="page-title-box d-sm-flex align-items-center justify-content-between bg-galaxy-transparent">
+                        <h4 class="mb-sm-0">Editar Cliente</h4>
+
+                        <div class="page-title-right">
+                            <ol class="breadcrumb m-0">
+                                <li class="breadcrumb-item"><a href="{{ route('clients.index') }}">Clientes</a></li>
+                                <li class="breadcrumb-item active">Editar</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- end page title -->
+
+            <div class="row">
+                <div class="col-lg-12">
+                    <div class="card">
+                        <div class="card-header align-items-center d-flex">
+                            <h4 class="card-title mb-0 flex-grow-1">
+                                <i class="ri-user-settings-line align-middle me-1"></i>
+                                Editar Informações do Cliente
+                            </h4>
+                            <div class="flex-shrink-0">
+                                <a href="{{ route('clients.index') }}" class="btn btn-secondary btn-sm">
+                                    <i class="ri-arrow-left-line align-middle me-1"></i>
+                                    Voltar
+                                </a>
+                            </div>
+                        </div><!-- end card header -->
+
+                        <div class="card-body">
+                            <!-- Mensagens de Erro -->
+                            @if ($errors->any())
+                                <div class="alert alert-danger alert-dismissible alert-border-left alert-label-icon fade show"
+                                    role="alert">
+                                    <i class="ri-error-warning-line label-icon"></i>
+                                    <strong>Atenção!</strong> Corrija os erros abaixo:
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                    <ul class="mb-0 mt-2">
+                                        @foreach ($errors->all() as $error)
+                                            <li>{{ $error }}</li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @endif
+
+                            <!-- Formulário -->
+                            <form action="{{ route('clients.update', $client) }}" method="POST" class="needs-validation"
+                                novalidate>
+                                @csrf
+                                @method('PUT')
+
+                                <div class="row gy-4">
+                                    <!-- Nome -->
+                                    <div class="col-xxl-6 col-md-6">
+                                        <div>
+                                            <label for="name" class="form-label">
+                                                Nome Completo <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="form-icon">
+                                                <input type="text"
+                                                    class="form-control form-control-icon @error('name') is-invalid @enderror"
+                                                    id="name" name="name" value="{{ old('name', $client->name) }}"
+                                                    placeholder="Digite o nome completo" required>
+                                                <i class="ri-user-line"></i>
+                                            </div>
+                                            @error('name')
+                                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                            @enderror
+                                            <div class="form-text">
+                                                <i class="ri-information-line"></i> Nome completo do cliente
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!--end col-->
+
+                                    <!-- Email -->
+                                    <div class="col-xxl-6 col-md-6">
+                                        <div>
+                                            <label for="email" class="form-label">
+                                                E-mail
+                                            </label>
+                                            <div class="form-icon">
+                                                <input type="email"
+                                                    class="form-control form-control-icon @error('email') is-invalid @enderror"
+                                                    id="email" name="email" value="{{ old('email', $client->email) }}"
+                                                    placeholder="exemplo@email.com">
+                                                <i class="ri-mail-line"></i>
+                                            </div>
+                                            @error('email')
+                                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                            @enderror
+                                            <div class="form-text">
+                                                <i class="ri-information-line"></i> Campo opcional - será usado para
+                                                comunicação
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!--end col-->
+
+                                    <!-- Telefone -->
+                                    <div class="col-xxl-6 col-md-6">
+                                        <div>
+                                            <label for="phone" class="form-label">
+                                                Telefone <i class="ri-whatsapp-line text-success"></i>
+                                            </label>
+                                            <div class="form-icon">
+                                                <input type="text"
+                                                    class="form-control form-control-icon @error('phone') is-invalid @enderror"
+                                                    id="phone" name="phone" value="{{ old('phone', $client->phone) }}"
+                                                    placeholder="+595 21 234567 ou (61) 98765-4321" maxlength="25">
+                                                <i class="ri-phone-line"></i>
+                                            </div>
+                                            @error('phone')
+                                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                            @enderror
+                                            <div class="form-text">
+                                                <i class="ri-information-line"></i> Campo opcional - Aceita números do
+                                                Brasil e Paraguai<br>
+                                                <i class="ri-alert-line text-warning"></i> <small>Use formato correto com
+                                                    DDD/código país para integração com WhatsApp</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!--end col-->
+
+                                    <!-- Informações Adicionais -->
+                                    <div class="col-12">
+                                        <div class="alert alert-info">
+                                            <div class="d-flex">
+                                                <div class="flex-shrink-0">
+                                                    <i class="ri-information-line fs-16 align-middle"></i>
+                                                </div>
+                                                <div class="flex-grow-1 ms-2">
+                                                    <strong>Informações do Registro:</strong>
+                                                    <ul class="mb-0 mt-2">
+                                                        <li>Cadastrado em: {{ $client->created_at->format('d/m/Y H:i') }}
+                                                        </li>
+                                                        <li>Última atualização:
+                                                            {{ $client->updated_at->format('d/m/Y H:i') }}
+                                                        </li>
+                                                        <li>ID: #{{ $client->id }}</li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!--end col-->
+                                </div>
+                                <!--end row-->
+
+                                <!-- Botões de Ação -->
+                                <div class="row mt-4">
+                                    <div class="col-12">
+                                        <div class="d-flex gap-2 justify-content-between">
+                                            <button type="button" class="btn btn-danger" data-bs-toggle="modal"
+                                                data-bs-target="#deleteModal">
+                                                <i class="ri-delete-bin-line align-middle me-1"></i>
+                                                Excluir Cliente
+                                            </button>
+
+                                            <div class="d-flex gap-2">
+                                                <a href="{{ route('clients.index') }}" class="btn btn-light">
+                                                    <i class="ri-close-line align-middle me-1"></i>
+                                                    Cancelar
+                                                </a>
+                                                <button type="submit" class="btn btn-success">
+                                                    <i class="ri-save-line align-middle me-1"></i>
+                                                    Atualizar Cliente
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+
+                        </div><!-- end card-body -->
+                    </div><!-- end card -->
+
+                </div>
+                <!--end col-->
+            </div>
+            <!--end row-->
+
+        </div> <!-- container-fluid -->
+    </div><!-- End Page-content -->
+
+    <!-- Modal de Confirmação de Exclusão -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger">
+                    <h5 class="modal-title text-white" id="deleteModalLabel">
+                        <i class="ri-error-warning-line me-1"></i>
+                        Confirmar Exclusão
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center">
+                        <i class="ri-delete-bin-line display-4 text-danger"></i>
+                        <h4 class="mt-3">Tem certeza?</h4>
+                        <p class="text-muted">
+                            Você está prestes a excluir o cliente <strong>{{ $client->name }}</strong>.
+                            Esta ação não poderá ser desfeita!
+                        </p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+                        <i class="ri-close-line me-1"></i>
+                        Cancelar
+                    </button>
+                    <form action="{{ route('clients.destroy', $client) }}" method="POST" class="d-inline">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-danger">
+                            <i class="ri-delete-bin-line me-1"></i>
+                            Sim, Excluir
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+@endsection
+
+@push('scripts')
+    <script>
+        // Validação do formulário
+        (function () {
+            'use strict'
+            var forms = document.querySelectorAll('.needs-validation')
+            Array.prototype.slice.call(forms)
+                .forEach(function (form) {
+                    form.addEventListener('submit', function (event) {
+                        if (!form.checkValidity()) {
+                            event.preventDefault()
+                            event.stopPropagation()
+                        }
+                        form.classList.add('was-validated')
+                    }, false)
+                })
+        })()
+
+        // Formatação de telefone para Brasil e Paraguai
+        document.getElementById('phone').addEventListener('input', function (e) {
+            let value = e.target.value;
+
+            // Se começar com +, permite formato internacional (Paraguai: +595)
+            if (value.startsWith('+')) {
+                // Apenas remove caracteres não numéricos exceto o +
+                e.target.value = value.replace(/[^\d+\s]/g, '');
+            } else {
+                // Formato Brasil
+                value = value.replace(/\D/g, '');
+                if (value.length <= 11) {
+                    value = value.replace(/^(\d{2})(\d)/g, '($1) $2');
+                    value = value.replace(/(\d)(\d{4})$/, '$1-$2');
+                }
+                e.target.value = value;
+            }
+        });
+    </script>
+@endpush
