@@ -108,8 +108,7 @@
                         data-bs-target="#depositModal">Depositar</button>
                     <button type="button" class="btn btn-danger" data-bs-toggle="modal"
                         data-bs-target="#withdrawModal">Sacar</button>
-                    <a href="{{ route('admin.wallet.exchange') }}?client_id={{ $client->id }}"
-                        class="btn btn-info">Converter</a>
+
                 </div>
             </div>
 
@@ -341,58 +340,92 @@
                 </div>
             @endif
 
-            <div class="row mt-4">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header border-0">
-                            <h5 class="mb-0">Transações do Cliente</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-striped mb-0">
-                                    <thead>
-                                        <tr>
-                                            <th>Data</th>
-                                            <th>Tipo</th>
-                                            <th>Moeda</th>
-                                            <th>Valor</th>
-                                            <th>Método</th>
-                                            <th>Conversão</th>
-                                            <th>Descrição</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @forelse($filtered as $tx)
+            <form id="convertDepositsForm" method="POST" action="{{ route('admin.wallet.exchange') }}">
+                @csrf
+                <input type="hidden" name="client_id" value="{{ $client->id }}">
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header border-0 d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">Transações do Cliente</h5>
+                                <button type="submit" class="btn btn-info btn-sm" id="convertSelectedBtn" disabled>Converter
+                                    Selecionados</button>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-striped mb-0" id="transactionsTable">
+                                        <thead>
                                             <tr>
-                                                <td>{{ $tx->created_at->format('d/m/Y H:i') }}</td>
-                                                <td>{{ __(ucfirst($tx->type)) }}</td>
-                                                <td>{{ $tx->currency }}</td>
-                                                <td class="fw-bold {{ $tx->amount < 0 ? 'text-danger' : 'text-success' }}">
-                                                    {{ number_format($tx->amount, 2, ',', '.') }}
-                                                </td>
-                                                <td>{{ $tx->payment_method ?? '-' }}</td>
-                                                <td>
-                                                    @if($tx->exchange_rate)
-                                                        {{ $tx->converted_amount }} {{ $tx->converted_currency }}<br>
-                                                        <small>Taxa: {{ $tx->exchange_rate }}</small>
-                                                    @else
-                                                        -
-                                                    @endif
-                                                </td>
-                                                <td>{{ $tx->description ?? '-' }}</td>
+                                                <th><input type="checkbox" id="selectAllDeposits"></th>
+                                                <th>Data</th>
+                                                <th>Tipo</th>
+                                                <th>Moeda</th>
+                                                <th>Valor</th>
+                                                <th>Método</th>
+                                                <th>Conversão</th>
+                                                <th>Descrição</th>
                                             </tr>
-                                        @empty
-                                            <tr>
-                                                <td colspan="7" class="text-center">Nenhuma transação encontrada.</td>
-                                            </tr>
-                                        @endforelse
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            @forelse($filtered as $tx)
+                                                <tr>
+                                                    <td>
+                                                        @if($tx->type === 'deposit')
+                                                            <input type="checkbox" name="deposits[]" value="{{ $tx->id }}"
+                                                                class="deposit-checkbox">
+                                                        @endif
+                                                    </td>
+                                                    <td>{{ $tx->created_at->format('d/m/Y H:i') }}</td>
+                                                    <td>{{ __(ucfirst($tx->type)) }}</td>
+                                                    <td>{{ $tx->currency }}</td>
+                                                    <td class="fw-bold {{ $tx->amount < 0 ? 'text-danger' : 'text-success' }}">
+                                                        {{ number_format($tx->amount, 2, ',', '.') }}
+                                                    </td>
+                                                    <td>{{ $tx->payment_method ?? '-' }}</td>
+                                                    <td>
+                                                        @if($tx->exchange_rate)
+                                                            {{ $tx->converted_amount }} {{ $tx->converted_currency }}<br>
+                                                            <small>Taxa: {{ $tx->exchange_rate }}</small>
+                                                        @else
+                                                            -
+                                                        @endif
+                                                    </td>
+                                                    <td>{{ $tx->description ?? '-' }}</td>
+                                                </tr>
+                                            @empty
+                                                <tr>
+                                                    <td colspan="8" class="text-center">Nenhuma transação encontrada.</td>
+                                                </tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </form>
+
+            <script>
+                // ...script anterior...
+                // Seleção de depósitos para conversão
+                document.addEventListener('DOMContentLoaded', function () {
+                    var selectAll = document.getElementById('selectAllDeposits');
+                    var checkboxes = document.querySelectorAll('.deposit-checkbox');
+                    var convertBtn = document.getElementById('convertSelectedBtn');
+                    if (selectAll) {
+                        selectAll.addEventListener('change', function () {
+                            checkboxes.forEach(cb => cb.checked = selectAll.checked);
+                            convertBtn.disabled = !Array.from(checkboxes).some(cb => cb.checked);
+                        });
+                    }
+                    checkboxes.forEach(cb => {
+                        cb.addEventListener('change', function () {
+                            convertBtn.disabled = !Array.from(checkboxes).some(cb => cb.checked);
+                        });
+                    });
+                });
+            </script>
         </div>
     </div>
 @endsection

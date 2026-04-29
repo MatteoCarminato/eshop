@@ -138,9 +138,6 @@
                             <li class="nav-item">
                                 <a href="{{ route('admin.wallet.withdraw') }}" class="nav-link">Saque</a>
                             </li>
-                            <li class="nav-item">
-                                <a href="{{ route('admin.wallet.exchange') }}" class="nav-link">Conversão</a>
-                            </li>
                         </ul>
                     </div>
                 </li>

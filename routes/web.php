@@ -36,8 +36,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/deposit', [\App\Http\Controllers\WalletController::class, 'deposit']);
         Route::get('/withdraw', function() { return view('admin.wallet.withdraw'); })->name('withdraw');
         Route::post('/withdraw', [\App\Http\Controllers\WalletController::class, 'withdraw']);
-        Route::get('/exchange', function() { return view('admin.wallet.exchange'); })->name('exchange');
-        Route::post('/exchange', [\App\Http\Controllers\WalletController::class, 'exchange']);
+        Route::post('/exchange', [\App\Http\Controllers\WalletController::class, 'exchange'])->name('exchange');
         Route::get('/', [\App\Http\Controllers\WalletController::class, 'index'])->name('index');
     });
 });
