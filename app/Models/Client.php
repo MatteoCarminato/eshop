@@ -81,4 +81,19 @@ class Client extends Model
     {
         return $this->belongsToMany(\App\Models\Group::class, 'group_client');
     }
+    /**
+     * Relacionamento: carteiras do cliente
+     */
+    public function wallets()
+    {
+        return $this->hasMany(Wallet::class);
+    }
+
+    /**
+     * Relacionamento: transações do cliente
+     */
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class);
+    }
 }

@@ -18,7 +18,6 @@ class ClientController extends Controller
     public function __construct(
         protected ClientService $clientService
     ) {}
-
     /**
      * Display a listing of the resource.
      */

@@ -118,33 +118,28 @@
                         </ul>
                     </div>
                 </li>
+
                 <li class="nav-item">
-                    <a class="nav-link menu-link" href="#sidebarApps" data-bs-toggle="collapse" role="button"
-                        aria-expanded="false" aria-controls="sidebarApps">
-                        <i class="mdi mdi-cash-multiple"></i> <span data-key="t-apps">Câmbio</span>
+                    <a class="nav-link menu-link" href="#sidebarWallet" data-bs-toggle="collapse" role="button"
+                        aria-expanded="false" aria-controls="sidebarWallet">
+                        <i class="mdi mdi-cash-multiple"></i> <span>Carteira/Câmbio</span>
                     </a>
-                    <div class="collapse menu-dropdown" id="sidebarApps">
+                    <div class="collapse menu-dropdown" id="sidebarWallet">
                         <ul class="nav nav-sm flex-column">
                             <li class="nav-item">
-                                <a href="#sidebarCalendar" class="nav-link" data-bs-toggle="collapse" role="button"
-                                    aria-expanded="false" aria-controls="sidebarCalendar" data-key="t-calender">
-                                    Calendar
-                                </a>
-                                <div class="collapse menu-dropdown" id="sidebarCalendar">
-                                    <ul class="nav nav-sm flex-column">
-                                        <li class="nav-item">
-                                            <a href="apps-calendar.html" class="nav-link" data-key="t-main-calender">
-                                                Main Calender </a>
-                                        </li>
-                                        <li class="nav-item">
-                                            <a href="apps-calendar-month-grid.html" class="nav-link"
-                                                data-key="t-month-grid"> Month Grid </a>
-                                        </li>
-                                    </ul>
-                                </div>
+                                <a href="{{ route('admin.wallet.index') }}" class="nav-link">Saldo</a>
                             </li>
                             <li class="nav-item">
-                                <a href="apps-chat.html" class="nav-link" data-key="t-chat"> Chat </a>
+                                <a href="{{ route('admin.wallet.transactions') }}" class="nav-link">Extrato</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.wallet.deposit') }}" class="nav-link">Depósito</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.wallet.withdraw') }}" class="nav-link">Saque</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.wallet.exchange') }}" class="nav-link">Conversão</a>
                             </li>
                         </ul>
                     </div>
