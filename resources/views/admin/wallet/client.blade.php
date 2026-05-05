@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Carteira do Cliente')
 @section('content')
-    <div class="page-content">
+    <div class="page-content wallet-compact">
         <div class="container-fluid">
             <div class="row">
                 <div class="col-12">
@@ -97,14 +97,15 @@
                                     Taxa
                                     <i class="ri-question-line text-muted" data-bs-toggle="tooltip"
                                         data-bs-placement="right"
-                                        title="Informe a cotação atual do dólar (USD/BRL). A conversão considera: cotação informada + spread do cliente."></i>
+                                        title="Cotação USD/BRL preenchida automaticamente do Investing.com já somada ao spread do cliente."></i>
+                                    <span id="deposit_fee_status" class="ms-auto small text-muted"></span>
                                 </label>
                                 <input type="number" step="0.0001" min="0.0001" name="fee" id="deposit_fee"
                                     class="form-control" value="4.9311" placeholder="4,9311" required>
                                 <small class="text-muted d-block mt-1">
-                                    Use a cotação USD/BRL do momento (ex.: Investing) e informe apenas o valor do dólar
-                                    base.
-                                    O spread do cliente será somado automaticamente.
+                                    Cotação base buscada do Investing + spread do cliente
+                                    (<strong>{{ $client->spread_points }}</strong> pts = R$
+                                    {{ number_format($client->spread_points * 0.01, 2, ',', '.') }}).
                                     <a href="https://br.investing.com/currencies/usd-brl" target="_blank"
                                         rel="noopener noreferrer">Ver cotação</a>
                                 </small>
@@ -260,6 +261,49 @@
                 document.getElementById('deposit_currency').addEventListener('change', updateDepositPaymentMethod);
                 updateDepositPaymentMethod();
 
+                // Buscar cotação USD/BRL ao abrir o modal Depositar
+                var depositModalEl = document.getElementById('depositModal');
+                var depositFeeInput = document.getElementById('deposit_fee');
+                var depositFeeStatus = document.getElementById('deposit_fee_status');
+                var clientSpread = parseFloat('{{ $client->spread_points }}') || 0;
+                var spreadValue = clientSpread * 0.01;
+
+                function fetchUsdBrlRate() {
+                    if (document.getElementById('deposit_currency').value !== 'BRL') {
+                        return;
+                    }
+                    depositFeeStatus.textContent = 'Buscando cotação...';
+                    depositFeeStatus.className = 'ms-auto small text-muted';
+
+                    fetch('{{ route('admin.wallet.usd-brl-rate') }}', {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                        .then(function (r) { return r.json(); })
+                        .then(function (data) {
+                            if (data && data.success && data.rate) {
+                                var base = parseFloat(data.rate);
+                                var finalRate = base + spreadValue;
+                                depositFeeInput.value = finalRate.toFixed(4);
+                                depositFeeStatus.textContent = 'Base ' + base.toFixed(4) + ' + spread ' + spreadValue.toFixed(2);
+                                depositFeeStatus.className = 'ms-auto small text-success';
+                            } else {
+                                depositFeeStatus.textContent = 'Falha ao obter cotação. Edite manualmente.';
+                                depositFeeStatus.className = 'ms-auto small text-danger';
+                            }
+                        })
+                        .catch(function () {
+                            depositFeeStatus.textContent = 'Erro ao consultar cotação. Edite manualmente.';
+                            depositFeeStatus.className = 'ms-auto small text-danger';
+                        });
+                }
+
+                if (depositModalEl) {
+                    depositModalEl.addEventListener('shown.bs.modal', fetchUsdBrlRate);
+                }
+                document.getElementById('deposit_currency').addEventListener('change', function () {
+                    if (this.value === 'BRL') fetchUsdBrlRate();
+                });
+
                 var selectAll = document.getElementById('entrada_select_all');
                 if (selectAll) {
                     selectAll.addEventListener('change', toggleAllEntradaRows);
@@ -411,6 +455,10 @@
                             @method('PATCH')
                             <input type="hidden" name="client_id" value="{{ $client->id }}">
                             <div id="bulk_rate_controls" class="d-flex align-items-center gap-2 d-none">
+                                <button type="button" class="btn btn-sm btn-success" id="btn-fechar-dolar"
+                                    data-bs-toggle="modal" data-bs-target="#fecharDolarModal">
+                                    Fechar em dólar
+                                </button>
                                 <input type="number" step="0.000001" min="0.000001" name="exchange_rate"
                                     class="form-control form-control-sm" style="width: 140px" value="4.9311"
                                     placeholder="Nova taxa" required>
@@ -547,4 +595,123 @@
         </div>
     </div>
     </div>
+
+    <style>
+        .wallet-compact .table th,
+        .wallet-compact .table td {
+            font-size: 0.85rem !important;
+            padding: 0.18rem 0.35rem !important;
+        }
+
+        .wallet-compact .table td.fw-bold,
+        .wallet-compact .table td.text-success,
+        .wallet-compact .table td.text-danger {
+            text-align: right !important;
+            font-variant-numeric: tabular-nums;
+        }
+    </style>
+    <!-- Modal Fechar em Dólar -->
+    <div class="modal fade" id="fecharDolarModal" tabindex="-1" aria-labelledby="fecharDolarModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="fecharDolarForm" method="POST" action="{{ route('admin.wallet.fechamento-dolar') }}">
+                    @csrf
+                    <input type="hidden" name="client_id" value="{{ $client->id }}">
+                    <input type="hidden" name="exchange_rate" id="fechar_exchange_rate">
+                    <input type="hidden" name="transaction_ids" id="fechar_transaction_ids">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="fecharDolarModalLabel">Fechar em dólar</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="fechar_data" class="form-label">Data</label>
+                            <input type="datetime-local" name="date" id="fechar_data" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="fechar_valor" class="form-label">Valor convertido (USD)</label>
+                            <input type="number" step="0.01" name="amount" id="fechar_valor" class="form-control" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="fechar_descricao" class="form-label">Descrição</label>
+                            <input type="text" name="description" id="fechar_descricao" class="form-control"
+                                value="Fechamento Tx" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">Confirmar Fechamento</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fechar em dólar: preencher modal com dados das linhas selecionadas
+        document.addEventListener('DOMContentLoaded', function () {
+            var fecharBtn = document.getElementById('btn-fechar-dolar');
+            var fecharModal = document.getElementById('fecharDolarModal');
+            var fecharForm = document.getElementById('fecharDolarForm');
+            var fecharData = document.getElementById('fechar_data');
+            var fecharValor = document.getElementById('fechar_valor');
+            var fecharDescricao = document.getElementById('fechar_descricao');
+            var fecharExchangeRate = document.getElementById('fechar_exchange_rate');
+            var fecharTransactionIds = document.getElementById('fechar_transaction_ids');
+
+            if (fecharBtn && fecharModal) {
+                fecharBtn.addEventListener('click', function () {
+                    var checked = Array.from(document.querySelectorAll('.entrada-select-item:checked'));
+                    if (checked.length === 0) {
+                        alert('Selecione pelo menos uma entrada para fechar.');
+                        return;
+                    }
+                    // Pega taxas e valores das linhas selecionadas
+                    var taxas = [];
+                    var valores = [];
+                    var datas = [];
+                    checked.forEach(function (cb) {
+                        var row = cb.closest('tr');
+                        var valor = parseFloat(row.querySelector('.fw-bold.text-success').textContent.replace('.', '').replace(',', '.'));
+                        var taxa = parseFloat(row.querySelector('.js-rate-input').value.replace(',', '.'));
+                        var data = row.querySelector('td:nth-child(3)').textContent;
+                        if (!isNaN(valor) && !isNaN(taxa)) {
+                            valores.push({ valor: valor, taxa: taxa });
+                            taxas.push(taxa);
+                        }
+                        datas.push(data);
+                    });
+                    // Agrupa por taxa
+                    var taxaUnica = taxas.length ? taxas[0] : 0;
+                    var mesmaTaxa = taxas.every(function (t) { return t === taxaUnica; });
+                    if (!mesmaTaxa) {
+                        alert('Selecione apenas entradas com a mesma taxa para fechar em dólar.');
+                        return;
+                    }
+                    var totalUSD = valores.reduce(function (acc, v) { return acc + (v.valor / v.taxa); }, 0);
+                    fecharValor.value = totalUSD.toFixed(2);
+                    fecharExchangeRate.value = taxaUnica;
+                    fecharTransactionIds.value = checked.map(function (cb) { return cb.value; }).join(',');
+                    // Data padrão: mais recente
+                    var maxData = null;
+                    checked.forEach(function (cb) {
+                        var row = cb.closest('tr');
+                        var dataStr = row.querySelector('td:nth-child(3)').textContent;
+                        var match = dataStr.match(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})/);
+                        if (match) {
+                            var [_, d, m, y, h, min] = match;
+                            var dt = new Date(`${y}-${m}-${d}T${h}:${min}`);
+                            if (!maxData || dt > maxData) maxData = dt;
+                        }
+                    });
+                    if (maxData) {
+                        fecharData.value = maxData.toISOString().slice(0, 16);
+                    } else {
+                        fecharData.value = '';
+                    }
+                    fecharDescricao.value = 'Fechamento Tx (' + taxaUnica + ')';
+                });
+            }
+        });
+    </script>
 @endsection

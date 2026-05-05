@@ -12,6 +12,8 @@ use App\Models\Transaction;
 use App\Models\TransactionRateChangeLog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
 
 
@@ -100,6 +102,49 @@ class WalletController extends Controller
             ]);
             return response()->json(['message' => 'Depósito realizado com sucesso.']);
         });
+    }
+
+    /**
+     * Busca a cotação atual USD/BRL no investing.com e cacheia por 60s.
+     */
+    public function fetchUsdBrlRate()
+    {
+        try {
+            $rate = Cache::remember('usd_brl_rate', 15, function () {
+                $response = Http::withHeaders([
+                    'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+                    'Accept' => 'text/html,application/xhtml+xml',
+                    'Accept-Language' => 'pt-BR,pt;q=0.9,en;q=0.8',
+                ])->timeout(10)->get('https://br.investing.com/currencies/usd-brl');
+
+                if (!$response->ok()) {
+                    return null;
+                }
+
+                $html = $response->body();
+
+                // Procura: data-test="instrument-price-last">4,9208<
+                if (preg_match('/data-test="instrument-price-last"[^>]*>([\d.,]+)</', $html, $m)) {
+                    $raw = str_replace('.', '', $m[1]);   // remove separador de milhar
+                    $raw = str_replace(',', '.', $raw);   // vírgula -> ponto
+                    return (float) $raw;
+                }
+
+                return null;
+            });
+
+            if ($rate === null) {
+                return response()->json(['success' => false, 'message' => 'Não foi possível obter a cotação.'], 502);
+            }
+
+            return response()->json([
+                'success' => true,
+                'rate' => $rate,
+                'source' => 'br.investing.com',
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => 'Erro ao consultar cotação.'], 500);
+        }
     }
 
     /**
@@ -247,5 +292,41 @@ class WalletController extends Controller
             ]);
             return response()->json(['message' => 'Conversão realizada com sucesso.']);
         });
+    }
+
+    /**
+     * Fechamento em dólar: cria uma entrada consolidada USD a partir de várias BRL.
+     */
+    public function fechamentoDolar(Request $request)
+    {
+        $validated = $request->validate([
+            'client_id' => 'required|exists:clients,id',
+            'exchange_rate' => 'required|numeric|min:0.000001',
+            'transaction_ids' => 'required|string',
+            'amount' => 'required|numeric|min:0.01',
+            'date' => 'required|date',
+            'description' => 'required|string|max:255',
+        ]);
+
+        $ids = array_filter(explode(',', $validated['transaction_ids']));
+        if (empty($ids)) {
+            return back()->with('error', 'Selecione ao menos uma transação para fechar.');
+        }
+
+        // Opcional: marcar as transações BRL como "fechadas" (status)
+        \App\Models\Transaction::whereIn('id', $ids)->update(['status' => 'fechado']);
+
+        // Cria a entrada consolidada em USD
+        $tx = \App\Models\Transaction::create([
+            'client_id' => $validated['client_id'],
+            'type' => 'deposit',
+            'currency' => 'USD',
+            'amount' => $validated['amount'],
+            'exchange_rate' => $validated['exchange_rate'],
+            'description' => $validated['description'],
+            'created_at' => $validated['date'],
+        ]);
+
+        return redirect()->back()->with('success', 'Fechamento em dólar realizado com sucesso!');
     }
 }

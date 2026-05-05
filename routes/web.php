@@ -33,6 +33,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/client/{client}', [\App\Http\Controllers\WalletController::class, 'clientWallet'])->name('client');
         Route::patch('/transactions/{transaction}/rate', [\App\Http\Controllers\WalletController::class, 'updateDepositRate'])->name('update-rate');
         Route::patch('/transactions/rate/bulk', [\App\Http\Controllers\WalletController::class, 'updateDepositRateBulk'])->name('update-rate-bulk');
+        Route::post('/fechamento-dolar', [\App\Http\Controllers\WalletController::class, 'fechamentoDolar'])->name('fechamento-dolar');
+        Route::get('/usd-brl-rate', [\App\Http\Controllers\WalletController::class, 'fetchUsdBrlRate'])->name('usd-brl-rate');
         Route::get('/transactions', [\App\Http\Controllers\WalletController::class, 'transactions'])->name('transactions');
         Route::get('/deposit', function() { return view('admin.wallet.deposit'); })->name('deposit');
         Route::post('/deposit', [\App\Http\Controllers\WalletController::class, 'deposit']);
