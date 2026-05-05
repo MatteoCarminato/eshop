@@ -313,10 +313,10 @@ class WalletController extends Controller
             return back()->with('error', 'Selecione ao menos uma transação para fechar.');
         }
 
-        // Opcional: marcar as transações BRL como "fechadas" (status)
-        \App\Models\Transaction::whereIn('id', $ids)->update(['status' => 'fechado']);
+        // Marca as transações BRL como "finalizado"
+        \App\Models\Transaction::whereIn('id', $ids)->update(['status' => 'finalizado']);
 
-        // Cria a entrada consolidada em USD
+        // Cria a entrada consolidada em USD com status finalizado
         $tx = \App\Models\Transaction::create([
             'client_id' => $validated['client_id'],
             'type' => 'deposit',
@@ -324,6 +324,7 @@ class WalletController extends Controller
             'amount' => $validated['amount'],
             'exchange_rate' => $validated['exchange_rate'],
             'description' => $validated['description'],
+            'status' => 'finalizado',
             'created_at' => $validated['date'],
         ]);
 

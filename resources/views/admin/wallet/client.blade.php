@@ -198,7 +198,10 @@
                 var master = document.getElementById('entrada_select_all');
                 var items = document.querySelectorAll('.entrada-select-item');
                 items.forEach(function (item) {
-                    item.checked = master.checked;
+                    // Só marca se a linha não estiver finalizada
+                    if (!item.closest('tr').classList.contains('table-light')) {
+                        item.checked = master.checked;
+                    }
                 });
                 updateBulkRateControlsVisibility();
             }
@@ -214,6 +217,11 @@
             }
 
             function saveSingleRate(rateInput) {
+                // Impede salvar se o input está desabilitado (linha finalizada)
+                if (rateInput.disabled) {
+                    return;
+                }
+
                 var row = rateInput.closest('tr');
                 var url = rateInput.getAttribute('data-url');
                 var rateValue = rateInput.value;
@@ -310,7 +318,14 @@
                 }
 
                 document.querySelectorAll('.entrada-select-item').forEach(function (item) {
-                    item.addEventListener('change', updateBulkRateControlsVisibility);
+                    item.addEventListener('change', function (e) {
+                        // Impede seleção de linhas finalizadas
+                        if (this.closest('tr').classList.contains('table-light')) {
+                            this.checked = false;
+                            return;
+                        }
+                        updateBulkRateControlsVisibility();
+                    });
                 });
 
                 updateBulkRateControlsVisibility();
@@ -491,12 +506,27 @@
                                             } elseif ($taxa && $taxa > 0) {
                                                 $valorConvertido = $tx->amount / $taxa;
                                             }
+
+                                            // Determina a classe CSS baseada no status
+                                            $rowClass = '';
+                                            if ($tx->status === 'ambos_abertos') {
+                                                $rowClass = 'table-warning'; // Amarelo
+                                            } elseif ($tx->status === 'vendido') {
+                                                $rowClass = 'table-success'; // Verde
+                                            } elseif ($tx->status === 'comprado') {
+                                                $rowClass = 'table-danger'; // Vermelho
+                                            } elseif ($tx->status === 'fechado') {
+                                                $rowClass = 'table-light'; // Branco
+                                            }
                                         @endphp
-                                        <tr>
-                                            <td>
+                                        <tr class="{{ $rowClass }}">
+                                            @if($tx->status !== 'fechado')<td>
                                                 <input type="checkbox" class="entrada-select-item" form="bulk_rate_form"
                                                     name="transaction_ids[]" value="{{ $tx->id }}">
                                             </td>
+                                            @else
+                                            <td></td>
+                                            @endif
                                             <td>{{ $tx->created_at->format('d/m/Y H:i') }}</td>
                                             <td class="fw-bold text-success">{{ number_format($tx->amount, 2, ',', '.') }}</td>
                                             <td>
@@ -506,7 +536,8 @@
                                                         class="form-control form-control-sm js-rate-input"
                                                         data-url="{{ route('admin.wallet.update-rate', $tx) }}"
                                                         data-original-value="{{ $taxa ? number_format($taxa, 6, '.', '') : '' }}"
-                                                        style="min-width: 120px" required>
+                                                        style="min-width: 120px" required
+                                                        @if($tx->status === 'fechado') disabled readonly @endif>
                                                 </div>
                                             </td>
                                             <td>{{ $valorConvertido !== null ? number_format($valorConvertido, 2, ',', '.') : '-' }}
@@ -608,6 +639,55 @@
         .wallet-compact .table td.text-danger {
             text-align: right !important;
             font-variant-numeric: tabular-nums;
+        }
+
+        /* Cores de status */
+        .table-warning {
+            background-color: #fff3cd !important;
+        }
+
+        .table-warning:hover {
+            background-color: #ffe69c !important;
+        }
+
+        .table-success {
+            background-color: #d1f2eb !important;
+        }
+
+        .table-success:hover {
+            background-color: #b6e9dd !important;
+        }
+
+        .table-danger {
+            background-color: #f8d7da !important;
+        }
+
+        .table-danger:hover {
+            background-color: #f5c6cb !important;
+        }
+
+        .table-light {
+            background-color: #f8f9fa !important;
+            opacity: 0.7;
+        }
+
+        /* Input desabilitado em linha finalizada */
+        .table-light input:disabled {
+            background-color: #e9ecef !important;
+            color: #6c757d !important;
+            cursor: not-allowed !important;
+            opacity: 0.5;
+            pointer-events: none !important;
+        }
+
+        .table-light input:disabled::placeholder {
+            color: #adb5bd !important;
+        }
+
+        .table-light input[type="checkbox"]:disabled {
+            cursor: not-allowed !important;
+            opacity: 0.3;
+            pointer-events: none !important;
         }
     </style>
     <!-- Modal Fechar em Dólar -->
