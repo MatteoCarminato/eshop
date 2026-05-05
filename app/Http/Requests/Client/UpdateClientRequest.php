@@ -15,6 +15,15 @@ class UpdateClientRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'email'              => $this->email ?: null,
+            'phone'              => $this->phone ?: null,
+            'is_exchange_client' => filter_var($this->is_exchange_client, FILTER_VALIDATE_BOOLEAN),
+        ]);
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -25,10 +34,13 @@ class UpdateClientRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'email' => [
+                'nullable',
                 'email',
-                Rule::unique('clients', 'email')->ignore($this->client),
+                Rule::unique('clients', 'email')->ignore($this->client)->whereNotNull('email'),
             ],
             'phone' => 'nullable|string|max:20',
+            'spread_points' => 'nullable|integer|min:0|max:9999',
+            'is_exchange_client' => 'nullable|boolean',
         ];
     }
 

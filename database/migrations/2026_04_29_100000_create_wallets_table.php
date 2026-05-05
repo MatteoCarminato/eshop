@@ -9,7 +9,7 @@ return new class extends Migration {
         Schema::create('wallets', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('client_id');
-            $table->string('currency', 10); // BRL, USD, USDT
+            $table->string('currency', 10); // BRL, USD
             $table->decimal('balance', 15, 5)->default(0);
             $table->timestamps();
 

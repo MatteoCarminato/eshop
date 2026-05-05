@@ -132,6 +132,53 @@
                                         </div>
                                     </div>
                                     <!--end col-->
+
+                                    <!-- Pontos de Spread -->
+                                    <div class="col-xxl-6 col-md-6">
+                                        <div>
+                                            <label for="spread_points" class="form-label">
+                                                Pontos de Spread <span class="text-muted fs-12">(centavos acima do
+                                                    dólar)</span>
+                                            </label>
+                                            <div class="form-icon">
+                                                <input type="number" min="0" max="9999"
+                                                    class="form-control form-control-icon @error('spread_points') is-invalid @enderror"
+                                                    id="spread_points" name="spread_points"
+                                                    value="{{ old('spread_points', 0) }}"
+                                                    placeholder="Ex: 10 = R$ 0,10 acima da taxa">
+                                                <i class="ri-arrow-up-circle-line"></i>
+                                            </div>
+                                            @error('spread_points')
+                                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                            @enderror
+                                            <div class="form-text">
+                                                <i class="ri-information-line"></i>
+                                                Cada ponto = R$ 0,01 somado à taxa de câmbio do dia.
+                                                Ex: 10 pontos + taxa R$ 5,00 = R$ 5,10 para este cliente.
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!--end col-->
+
+                                    <!-- Cliente de Câmbio -->
+                                    <div class="col-12">
+                                        <div class="d-flex align-items-center gap-3 p-3 rounded border bg-light">
+                                            <div class="form-check form-switch mb-0">
+                                                <input type="hidden" name="is_exchange_client" value="0">
+                                                <input class="form-check-input" type="checkbox" role="switch"
+                                                    id="is_exchange_client" name="is_exchange_client" value="1"
+                                                    {{ old('is_exchange_client') ? 'checked' : '' }}>
+                                                <label class="form-check-label fw-semibold" for="is_exchange_client">
+                                                    Cliente de Câmbio
+                                                </label>
+                                            </div>
+                                            <small class="text-muted">
+                                                <i class="ri-information-line"></i>
+                                                Ative para habilitar operações de câmbio (carteira, depósito, conversão) para este cliente.
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <!--end col-->
                                 </div>
                                 <!--end row-->
 

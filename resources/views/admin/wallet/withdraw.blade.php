@@ -12,9 +12,8 @@
             <div class="mb-3">
                 <label for="currency" class="form-label">Moeda</label>
                 <select name="currency" id="currency" class="form-select" required>
-                    <option value="BRL">BRL</option>
-                    <option value="USD">USD</option>
-                    <option value="USDT">USDT</option>
+                    <option value="BRL">Reais (BRL)</option>
+                    <option value="USD">Dólar (USD)</option>
                 </select>
             </div>
             <div class="mb-3">

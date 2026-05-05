@@ -31,6 +31,8 @@ Route::middleware('auth')->group(function () {
     // Carteira/Admin Wallet
     Route::prefix('admin/wallet')->name('admin.wallet.')->group(function () {
         Route::get('/client/{client}', [\App\Http\Controllers\WalletController::class, 'clientWallet'])->name('client');
+        Route::patch('/transactions/{transaction}/rate', [\App\Http\Controllers\WalletController::class, 'updateDepositRate'])->name('update-rate');
+        Route::patch('/transactions/rate/bulk', [\App\Http\Controllers\WalletController::class, 'updateDepositRateBulk'])->name('update-rate-bulk');
         Route::get('/transactions', [\App\Http\Controllers\WalletController::class, 'transactions'])->name('transactions');
         Route::get('/deposit', function() { return view('admin.wallet.deposit'); })->name('deposit');
         Route::post('/deposit', [\App\Http\Controllers\WalletController::class, 'deposit']);

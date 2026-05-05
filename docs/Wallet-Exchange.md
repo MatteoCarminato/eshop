@@ -7,8 +7,7 @@ Construir um sistema simples e robusto para:
 * Receber valores em:
 
   * BRL (PIX / dinheiro)
-  * USD (dinheiro)
-  * USDT (cripto)
+    * USD (efetivo)
 * Controlar saldo por cliente (carteira)
 * Registrar histórico completo (auditoria)
 * Realizar conversões entre moedas
@@ -35,8 +34,8 @@ Construir um sistema simples e robusto para:
 
 | Tipo           | Exemplo           |
 | -------------- | ----------------- |
-| Currency       | BRL, USD, USDT    |
-| Payment Method | pix, cash, crypto |
+| Currency       | BRL, USD          |
+| Payment Method | pix, dinheiro, efetivo |
 
 ---
 
@@ -47,7 +46,7 @@ Construir um sistema simples e robusto para:
 ```sql
 id
 client_id
-currency (BRL, USD, USDT)
+currency (BRL, USD)
 balance DECIMAL(15,2)
 created_at
 updated_at
@@ -68,10 +67,10 @@ client_id
 
 type ENUM('deposit', 'withdraw', 'exchange_in', 'exchange_out')
 
-currency (BRL, USD, USDT)
+currency (BRL, USD)
 amount DECIMAL(15,2)
 
-payment_method (pix, cash, crypto)
+payment_method (pix, dinheiro, efetivo)
 
 # Para câmbio
 converted_currency NULL
@@ -130,14 +129,14 @@ wallet BRL += 1000
 
 ---
 
-## 🪙 3. Entrada em USDT
+## 💵 3. Entrada em dólar em efetivo
 
 ```json
 {
   "type": "deposit",
-  "currency": "USDT",
+    "currency": "USD",
   "amount": 50,
-  "payment_method": "crypto"
+    "payment_method": "efetivo"
 }
 ```
 

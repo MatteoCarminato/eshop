@@ -20,6 +20,8 @@ class Client extends Model
         'name',
         'email',
         'phone',
+        'spread_points',
+        'is_exchange_client',
     ];
 
     /**
@@ -31,6 +33,8 @@ class Client extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
+        'spread_points' => 'integer',
+        'is_exchange_client' => 'boolean',
     ];
 
     /**

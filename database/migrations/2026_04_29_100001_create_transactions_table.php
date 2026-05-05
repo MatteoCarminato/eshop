@@ -10,7 +10,7 @@ return new class extends Migration {
             $table->id();
             $table->unsignedBigInteger('client_id');
             $table->enum('type', ['deposit', 'withdraw', 'exchange_in', 'exchange_out']);
-            $table->string('currency', 10); // BRL, USD, USDT
+            $table->string('currency', 10); // BRL, USD
             $table->decimal('amount', 15, 5);
             $table->string('payment_method', 20)->nullable(); // pix, cash, crypto
             $table->string('converted_currency', 10)->nullable();

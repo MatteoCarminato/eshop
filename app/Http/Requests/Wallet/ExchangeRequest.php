@@ -15,8 +15,8 @@ class ExchangeRequest extends FormRequest
     {
         return [
             'client_id' => 'required|exists:clients,id',
-            'from_currency' => 'required|in:BRL,USD,USDT',
-            'to_currency' => 'required|in:BRL,USD,USDT|different:from_currency',
+            'from_currency' => 'required|in:BRL,USD',
+            'to_currency' => 'required|in:BRL,USD|different:from_currency',
             'amount' => 'required|numeric|min:0.01',
             'exchange_rate' => 'required|numeric|min:0.0001',
         ];

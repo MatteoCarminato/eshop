@@ -17,6 +17,7 @@ class Transaction extends Model
         'converted_amount',
         'exchange_rate',
         'description',
+        'status',
     ];
 
     /**

@@ -46,6 +46,7 @@
                                             <th>Tipo</th>
                                             <th>Moeda</th>
                                             <th>Valor</th>
+                                            <th>Status</th>
                                             <th>Método</th>
                                             <th>Conversão</th>
                                             <th>Descrição</th>
@@ -60,6 +61,22 @@
                                                 <td class="fw-bold {{ $tx->amount < 0 ? 'text-danger' : 'text-success' }}">
                                                     {{ number_format($tx->amount, 2, ',', '.') }}
                                                 </td>
+                                                <td>
+                                                    @if($tx->type === 'deposit' && $tx->currency === 'BRL')
+                                                        @php
+                                                            $statusMap = [
+                                                                'vendido' => ['label' => 'Vendido', 'class' => 'bg-success'],
+                                                                'ambos_abertos' => ['label' => 'Ambos Abertos', 'class' => 'bg-warning text-dark'],
+                                                                'so_comprado' => ['label' => 'Só Comprado', 'class' => 'bg-danger'],
+                                                                'finalizado' => ['label' => 'Finalizado', 'class' => 'bg-light text-dark border'],
+                                                            ];
+                                                            $status = $statusMap[$tx->status ?? 'ambos_abertos'] ?? $statusMap['ambos_abertos'];
+                                                        @endphp
+                                                        <span class="badge {{ $status['class'] }}">{{ $status['label'] }}</span>
+                                                    @else
+                                                        -
+                                                    @endif
+                                                </td>
                                                 <td>{{ $tx->payment_method ?? '-' }}</td>
                                                 <td>
                                                     @if($tx->exchange_rate)
@@ -73,7 +90,7 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="7" class="text-center">Nenhuma transação encontrada.</td>
+                                                <td colspan="8" class="text-center">Nenhuma transação encontrada.</td>
                                             </tr>
                                         @endforelse
                                     </tbody>
