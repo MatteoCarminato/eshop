@@ -275,7 +275,7 @@
                     depositFeeStatus.textContent = 'Buscando cotação...';
                     depositFeeStatus.className = 'ms-auto small text-muted';
 
-                    fetch('{{ route('admin.wallet.usd-brl-rate') }}', {
+                    fetch('{{ route('admin.wallet.usd-brl-rate', [], false) }}', {
                         headers: { 'X-Requested-With': 'XMLHttpRequest' }
                     })
                         .then(function (r) { return r.json(); })
