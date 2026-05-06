@@ -705,11 +705,41 @@
                             <label for="fechar_data" class="form-label">Data</label>
                             <input type="datetime-local" name="date" id="fechar_data" class="form-control" required>
                         </div>
+
                         <div class="mb-3">
-                            <label for="fechar_valor" class="form-label">Valor convertido (USD)</label>
-                            <input type="number" step="0.01" name="amount" id="fechar_valor" class="form-control" readonly>
+                            <label for="fechar_taxa" class="form-label d-flex justify-content-between">
+                                <span>Taxa de conversão</span>
+                                <small class="text-muted" id="fechar_disponivel"></small>
+                            </label>
+                            <input type="number" step="0.000001" min="0.000001" id="fechar_taxa"
+                                class="form-control" required>
+                            <small class="text-muted">
+                                Esta taxa será gravada em todos os registros BRL consumidos nesta operação
+                                (status <strong>finalizado</strong>).
+                            </small>
                         </div>
-                        <div class="mb-3">
+
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label for="fechar_brl" class="form-label">Valor a converter (R$)</label>
+                                <input type="number" step="0.01" min="0.01" name="amount" id="fechar_brl"
+                                    class="form-control" required>
+                                <small class="text-muted">
+                                    Se for menor que o total selecionado, o registro mais antigo será
+                                    quebrado em dois (parte finalizada + sobra).
+                                </small>
+                            </div>
+                            <div class="col-6">
+                                <label for="fechar_usd" class="form-label">Valor convertido (US$)</label>
+                                <input type="number" step="0.01" min="0.01" id="fechar_usd"
+                                    class="form-control" required>
+                                <small class="text-muted">
+                                    Pode editar — atualiza R$ usando a taxa.
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="mb-3 mt-3">
                             <label for="fechar_descricao" class="form-label">Descrição</label>
                             <input type="text" name="description" id="fechar_descricao" class="form-control"
                                 value="Fechamento Tx" required>
@@ -725,16 +755,72 @@
     </div>
 
     <script>
-        // Fechar em dólar: preencher modal com dados das linhas selecionadas
+        // Fechar em dólar: preencher modal com dados das linhas selecionadas + sincronização BRL/USD/Taxa
         document.addEventListener('DOMContentLoaded', function () {
             var fecharBtn = document.getElementById('btn-fechar-dolar');
             var fecharModal = document.getElementById('fecharDolarModal');
             var fecharForm = document.getElementById('fecharDolarForm');
             var fecharData = document.getElementById('fechar_data');
-            var fecharValor = document.getElementById('fechar_valor');
+            var fecharTaxa = document.getElementById('fechar_taxa');
+            var fecharBrl = document.getElementById('fechar_brl');
+            var fecharUsd = document.getElementById('fechar_usd');
             var fecharDescricao = document.getElementById('fechar_descricao');
             var fecharExchangeRate = document.getElementById('fechar_exchange_rate');
             var fecharTransactionIds = document.getElementById('fechar_transaction_ids');
+            var fecharDisponivel = document.getElementById('fechar_disponivel');
+
+            var totalDisponivelBrl = 0;
+            var syncing = false; // evita loop entre os listeners
+
+            function parseNumber(v) {
+                if (typeof v !== 'string') v = String(v);
+                v = v.replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+                var n = parseFloat(v);
+                return isNaN(n) ? 0 : n;
+            }
+
+            function updateFecharDescricao() {
+                var brl = parseFloat(fecharBrl.value);
+                var taxa = parseFloat(fecharTaxa.value);
+
+                fecharDescricao.value = 'Fechamento Tx (R$ ' +
+                    (brl > 0 ? brl : totalDisponivelBrl).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) +
+                    ' @ ' + (taxa > 0 ? taxa.toFixed(4) : 'N/A') + ')';
+            }
+
+            function recalcFromBrl() {
+                if (syncing) return;
+                var taxa = parseFloat(fecharTaxa.value);
+                var brl = parseFloat(fecharBrl.value);
+                if (taxa > 0 && brl > 0) {
+                    syncing = true;
+                    fecharUsd.value = (brl / taxa).toFixed(2);
+                    syncing = false;
+                }
+                updateFecharDescricao();
+            }
+
+            function recalcFromUsd() {
+                if (syncing) return;
+                var taxa = parseFloat(fecharTaxa.value);
+                var usd = parseFloat(fecharUsd.value);
+                if (taxa > 0 && usd > 0) {
+                    syncing = true;
+                    fecharBrl.value = (usd * taxa).toFixed(2);
+                    syncing = false;
+                }
+                updateFecharDescricao();
+            }
+
+            function onTaxaChange() {
+                // Ao mudar a taxa, recalcula USD a partir do BRL atual.
+                recalcFromBrl();
+                updateFecharDescricao();
+            }
+
+            fecharBrl.addEventListener('input', recalcFromBrl);
+            fecharUsd.addEventListener('input', recalcFromUsd);
+            fecharTaxa.addEventListener('input', onTaxaChange);
 
             if (fecharBtn && fecharModal) {
                 fecharBtn.addEventListener('click', function () {
@@ -743,52 +829,83 @@
                         alert('Selecione pelo menos uma entrada para fechar.');
                         return;
                     }
-                    // Pega taxas e valores das linhas selecionadas
-                    var taxas = [];
-                    var valores = [];
-                    var datas = [];
-                    checked.forEach(function (cb) {
-                        var row = cb.closest('tr');
-                        var valor = parseFloat(row.querySelector('.fw-bold.text-success').textContent.replace('.', '').replace(',', '.'));
-                        var taxa = parseFloat(row.querySelector('.js-rate-input').value.replace(',', '.'));
-                        var data = row.querySelector('td:nth-child(3)').textContent;
-                        if (!isNaN(valor) && !isNaN(taxa)) {
-                            valores.push({ valor: valor, taxa: taxa });
-                            taxas.push(taxa);
-                        }
-                        datas.push(data);
-                    });
-                    // Agrupa por taxa
-                    var taxaUnica = taxas.length ? taxas[0] : 0;
-                    var mesmaTaxa = taxas.every(function (t) { return t === taxaUnica; });
-                    if (!mesmaTaxa) {
-                        alert('Selecione apenas entradas com a mesma taxa para fechar em dólar.');
-                        return;
-                    }
-                    var totalUSD = valores.reduce(function (acc, v) { return acc + (v.valor / v.taxa); }, 0);
-                    fecharValor.value = totalUSD.toFixed(2);
-                    fecharExchangeRate.value = taxaUnica;
-                    fecharTransactionIds.value = checked.map(function (cb) { return cb.value; }).join(',');
-                    // Data padrão: mais recente
+
+                    // Pega taxa do controle de "Aplicar taxa" (acima da tabela), com fallback.
+                    var bulkRateInput = document.querySelector('#bulk_rate_form input[name="exchange_rate"]');
+                    var taxaSugerida = bulkRateInput ? parseFloat(bulkRateInput.value) : 0;
+
+                    var totalBrl = 0;
                     var maxData = null;
+
                     checked.forEach(function (cb) {
                         var row = cb.closest('tr');
-                        var dataStr = row.querySelector('td:nth-child(3)').textContent;
+                        var valorTxt = row.querySelector('.fw-bold.text-success').textContent;
+                        var valor = parseNumber(valorTxt);
+                        totalBrl += valor;
+
+                        // Pega a data (col 2: data agora — checkbox=1, data=2)
+                        var dataStr = row.querySelector('td:nth-child(2)').textContent.trim();
                         var match = dataStr.match(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})/);
                         if (match) {
-                            var [_, d, m, y, h, min] = match;
-                            var dt = new Date(`${y}-${m}-${d}T${h}:${min}`);
+                            var dt = new Date(match[3] + '-' + match[2] + '-' + match[1] + 'T' + match[4] + ':' + match[5]);
                             if (!maxData || dt > maxData) maxData = dt;
                         }
+
+                        // Se nenhuma taxa sugerida ainda, tenta pegar da própria linha.
+                        if (!taxaSugerida || taxaSugerida <= 0) {
+                            var rowRate = parseFloat(row.querySelector('.js-rate-input').value);
+                            if (rowRate > 0) taxaSugerida = rowRate;
+                        }
                     });
+
+                    totalDisponivelBrl = Math.round(totalBrl * 100) / 100;
+                    fecharDisponivel.textContent =
+                        'Disponível: R$ ' + totalDisponivelBrl.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+                    fecharBrl.max = totalDisponivelBrl.toFixed(2);
+                    fecharBrl.value = totalDisponivelBrl.toFixed(2);
+                    fecharTaxa.value = (taxaSugerida && taxaSugerida > 0) ? taxaSugerida : '';
+
+                    recalcFromBrl();
+
+                    fecharTransactionIds.value = checked.map(function (cb) { return cb.value; }).join(',');
+
                     if (maxData) {
-                        fecharData.value = maxData.toISOString().slice(0, 16);
+                        // Ajusta para timezone local antes do toISOString
+                        var tzOffset = maxData.getTimezoneOffset() * 60000;
+                        fecharData.value = new Date(maxData - tzOffset).toISOString().slice(0, 16);
                     } else {
                         fecharData.value = '';
                     }
-                    fecharDescricao.value = 'Fechamento Tx (' + taxaUnica + ')';
+
+                    updateFecharDescricao();
                 });
             }
+
+            fecharForm.addEventListener('submit', function (e) {
+                var taxa = parseFloat(fecharTaxa.value);
+                var brl = parseFloat(fecharBrl.value);
+
+                if (!(taxa > 0)) {
+                    e.preventDefault();
+                    alert('Informe uma taxa válida.');
+                    return;
+                }
+                if (!(brl > 0)) {
+                    e.preventDefault();
+                    alert('Informe o valor em R$ a converter.');
+                    return;
+                }
+                if (totalDisponivelBrl > 0 && brl > totalDisponivelBrl + 0.005) {
+                    e.preventDefault();
+                    alert('O valor em R$ não pode ser maior que o total disponível selecionado (R$ ' +
+                        totalDisponivelBrl.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + ').');
+                    return;
+                }
+
+                // Copia a taxa para o hidden enviado ao backend.
+                fecharExchangeRate.value = taxa;
+            });
         });
     </script>
 @endsection

@@ -302,39 +302,161 @@ class WalletController extends Controller
     }
 
     /**
-     * Fechamento em dólar: cria uma entrada consolidada USD a partir de várias BRL.
+     * Fechamento em dólar: consome BRL (FIFO – do registro mais antigo para o mais novo)
+     * dentro do conjunto de transações selecionadas, podendo "quebrar" um registro
+     * em duas partes (parte finalizada + parte que sobra) via soft-delete do original.
+     *
+     * Entrada esperada:
+     *  - amount        => valor TOTAL em BRL que será convertido nesta operação
+     *  - exchange_rate => taxa usada na conversão (será gravada em todos os registros finalizados)
+     *  - transaction_ids => ids das transações BRL elegíveis (pool da seleção)
      */
     public function fechamentoDolar(Request $request)
     {
         $validated = $request->validate([
-            'client_id' => 'required|exists:clients,id',
-            'exchange_rate' => 'required|numeric|min:0.000001',
-            'transaction_ids' => 'required|string',
-            'amount' => 'required|numeric|min:0.01',
-            'date' => 'required|date',
-            'description' => 'required|string|max:255',
+            'client_id'        => 'required|exists:clients,id',
+            'exchange_rate'    => 'required|numeric|min:0.000001',
+            'transaction_ids'  => 'required|string',
+            'amount'           => 'required|numeric|min:0.01',
+            'date'             => 'required|date',
+            'description'      => 'required|string|max:255',
         ]);
 
-        $ids = array_filter(explode(',', $validated['transaction_ids']));
+        $ids = array_values(array_filter(array_map('intval', explode(',', $validated['transaction_ids']))));
         if (empty($ids)) {
             return back()->with('error', 'Selecione ao menos uma transação para fechar.');
         }
 
-        // Marca as transações BRL como "finalizado"
-        \App\Models\Transaction::whereIn('id', $ids)->update(['status' => 'finalizado']);
+        $newRate   = (float) $validated['exchange_rate'];
+        $remaining = round((float) $validated['amount'], 2);
 
-        // Cria a entrada consolidada em USD com status finalizado
-        $tx = \App\Models\Transaction::create([
-            'client_id' => $validated['client_id'],
-            'type' => 'deposit',
-            'currency' => 'USD',
-            'amount' => $validated['amount'],
-            'exchange_rate' => $validated['exchange_rate'],
-            'description' => $validated['description'],
-            'status' => 'finalizado',
-            'created_at' => $validated['date'],
-        ]);
+        return DB::transaction(function () use ($validated, $ids, $newRate, $remaining) {
+            // Pool elegível: BRL, depósitos positivos, ainda abertos, do cliente, ordenados FIFO.
+            $candidates = Transaction::query()
+                ->whereIn('id', $ids)
+                ->where('client_id', $validated['client_id'])
+                ->where('type', 'deposit')
+                ->where('currency', 'BRL')
+                ->where('amount', '>', 0)
+                ->whereNotIn('status', ['fechado', 'finalizado'])
+                ->orderBy('created_at', 'asc')
+                ->orderBy('id', 'asc')
+                ->lockForUpdate()
+                ->get();
 
-        return redirect()->back()->with('success', 'Fechamento em dólar realizado com sucesso!');
+            $totalDisponivel = round((float) $candidates->sum('amount'), 2);
+
+            if ($remaining > $totalDisponivel + 0.005) {
+                return back()->with('error',
+                    'O valor solicitado (R$ ' . number_format($remaining, 2, ',', '.') .
+                    ') excede o disponível nas transações selecionadas (R$ ' .
+                    number_format($totalDisponivel, 2, ',', '.') . ').');
+            }
+
+            $totalBrlConsumido = 0.0;
+            $totalUsdGerado    = 0.0;
+
+            foreach ($candidates as $tx) {
+                if ($remaining <= 0.005) {
+                    break;
+                }
+
+                $valorTx = round((float) $tx->amount, 2);
+
+                if ($valorTx <= $remaining + 0.005) {
+                    // Consome o registro INTEIRO: marca como finalizado já com a nova taxa.
+                    $convertido = round($valorTx / $newRate, 2);
+
+                    $oldRate = (float) ($tx->exchange_rate ?? 0);
+                    $tx->exchange_rate      = $newRate;
+                    $tx->converted_currency = 'USD';
+                    $tx->converted_amount   = $convertido;
+                    $tx->status             = 'finalizado';
+                    $tx->save();
+
+                    if ($oldRate !== $newRate) {
+                        TransactionRateChangeLog::create([
+                            'transaction_id' => $tx->id,
+                            'client_id'      => $tx->client_id,
+                            'changed_by'     => Auth::id(),
+                            'old_rate'       => $oldRate,
+                            'new_rate'       => $newRate,
+                        ]);
+                    }
+
+                    $totalBrlConsumido += $valorTx;
+                    $totalUsdGerado    += $convertido;
+                    $remaining         -= $valorTx;
+                } else {
+                    // Consumo PARCIAL → split: soft-delete do original + 2 novos registros.
+                    $consumido = round($remaining, 2);
+                    $sobra     = round($valorTx - $consumido, 2);
+
+                    // 1) Parte consumida: finalizada com a nova taxa.
+                    $finalizada = new Transaction([
+                        'parent_transaction_id' => $tx->id,
+                        'client_id'             => $tx->client_id,
+                        'type'                  => $tx->type,
+                        'currency'              => $tx->currency,
+                        'amount'                => $consumido,
+                        'payment_method'        => $tx->payment_method,
+                        'converted_currency'    => 'USD',
+                        'converted_amount'      => round($consumido / $newRate, 2),
+                        'exchange_rate'         => $newRate,
+                        'description'           => $tx->description,
+                        'status'                => 'finalizado',
+                    ]);
+                    $finalizada->created_at = $tx->created_at;
+                    $finalizada->updated_at = now();
+                    $finalizada->save();
+
+                    // 2) Parte restante: preserva os dados originais (data, payment_method, status).
+                    $restante = new Transaction([
+                        'parent_transaction_id' => $tx->id,
+                        'client_id'             => $tx->client_id,
+                        'type'                  => $tx->type,
+                        'currency'              => $tx->currency,
+                        'amount'                => $sobra,
+                        'payment_method'        => $tx->payment_method,
+                        'converted_currency'    => $tx->converted_currency,
+                        'converted_amount'      => ($tx->exchange_rate && $tx->exchange_rate > 0)
+                            ? round($sobra / (float) $tx->exchange_rate, 2)
+                            : null,
+                        'exchange_rate'         => $tx->exchange_rate,
+                        'description'           => $tx->description,
+                        'status'                => $tx->status,
+                    ]);
+                    $restante->created_at = $tx->created_at;
+                    $restante->updated_at = now();
+                    $restante->save();
+
+                    // 3) Soft-delete do registro original.
+                    $tx->delete();
+
+                    $totalBrlConsumido += $consumido;
+                    $totalUsdGerado    += $finalizada->converted_amount;
+                    $remaining          = 0;
+                }
+            }
+
+            // Cria a entrada consolidada em USD (status finalizado).
+            $usdTx = new Transaction([
+                'client_id'     => $validated['client_id'],
+                'type'          => 'deposit',
+                'currency'      => 'USD',
+                'amount'        => round($totalUsdGerado, 2),
+                'exchange_rate' => $newRate,
+                'description'   => $validated['description'],
+                'status'        => 'finalizado',
+            ]);
+            $usdTx->created_at = $validated['date'];
+            $usdTx->updated_at = now();
+            $usdTx->save();
+
+            return redirect()->back()->with('success',
+                'Fechamento em dólar realizado: R$ ' . number_format($totalBrlConsumido, 2, ',', '.') .
+                ' → US$ ' . number_format($totalUsdGerado, 2, ',', '.') .
+                ' (taxa ' . number_format($newRate, 4, ',', '.') . ').');
+        });
     }
 }
