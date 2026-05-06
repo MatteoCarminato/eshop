@@ -198,8 +198,7 @@
                 var master = document.getElementById('entrada_select_all');
                 var items = document.querySelectorAll('.entrada-select-item');
                 items.forEach(function (item) {
-                    // Só marca se a linha não estiver finalizada
-                    if (!item.closest('tr').classList.contains('table-light')) {
+                    if (!item.disabled) {
                         item.checked = master.checked;
                     }
                 });
@@ -319,8 +318,7 @@
 
                 document.querySelectorAll('.entrada-select-item').forEach(function (item) {
                     item.addEventListener('change', function (e) {
-                        // Impede seleção de linhas finalizadas
-                        if (this.closest('tr').classList.contains('table-light')) {
+                        if (this.disabled) {
                             this.checked = false;
                             return;
                         }
@@ -500,6 +498,7 @@
                                         @php
                                             $taxa = $tx->exchange_rate;
                                             $valorConvertido = null;
+                                            $isLocked = in_array($tx->status, ['fechado', 'finalizado'], true);
 
                                             if ($tx->converted_currency === 'USD' && $tx->converted_amount !== null) {
                                                 $valorConvertido = $tx->converted_amount;
@@ -515,18 +514,16 @@
                                                 $rowClass = 'table-success'; // Verde
                                             } elseif ($tx->status === 'comprado') {
                                                 $rowClass = 'table-danger'; // Vermelho
-                                            } elseif ($tx->status === 'fechado') {
+                                            } elseif ($isLocked) {
                                                 $rowClass = 'table-light'; // Branco
                                             }
                                         @endphp
-                                        <tr class="{{ $rowClass }}">
-                                            @if($tx->status !== 'fechado')<td>
+                                        <tr class="{{ $rowClass }}" data-locked="{{ $isLocked ? '1' : '0' }}">
+                                            <td>
                                                 <input type="checkbox" class="entrada-select-item" form="bulk_rate_form"
-                                                    name="transaction_ids[]" value="{{ $tx->id }}">
+                                                    name="transaction_ids[]" value="{{ $tx->id }}"
+                                                    @if($isLocked) disabled @endif>
                                             </td>
-                                            @else
-                                            <td></td>
-                                            @endif
                                             <td>{{ $tx->created_at->format('d/m/Y H:i') }}</td>
                                             <td class="fw-bold text-success">{{ number_format($tx->amount, 2, ',', '.') }}</td>
                                             <td>
@@ -537,7 +534,7 @@
                                                         data-url="{{ route('admin.wallet.update-rate', $tx) }}"
                                                         data-original-value="{{ $taxa ? number_format($taxa, 6, '.', '') : '' }}"
                                                         style="min-width: 120px" required
-                                                        @if($tx->status === 'fechado') disabled readonly @endif>
+                                                        @if($isLocked) disabled readonly @endif>
                                                 </div>
                                             </td>
                                             <td>{{ $valorConvertido !== null ? number_format($valorConvertido, 2, ',', '.') : '-' }}

@@ -160,6 +160,12 @@ class WalletController extends Controller
             return back()->with('error', 'A taxa só pode ser alterada para depósitos de entrada em BRL.');
         }
 
+        if (in_array($transaction->status, ['fechado', 'finalizado'], true)) {
+            return response()->json([
+                'message' => 'A taxa não pode ser alterada em uma transação fechada/finalizada.',
+            ], 422);
+        }
+
         return DB::transaction(function () use ($validated, $transaction) {
             $oldRate = (float) ($transaction->exchange_rate ?? 0);
             $newRate = (float) $validated['exchange_rate'];
@@ -202,6 +208,7 @@ class WalletController extends Controller
                 ->where('type', 'deposit')
                 ->where('currency', 'BRL')
                 ->where('amount', '>', 0)
+                ->whereNotIn('status', ['fechado', 'finalizado'])
                 ->get();
 
             if ($transactions->isEmpty()) {
