@@ -35,12 +35,37 @@ class WalletController extends Controller
      */
     public function index(Request $request)
     {
-        $clientId = $request->get('client_id');
-        $wallets = null;
-        if ($clientId) {
-            $wallets = \App\Models\Wallet::where('client_id', $clientId)->get();
-        }
-        return view('admin.wallet.index', compact('wallets'));
+        $clients = \App\Models\Client::query()
+            ->where('is_exchange_client', true)
+            ->orderBy('name')
+            ->get();
+
+        $clientIds = $clients->pluck('id');
+
+        $walletTotals = \App\Models\Wallet::query()
+            ->whereIn('client_id', $clientIds)
+            ->select('currency', DB::raw('COALESCE(SUM(balance), 0) as total_balance'))
+            ->groupBy('currency')
+            ->pluck('total_balance', 'currency');
+        // dd(\App\Models\Wallet::all()->toArray());
+
+        $totals = [
+            'BRL' => (float) ($walletTotals['BRL'] ?? 0),
+            'USD' => (float) ($walletTotals['USD'] ?? 0),
+        ];
+
+        $walletsByClient = \App\Models\Wallet::query()
+            ->whereIn('client_id', $clientIds)
+            ->get()
+            ->groupBy('client_id')
+            ->map(function ($wallets) {
+                return [
+                    'BRL' => (float) optional($wallets->firstWhere('currency', 'BRL'))->balance,
+                    'USD' => (float) optional($wallets->firstWhere('currency', 'USD'))->balance,
+                ];
+            });
+
+        return view('admin.wallet.index', compact('clients', 'totals', 'walletsByClient'));
     }
 
      /**
@@ -452,6 +477,11 @@ class WalletController extends Controller
             $usdTx->created_at = $validated['date'];
             $usdTx->updated_at = now();
             $usdTx->save();
+
+            // Atualiza saldos reais da carteira no fechamento:
+            // BRL diminui pelo valor convertido e USD aumenta pelo valor gerado.
+            $this->walletService->updateBalance((int) $validated['client_id'], 'BRL', -$totalBrlConsumido);
+            $this->walletService->updateBalance((int) $validated['client_id'], 'USD', $totalUsdGerado);
 
             return redirect()->back()->with('success',
                 'Fechamento em dólar realizado: R$ ' . number_format($totalBrlConsumido, 2, ',', '.') .

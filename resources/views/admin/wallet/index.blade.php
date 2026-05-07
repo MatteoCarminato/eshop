@@ -6,7 +6,7 @@
             <div class="row">
                 <div class="col-12">
                     <div class="page-title-box d-sm-flex align-items-center justify-content-between bg-galaxy-transparent">
-                        <h4 class="mb-sm-0">Carteira do Cliente</h4>
+                        <h4 class="mb-sm-0">Resumo da Carteira</h4>
                         <div class="page-title-right">
                             <ol class="breadcrumb m-0">
                                 <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
@@ -16,54 +16,261 @@
                     </div>
                 </div>
             </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="text-muted text-uppercase mb-2">Saldo total em Reais (BRL)</h6>
+                            <h3 class="mb-0 text-success">R$ {{ number_format($totals['BRL'] ?? 0, 2, ',', '.') }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="text-muted text-uppercase mb-2">Saldo total em Dólar (USD)</h6>
+                            <h3 class="mb-0 text-info">US$ {{ number_format($totals['USD'] ?? 0, 2, ',', '.') }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="row">
                 <div class="col-lg-12">
                     <div class="card">
-                        <div class="card-header border-0">
-                            <form method="GET" action="" class="row g-2 align-items-end">
-                                <div class="col-md-6">
-                                    <label for="client_id" class="form-label">Cliente (ID)</label>
-                                    <input type="text" name="client_id" id="client_id" class="form-control"
-                                        placeholder="ID do cliente" value="{{ request('client_id') }}">
-                                </div>
-                                <div class="col-md-2">
-                                    <button type="submit" class="btn btn-primary w-100">Buscar</button>
-                                </div>
-                            </form>
+                        <div class="card-header border-0 d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                            <h5 class="mb-0">Clientes com módulo de câmbio ativo</h5>
+                            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal"
+                                data-bs-target="#depositGlobalModal">
+                                Adicionar valor
+                            </button>
                         </div>
                         <div class="card-body">
-                            @isset($wallets)
-                                <div class="row">
-                                    @forelse($wallets as $wallet)
-                                        <div class="col-md-4 mb-3">
-                                            <div class="card border shadow-sm">
-                                                <div class="card-body">
-                                                    <h5 class="card-title">{{ $wallet->currency }}</h5>
-                                                    <p class="card-text">Saldo:
-                                                        <strong>{{ number_format($wallet->balance, 2, ',', '.') }}</strong>
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    @empty
-                                        <div class="col-12">
-                                            <div class="alert alert-warning">Nenhuma carteira encontrada para este cliente.
-                                            </div>
-                                        </div>
-                                    @endforelse
-                                </div>
-                                <div class="mt-4">
-                                    <a href="{{ route('admin.wallet.deposit') }}" class="btn btn-success me-2">Depósito</a>
-                                    <a href="{{ route('admin.wallet.withdraw') }}" class="btn btn-danger me-2">Saque</a>
-                                    <a href="{{ route('admin.wallet.exchange') }}" class="btn btn-info">Conversão</a>
-                                    <a href="{{ route('admin.wallet.transactions', ['client_id' => request('client_id')]) }}"
-                                        class="btn btn-secondary float-end">Ver Extrato</a>
-                                </div>
-                            @endisset
+                            <div class="table-responsive">
+                                <table class="table table-striped table-bordered align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Cliente</th>
+                                            <th>E-mail</th>
+                                            <th>Telefone</th>
+                                            <th class="text-end">Saldo BRL</th>
+                                            <th class="text-end">Saldo USD</th>
+                                            <th style="width: 180px">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @forelse($clients as $client)
+                                            @php
+                                                $clientWallets = $walletsByClient[$client->id] ?? ['BRL' => 0, 'USD' => 0];
+                                            @endphp
+                                            <tr>
+                                                <td>{{ $client->name }}</td>
+                                                <td>{{ $client->email ?? '-' }}</td>
+                                                <td>{{ $client->formatted_phone ?? '-' }}</td>
+                                                <td class="text-end fw-semibold text-success">R$
+                                                    {{ number_format($clientWallets['BRL'] ?? 0, 2, ',', '.') }}</td>
+                                                <td class="text-end fw-semibold text-info">US$
+                                                    {{ number_format($clientWallets['USD'] ?? 0, 2, ',', '.') }}</td>
+                                                <td>
+                                                    <a href="{{ route('admin.wallet.client', $client) }}"
+                                                        class="btn btn-sm btn-primary">
+                                                        Acessar carteira
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="6" class="text-center text-muted py-4">
+                                                    Nenhum cliente com módulo de câmbio ativo.
+                                                </td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="depositGlobalModal" tabindex="-1" aria-labelledby="depositGlobalModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="depositGlobalModalLabel">Adicionar valor para cliente</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <form id="depositGlobalForm" method="POST" action="{{ url('admin/wallet/deposit') }}">
+                    @csrf
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="global_client_id" class="form-label">Cliente</label>
+                            <select name="client_id" id="global_client_id" class="form-select" required>
+                                <option value="">Selecione o cliente</option>
+                                @foreach($clients as $client)
+                                    <option value="{{ $client->id }}" data-spread="{{ $client->spread_points }}">
+                                        {{ $client->name }}{{ $client->email ? ' - ' . $client->email : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="global_currency" class="form-label">Moeda</label>
+                            <select name="currency" id="global_currency" class="form-select" required>
+                                <option value="BRL">Reais (BRL)</option>
+                                <option value="USD">Dólar (USD)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="global_amount" class="form-label">Valor</label>
+                            <input type="number" step="0.01" min="0.01" name="amount" id="global_amount"
+                                class="form-control" required>
+                        </div>
+
+                        <div class="mb-3" id="global_fee_group">
+                            <label for="global_fee" class="form-label d-flex align-items-center gap-1">
+                                Taxa
+                                <span id="global_fee_status" class="ms-auto small text-muted"></span>
+                            </label>
+                            <input type="number" step="0.0001" min="0.0001" name="fee" id="global_fee"
+                                class="form-control" value="4.9311" placeholder="4,9311" required>
+                            <small class="text-muted d-block mt-1">
+                                Cotação base + spread do cliente selecionado (<span id="global_spread_label">0</span> pts).
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="global_payment_method" class="form-label">Forma de Pagamento</label>
+                            <select name="payment_method" id="global_payment_method" class="form-select" required>
+                                <option value="pix">Pix</option>
+                                <option value="dinheiro">Dinheiro</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">Adicionar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var form = document.getElementById('depositGlobalForm');
+            var currency = document.getElementById('global_currency');
+            var payment = document.getElementById('global_payment_method');
+            var feeGroup = document.getElementById('global_fee_group');
+            var feeInput = document.getElementById('global_fee');
+            var feeStatus = document.getElementById('global_fee_status');
+            var clientSelect = document.getElementById('global_client_id');
+            var spreadLabel = document.getElementById('global_spread_label');
+
+            function currentSpreadPoints() {
+                var selected = clientSelect.options[clientSelect.selectedIndex];
+                if (!selected) return 0;
+                var spread = parseFloat(selected.getAttribute('data-spread'));
+                return isNaN(spread) ? 0 : spread;
+            }
+
+            function updatePaymentMethod() {
+                payment.innerHTML = '';
+
+                if (currency.value === 'BRL') {
+                    payment.innerHTML += '<option value="pix" selected>Pix</option>';
+                    payment.innerHTML += '<option value="dinheiro">Dinheiro</option>';
+                    feeGroup.style.display = '';
+                    feeInput.disabled = false;
+                    feeInput.required = true;
+                } else {
+                    payment.innerHTML += '<option value="efetivo" selected>Efetivo</option>';
+                    payment.innerHTML += '<option value="usdt">USDT</option>';
+                    feeGroup.style.display = 'none';
+                    feeInput.disabled = true;
+                    feeInput.required = false;
+                }
+            }
+
+            function updateSpreadLabel() {
+                spreadLabel.textContent = currentSpreadPoints();
+            }
+
+            function fetchUsdBrlRate() {
+                if (currency.value !== 'BRL') {
+                    return;
+                }
+
+                feeStatus.textContent = 'Buscando cotação...';
+                feeStatus.className = 'ms-auto small text-muted';
+
+                fetch('{{ route('admin.wallet.usd-brl-rate', [], false) }}', {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (data && data.success && data.rate) {
+                            var base = parseFloat(data.rate);
+                            var spreadValue = currentSpreadPoints() * 0.01;
+                            feeInput.value = (base + spreadValue).toFixed(4);
+                            feeStatus.textContent = 'Base ' + base.toFixed(4) + ' + spread ' + spreadValue.toFixed(2);
+                            feeStatus.className = 'ms-auto small text-success';
+                        } else {
+                            feeStatus.textContent = 'Falha ao obter cotação. Edite manualmente.';
+                            feeStatus.className = 'ms-auto small text-danger';
+                        }
+                    })
+                    .catch(function () {
+                        feeStatus.textContent = 'Erro ao consultar cotação. Edite manualmente.';
+                        feeStatus.className = 'ms-auto small text-danger';
+                    });
+            }
+
+            currency.addEventListener('change', function () {
+                updatePaymentMethod();
+                fetchUsdBrlRate();
+            });
+
+            clientSelect.addEventListener('change', function () {
+                updateSpreadLabel();
+                fetchUsdBrlRate();
+            });
+
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                var formData = new FormData(form);
+                fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': form.querySelector('[name=_token]').value
+                    },
+                    body: formData
+                })
+                    .then(function (response) {
+                        if (response.ok) {
+                            location.reload();
+                            return;
+                        }
+
+                        return response.json().then(function (data) {
+                            alert(data.message || 'Erro ao processar depósito.');
+                        });
+                    })
+                    .catch(function () {
+                        alert('Erro ao processar depósito.');
+                    });
+            });
+
+            updatePaymentMethod();
+            updateSpreadLabel();
+            fetchUsdBrlRate();
+        });
+    </script>
 @endsection

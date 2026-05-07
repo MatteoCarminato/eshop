@@ -19,12 +19,17 @@ class WalletService
     public function updateBalance(int $clientId, string $currency, float $amount): Wallet
     {
         return DB::transaction(function () use ($clientId, $currency, $amount) {
+            $normalizedCurrency = strtoupper(trim($currency));
+
             $wallet = Wallet::firstOrCreate([
                 'client_id' => $clientId,
-                'currency' => $currency,
+                'currency' => $normalizedCurrency,
             ]);
-            $wallet->balance += $amount;
+
+            $currentBalance = (float) ($wallet->balance ?? 0);
+            $wallet->balance = $currentBalance + $amount;
             $wallet->save();
+
             return $wallet;
         });
     }
