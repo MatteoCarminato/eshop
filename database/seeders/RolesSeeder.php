@@ -32,6 +32,8 @@ class RolesSeeder extends Seeder
             'clients.view',
             'wallet.view',
             'wallet.manage',
+            'treasury.view',
+            'treasury.manage',
         ]);
 
         // Vincula o primeiro usuário como administrador, se existir e ainda não tiver cargo.

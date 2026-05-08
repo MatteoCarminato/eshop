@@ -62,6 +62,17 @@ return [
             'group' => 'Câmbio',
             'description' => 'Realizar operações financeiras nas carteiras dos clientes.',
         ],
+
+        'treasury.view' => [
+            'label' => 'Visualizar caixa próprio (USD)',
+            'group' => 'Câmbio',
+            'description' => 'Ver saldo, lotes e vendas do caixa próprio em dólar.',
+        ],
+        'treasury.manage' => [
+            'label' => 'Operar caixa próprio (aportes e vendas)',
+            'group' => 'Câmbio',
+            'description' => 'Aportar USD no caixa e vender USD do caixa para clientes.',
+        ],
     ],
 
 ];

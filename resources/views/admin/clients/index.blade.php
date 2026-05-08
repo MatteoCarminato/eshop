@@ -136,10 +136,6 @@
                                                             class="btn btn-sm btn-warning" title="Editar">
                                                             <i class="ri-pencil-line"></i>
                                                         </a>
-                                                        <a href="{{ route('admin.wallet.client', $client) }}"
-                                                            class="btn btn-sm btn-primary" title="Carteira">
-                                                            <i class="ri-wallet-3-line"></i>
-                                                        </a>
                                                         <button type="button" class="btn btn-sm btn-danger"
                                                             onclick="confirmDelete({{ $client->id }}, '{{ $client->name }}')"
                                                             title="Excluir">

@@ -67,6 +67,18 @@ Route::middleware('auth')->group(function () {
             Route::post('/exchange', [\App\Http\Controllers\WalletController::class, 'exchange'])->name('exchange');
         });
     });
+
+    // Caixa próprio em USD (treasury)
+    Route::prefix('admin/treasury')->name('admin.treasury.')->group(function () {
+        Route::middleware('module:treasury.view')->group(function () {
+            Route::get('/', [\App\Http\Controllers\TreasuryController::class, 'index'])->name('index');
+        });
+        Route::middleware('module:treasury.manage')->group(function () {
+            Route::post('/aport', [\App\Http\Controllers\TreasuryController::class, 'storeAport'])->name('aport');
+            Route::post('/sell', [\App\Http\Controllers\TreasuryController::class, 'sellToClient'])->name('sell');
+            Route::post('/sell-pending', [\App\Http\Controllers\TreasuryController::class, 'sellPending'])->name('sell-pending');
+        });
+    });
 });
 
 

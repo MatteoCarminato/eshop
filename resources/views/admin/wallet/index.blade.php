@@ -55,14 +55,41 @@
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body">
                             <h6 class="text-muted text-uppercase mb-2">Lucro realizado</h6>
-                            <h3 class="mb-0 {{ ($totals['PNL'] ?? 0) >= 0 ? 'text-success' : 'text-danger' }}">
-                                {{ ($totals['PNL'] ?? 0) >= 0 ? '+' : '' }}R$ {{ number_format($totals['PNL'] ?? 0, 2, ',', '.') }}
+                            <h3 class="mb-0 {{ ($totals['PNL_USD'] ?? 0) >= 0 ? 'text-success' : 'text-danger' }}">
+                                {{ ($totals['PNL_USD'] ?? 0) >= 0 ? '+' : '' }}US$ {{ number_format($totals['PNL_USD'] ?? 0, 4, ',', '.') }}
                             </h3>
-                            <small class="text-muted">PnL acumulado dos fechamentos.</small>
+                            <small class="text-muted">
+                                @if($dateFrom || $dateTo)
+                                    Período: {{ $dateFrom ? $dateFrom->format('d/m/Y') : 'início' }} — {{ $dateTo ? $dateTo->format('d/m/Y') : 'hoje' }}
+                                @else
+                                    Acumulado de todos os fechamentos.
+                                @endif
+                            </small>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <form method="GET" class="row g-2 align-items-end mb-3">
+                <div class="col-md-3">
+                    <label class="form-label mb-1">De</label>
+                    <input type="date" name="date_from" class="form-control"
+                        value="{{ request('date_from') }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label mb-1">Até</label>
+                    <input type="date" name="date_to" class="form-control"
+                        value="{{ request('date_to') }}">
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ri-filter-2-line me-1"></i>Filtrar lucro
+                    </button>
+                    @if($dateFrom || $dateTo)
+                        <a href="{{ route('admin.wallet.index') }}" class="btn btn-outline-secondary">Limpar</a>
+                    @endif
+                </div>
+            </form>
 
             <div class="row">
                 <div class="col-lg-12">
@@ -88,7 +115,7 @@
                                             <th class="text-end" title="USD comprado pelo dono ainda não entregue">
                                                 USD pré-comprado
                                             </th>
-                                            <th class="text-end" title="Lucro/prejuízo já realizado nos fechamentos">PnL (R$)</th>
+                                            <th class="text-end" title="Lucro/prejuízo já realizado nos fechamentos">PnL (US$)</th>
                                             <th style="width: 160px">Ações</th>
                                         </tr>
                                     </thead>
@@ -97,10 +124,11 @@
                                             @php
                                                 $clientWallets = $walletsByClient[$client->id] ?? ['BRL' => 0, 'USD' => 0];
                                                 $pp = $prePurchaseByClient[$client->id] ?? [
-                                                    'usd_pre_comprado' => 0, 'brl_em_aberto' => 0, 'pnl_realizado' => 0,
+                                                    'usd_pre_comprado' => 0, 'brl_em_aberto' => 0, 'pnl_realizado_usd' => 0,
                                                 ];
                                                 $brl = (float) ($clientWallets['BRL'] ?? 0);
                                                 $usd = (float) ($clientWallets['USD'] ?? 0);
+                                                $ppPnlUsd = (float) ($pnlByClient[$client->id] ?? 0);
                                             @endphp
                                             <tr>
                                                 <td class="fw-medium">
@@ -137,9 +165,9 @@
                                                 <td class="text-end {{ $pp['usd_pre_comprado'] > 0 ? 'fw-semibold' : 'text-muted' }}">
                                                     US$ {{ number_format($pp['usd_pre_comprado'], 2, ',', '.') }}
                                                 </td>
-                                                <td class="text-end {{ $pp['pnl_realizado'] >= 0 ? 'text-success' : 'text-danger' }}">
-                                                    {{ $pp['pnl_realizado'] >= 0 ? '+' : '' }}R$
-                                                    {{ number_format($pp['pnl_realizado'], 2, ',', '.') }}
+                                                <td class="text-end {{ $ppPnlUsd >= 0 ? 'text-success' : 'text-danger' }}">
+                                                    {{ $ppPnlUsd >= 0 ? '+' : '' }}US$
+                                                    {{ number_format($ppPnlUsd, 4, ',', '.') }}
                                                 </td>
                                                 <td>
                                                     <a href="{{ route('admin.wallet.client', $client) }}"

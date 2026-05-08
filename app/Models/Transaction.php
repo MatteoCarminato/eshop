@@ -20,7 +20,9 @@ class Transaction extends Model
         'converted_currency',
         'converted_amount',
         'exchange_rate',
+        'realized_pnl_usd',
         'realized_pnl_brl',
+        'treasury_sale_id',
         'description',
         'status',
     ];

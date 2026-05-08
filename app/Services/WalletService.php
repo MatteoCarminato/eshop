@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Transaction;
+use App\Models\TreasuryLot;
 use App\Models\Wallet;
 use App\Models\WalletPrePurchase;
 use Illuminate\Support\Facades\Auth;
@@ -36,7 +37,7 @@ class WalletService
      * Resumo das pré-compras em aberto para um cliente.
      * - usd_pre_comprado: total de USD ainda não entregue ao cliente.
      * - brl_em_aberto: total de R$ que o dono "deve" ao cliente em aberto.
-     * - pnl_realizado: PnL acumulado já liquidado (lotes parciais ou fechados).
+     * - pnl_realizado_usd: PnL acumulado já liquidado (em USD — é o ganho efetivo do dono).
      * - taxa_media: taxa média ponderada das pré-compras em aberto.
      */
     public function prePurchaseSummary(int $clientId): array
@@ -48,18 +49,18 @@ class WalletService
 
         $usd = (float) $rows->sum('usd_remaining');
         $brl = (float) $rows->sum('brl_remaining');
-        $pnl = (float) WalletPrePurchase::query()
+        $pnlUsd = (float) WalletPrePurchase::query()
             ->where('client_id', $clientId)
-            ->sum('realized_pnl_brl');
+            ->sum('realized_pnl_usd');
 
         $taxaMedia = $usd > 0 ? round($brl / $usd, 6) : null;
 
         return [
-            'usd_pre_comprado' => round($usd, 2),
-            'brl_em_aberto'    => round($brl, 2),
-            'pnl_realizado'    => round($pnl, 2),
-            'taxa_media'       => $taxaMedia,
-            'has_open'         => $rows->isNotEmpty(),
+            'usd_pre_comprado'  => round($usd, 2),
+            'brl_em_aberto'     => round($brl, 2),
+            'pnl_realizado_usd' => round($pnlUsd, 4),
+            'taxa_media'        => $taxaMedia,
+            'has_open'          => $rows->isNotEmpty(),
         ];
     }
 
@@ -88,7 +89,8 @@ class WalletService
         int $clientId,
         float $brlAmount,
         float $rate,
-        ?string $notes = null
+        ?string $notes = null,
+        ?array $transactionIds = null
     ): array {
         if ($rate <= 0) {
             throw new \InvalidArgumentException('Taxa inválida.');
@@ -97,10 +99,17 @@ class WalletService
             throw new \InvalidArgumentException('Valor em R$ inválido.');
         }
 
-        return DB::transaction(function () use ($clientId, $brlAmount, $rate, $notes) {
-            $deposits = $this->openBrlDepositsQuery($clientId)
-                ->lockForUpdate()
-                ->get();
+        return DB::transaction(function () use ($clientId, $brlAmount, $rate, $notes, $transactionIds) {
+            $query = $this->openBrlDepositsQuery($clientId);
+
+            // Se o front passou IDs selecionados, restringe o pool somente a esses depósitos.
+            // Mantém a ordem FIFO entre os selecionados (consumir o mais antigo primeiro
+            // ainda é desejável para alinhar a história do cliente).
+            if (is_array($transactionIds) && count($transactionIds) > 0) {
+                $query->whereIn('id', $transactionIds);
+            }
+
+            $deposits = $query->lockForUpdate()->get();
 
             $disponivelTotal = 0.0;
             foreach ($deposits as $tx) {
@@ -142,9 +151,27 @@ class WalletService
                     'exchange_rate'         => $rate,
                     'brl_remaining'         => $consumir,
                     'usd_remaining'         => $usdLote,
-                    'realized_pnl_brl'      => 0,
+                    'realized_pnl_usd'      => 0,
                     'status'                => 'open',
                     'notes'                 => $notes,
+                ]);
+
+                // Espelha o USD comprado no caixa próprio (origem = pré-compra do cliente).
+                // Assim o caixa já reflete o USD que está "em estoque" mesmo que ainda não
+                // tenha sido entregue ao cliente.
+                TreasuryLot::create([
+                    'created_by'       => Auth::id(),
+                    'source'           => 'pre_purchase',
+                    'client_id'        => $clientId,
+                    'pre_purchase_id'  => $lote->id,
+                    'usd_amount'       => $usdLote,
+                    'cost_rate'        => $rate,
+                    'brl_cost'         => $consumir,
+                    'usd_remaining'    => $usdLote,
+                    'realized_pnl_brl' => 0,
+                    'status'           => 'open',
+                    'purchased_at'     => now(),
+                    'notes'            => $notes,
                 ]);
 
                 $tx->brl_pre_purchased = round((float) $tx->brl_pre_purchased + $consumir, 2);
@@ -160,21 +187,28 @@ class WalletService
 
     /**
      * Liquida (consome) lotes de pré-compra de um depósito BRL específico durante um fechamento real.
-     * Calcula PnL em R$ usando a taxa do cliente (cliente_rate). Atualiza brl_pre_purchased do depósito.
+     * Calcula PnL em USD (= ganho efetivo do dono em dólares).
      *
-     * @return array{usd_consumido_lotes: float, brl_consumido_lotes: float, pnl_brl: float}
+     *   Exemplo: lote comprado a 5,00 (10 R$ → 2 USD). Cliente fecha a 5,20:
+     *     usd_que_o_cliente_levaria = 10 / 5,20 = 1,9231
+     *     usd_originalmente_comprado = 10 / 5,00 = 2,0000
+     *     pnl_usd = 2,0000 - 1,9231 = 0,0769 (entra no caixa do dono)
+     *
+     *   Equivalente fechado: pnl_usd = brl_lote * (1/rate_lote - 1/cliente_rate)
+     *
+     * @return array{usd_consumido_lotes: float, brl_consumido_lotes: float, pnl_usd: float}
      */
     public function consumePrePurchasesOnClose(Transaction $deposit, float $brlBeingConsumed, float $clienteRate): array
     {
         $brlPre = (float) $deposit->brl_pre_purchased;
         if ($brlPre <= 0.005 || $brlBeingConsumed <= 0.005) {
-            return ['usd_consumido_lotes' => 0.0, 'brl_consumido_lotes' => 0.0, 'pnl_brl' => 0.0];
+            return ['usd_consumido_lotes' => 0.0, 'brl_consumido_lotes' => 0.0, 'pnl_usd' => 0.0];
         }
 
         // Quanto da operação atual atinge a parte pré-comprada do depósito.
         $brlParaLotes = round(min($brlBeingConsumed, $brlPre), 2);
         if ($brlParaLotes <= 0.005) {
-            return ['usd_consumido_lotes' => 0.0, 'brl_consumido_lotes' => 0.0, 'pnl_brl' => 0.0];
+            return ['usd_consumido_lotes' => 0.0, 'brl_consumido_lotes' => 0.0, 'pnl_usd' => 0.0];
         }
 
         $lotes = WalletPrePurchase::query()
@@ -187,7 +221,7 @@ class WalletService
 
         $restante = $brlParaLotes;
         $usdConsumidoTotal = 0.0;
-        $pnlTotal = 0.0;
+        $pnlUsdTotal = 0.0;
 
         foreach ($lotes as $lote) {
             if ($restante <= 0.005) {
@@ -203,16 +237,14 @@ class WalletService
             $consumir = round($consumir, 2);
 
             $rateLote = (float) $lote->exchange_rate;
-            $usdParteLote = $rateLote > 0 ? round($consumir / $rateLote, 2) : 0.0;
+            $usdParteLote = $rateLote > 0 ? ($consumir / $rateLote) : 0.0;
 
-            // PnL_R$ = brl_lote × (cliente_rate − rate_lote) / rate_lote
-            $pnl = $rateLote > 0
-                ? round($consumir * ($clienteRate - $rateLote) / $rateLote, 2)
-                : 0.0;
+            // PnL agora é calculado APENAS na venda do caixa (TreasuryService::sellPendingTransactions),
+            // pois o fechamento em dólar não entrega o USD ao cliente — ele fica em "aguardando_venda".
+            $pnlUsd = 0.0;
 
             $lote->brl_remaining = round((float) $lote->brl_remaining - $consumir, 2);
-            $lote->usd_remaining = round((float) $lote->usd_remaining - $usdParteLote, 2);
-            $lote->realized_pnl_brl = round((float) $lote->realized_pnl_brl + $pnl, 2);
+            $lote->usd_remaining = round((float) $lote->usd_remaining - $usdParteLote, 4);
 
             if ($lote->brl_remaining <= 0.005) {
                 $lote->brl_remaining = 0;
@@ -224,7 +256,7 @@ class WalletService
             $lote->save();
 
             $usdConsumidoTotal += $usdParteLote;
-            $pnlTotal += $pnl;
+            $pnlUsdTotal += $pnlUsd;
             $restante = round($restante - $consumir, 2);
         }
 
@@ -233,9 +265,9 @@ class WalletService
         $deposit->save();
 
         return [
-            'usd_consumido_lotes' => round($usdConsumidoTotal, 2),
+            'usd_consumido_lotes' => round($usdConsumidoTotal, 4),
             'brl_consumido_lotes' => $brlParaLotes,
-            'pnl_brl'             => round($pnlTotal, 2),
+            'pnl_usd'             => round($pnlUsdTotal, 8),
         ];
     }
 

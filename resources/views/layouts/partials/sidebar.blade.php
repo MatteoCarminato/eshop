@@ -175,15 +175,13 @@
                             <li class="nav-item">
                                 <a href="{{ route('admin.wallet.index') }}" class="nav-link">Saldo</a>
                             </li>
-                            <li class="nav-item">
-                                <a href="{{ route('admin.wallet.transactions') }}" class="nav-link">Extrato</a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ route('admin.wallet.deposit') }}" class="nav-link">Depósito</a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ route('admin.wallet.withdraw') }}" class="nav-link">Saque</a>
-                            </li>
+                            @auth
+                                @if(auth()->user()->hasModule('treasury.view'))
+                                    <li class="nav-item">
+                                        <a href="{{ route('admin.treasury.index') }}" class="nav-link">Caixa USD</a>
+                                    </li>
+                                @endif
+                            @endauth
                         </ul>
                     </div>
                 </li>

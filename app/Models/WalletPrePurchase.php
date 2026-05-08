@@ -19,7 +19,7 @@ class WalletPrePurchase extends Model
         'exchange_rate',
         'brl_remaining',
         'usd_remaining',
-        'realized_pnl_brl',
+        'realized_pnl_usd',
         'status',
         'notes',
     ];
@@ -30,7 +30,7 @@ class WalletPrePurchase extends Model
         'exchange_rate' => 'float',
         'brl_remaining' => 'float',
         'usd_remaining' => 'float',
-        'realized_pnl_brl' => 'float',
+        'realized_pnl_usd' => 'float',
     ];
 
     public function client(): BelongsTo

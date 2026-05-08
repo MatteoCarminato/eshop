@@ -1,0 +1,364 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Transaction;
+use App\Models\TreasuryLot;
+use App\Models\TreasurySale;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * Caixa próprio do dono em USD.
+ *
+ *  Origens dos lotes (treasury_lots.source):
+ *   - 'owner'        → o dono aportou USD do próprio bolso (addLot).
+ *   - 'pre_purchase' → o dono comprou USD usando R$ DO CLIENTE numa pré-compra
+ *                      (criado automaticamente em WalletService::prePurchaseDollar).
+ *
+ *  Saídas (consumo FIFO):
+ *   - sellToClient(): venda direta avulsa (modal "Vender" do dashboard de caixa).
+ *     Cria 2 transações no cliente (USD entrada + BRL saída) e debita o caixa.
+ *
+ *   - sellPendingTransactions(): finaliza transações USD que estão em
+ *     'aguardando_venda' (geradas pelo fechamento de dólar). Aqui o BRL JÁ foi
+ *     consumido no fechamento; só é entregue o USD e calculado o PnL em R$.
+ */
+class TreasuryService
+{
+    public function __construct(protected WalletService $walletService) {}
+
+    public function summary(): array
+    {
+        $open = TreasuryLot::query()
+            ->whereIn('status', ['open', 'partial'])
+            ->get();
+
+        $usdEmCaixa = (float) $open->sum('usd_remaining');
+
+        $custoPonderado = (float) $open->sum(fn ($l) => (float) $l->usd_remaining * (float) $l->cost_rate);
+        $custoMedio = $usdEmCaixa > 0 ? round($custoPonderado / $usdEmCaixa, 6) : null;
+
+        $pnlAcumulado = (float) TreasuryLot::query()->sum('realized_pnl_brl');
+        $pnlAcumuladoUsd = (float) TreasurySale::query()->sum('realized_pnl_usd');
+
+        $usdOwner       = (float) $open->where('source', 'owner')->sum('usd_remaining');
+        $usdPrePurchase = (float) $open->where('source', 'pre_purchase')->sum('usd_remaining');
+        $usdProfit      = (float) $open->where('source', 'profit')->sum('usd_remaining');
+
+        return [
+            'usd_em_caixa'         => round($usdEmCaixa, 4),
+            'custo_medio'          => $custoMedio,
+            'brl_investido_aberto' => round($custoPonderado, 2),
+            'pnl_acumulado_brl'    => round($pnlAcumulado, 2),
+            'pnl_acumulado_usd'    => round($pnlAcumuladoUsd, 4),
+            'lotes_abertos'        => $open->count(),
+            'usd_owner'            => round($usdOwner, 4),
+            'usd_pre_purchase'     => round($usdPrePurchase, 4),
+            'usd_profit'           => round($usdProfit, 4),
+        ];
+    }
+
+    public function clientSummary(int $clientId): array
+    {
+        $lotes = TreasuryLot::query()
+            ->where('client_id', $clientId)
+            ->whereIn('status', ['open', 'partial'])
+            ->get();
+
+        $usd = (float) $lotes->sum('usd_remaining');
+        $brl = (float) $lotes->sum(fn ($l) => (float) $l->usd_remaining * (float) $l->cost_rate);
+        $custoMedio = $usd > 0 ? round($brl / $usd, 6) : null;
+
+        return [
+            'usd_em_caixa_cliente' => round($usd, 4),
+            'brl_custo_cliente'    => round($brl, 2),
+            'custo_medio_cliente'  => $custoMedio,
+        ];
+    }
+
+    public function addLot(float $usdAmount, float $costRate, ?string $notes = null, ?\DateTimeInterface $purchasedAt = null): TreasuryLot
+    {
+        if ($usdAmount <= 0) throw new \InvalidArgumentException('USD deve ser maior que zero.');
+        if ($costRate <= 0)  throw new \InvalidArgumentException('Taxa de custo inválida.');
+
+        return DB::transaction(function () use ($usdAmount, $costRate, $notes, $purchasedAt) {
+            return TreasuryLot::create([
+                'created_by'       => Auth::id(),
+                'source'           => 'owner',
+                'usd_amount'       => $usdAmount,
+                'cost_rate'        => $costRate,
+                'brl_cost'         => round($usdAmount * $costRate, 8),
+                'usd_remaining'    => $usdAmount,
+                'realized_pnl_brl' => 0,
+                'status'           => 'open',
+                'purchased_at'     => $purchasedAt ?? now(),
+                'notes'            => $notes,
+            ]);
+        });
+    }
+
+    /**
+     * Carrega lotes abertos ordenados FIFO. Se $clientId for informado,
+     * lotes daquele cliente vêm primeiro.
+     */
+    protected function loadOpenLotsForClient(?int $clientId): \Illuminate\Support\Collection
+    {
+        $rows = TreasuryLot::query()
+            ->whereIn('status', ['open', 'partial'])
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        if ($clientId === null) return $rows;
+
+        $matem = $rows->filter(fn ($l) => (int) ($l->client_id ?? 0) === $clientId)->values();
+        $resto = $rows->reject(fn ($l) => (int) ($l->client_id ?? 0) === $clientId)->values();
+
+        return $matem->concat($resto);
+    }
+
+    /**
+     * Consome lotes FIFO. Atualiza status/PnL. Não cria transação aqui.
+     * @return array{custo_brl: float, pnl_brl: float, pnl_usd: float}
+     */
+    protected function consumeLots(?int $clientId, float $usdAmount, float $sellRate): array
+    {
+        $lotes = $this->loadOpenLotsForClient($clientId);
+
+        $disponivel = (float) $lotes->sum('usd_remaining');
+        if ($usdAmount > $disponivel + 0.0001) {
+            throw new \RuntimeException(
+                'USD solicitado (' . number_format($usdAmount, 4, ',', '.') .
+                ') excede o disponível no caixa (' . number_format($disponivel, 4, ',', '.') . ').'
+            );
+        }
+
+        $restante = $usdAmount;
+        $custoBrlTotal = 0.0;
+        $pnlBrlTotal = 0.0;
+
+        foreach ($lotes as $lote) {
+            if ($restante <= 0.00000001) break;
+            $disp = (float) $lote->usd_remaining;
+            if ($disp <= 0.00000001) continue;
+
+            $usdConsumir = min($disp, $restante);
+            $costRate = (float) $lote->cost_rate;
+            $custoBrlLote = $usdConsumir * $costRate;
+            $vendaBrlLote = $usdConsumir * $sellRate;
+            $pnlLote = $vendaBrlLote - $custoBrlLote;
+
+            $lote->usd_remaining = round($disp - $usdConsumir, 8);
+            $lote->realized_pnl_brl = (float) $lote->realized_pnl_brl + $pnlLote;
+            $lote->status = $lote->usd_remaining <= 0.00000001 ? 'closed' : 'partial';
+            if ($lote->status === 'closed') $lote->usd_remaining = 0;
+            $lote->save();
+
+            $custoBrlTotal += $custoBrlLote;
+            $pnlBrlTotal   += $pnlLote;
+            $restante      -= $usdConsumir;
+        }
+
+        // Converte o lucro em R$ para USD na taxa da venda. Esse é o ganho que
+        // "sobra" no caixa em dólar (lote 'profit' criado em quem chamar).
+        $pnlUsd = ($sellRate > 0) ? round($pnlBrlTotal / $sellRate, 8) : 0.0;
+
+        return [
+            'custo_brl' => round($custoBrlTotal, 8),
+            'pnl_brl'   => round($pnlBrlTotal, 8),
+            'pnl_usd'   => $pnlUsd,
+        ];
+    }
+
+    /**
+     * Cria um lote 'profit' para que o lucro em USD entre no caixa da empresa.
+     */
+    protected function bookProfitLot(float $pnlUsd, float $sellRate, ?int $clientId, ?string $notes): void
+    {
+        if ($pnlUsd <= 0.00000001) return;
+
+        TreasuryLot::create([
+            'created_by'       => Auth::id(),
+            'source'           => 'profit',
+            'client_id'        => $clientId,
+            'pre_purchase_id'  => null,
+            'usd_amount'       => $pnlUsd,
+            'cost_rate'        => 0,
+            'brl_cost'         => 0,
+            'usd_remaining'    => $pnlUsd,
+            'realized_pnl_brl' => 0,
+            'status'           => 'open',
+            'purchased_at'     => now(),
+            'notes'            => 'Lucro venda @ ' . number_format($sellRate, 4, ',', '.') .
+                                  ($notes ? ' — ' . $notes : ''),
+        ]);
+    }
+
+    /**
+     * Cria um lote 'close' — USD comprado pelo dono na hora do fechamento (parte
+     * que não estava pré-comprada). O custo é a taxa que o cliente fechou, ou seja,
+     * lucro nessa parte = 0; o lucro só surge se o caixa for vendido depois numa
+     * cotação maior.
+     */
+    public function bookCloseLot(int $clientId, float $usdAmount, float $closeRate, ?string $notes = null): ?TreasuryLot
+    {
+        if ($usdAmount <= 0.00000001) return null;
+        if ($closeRate <= 0) throw new \InvalidArgumentException('Taxa de fechamento inválida.');
+
+        return TreasuryLot::create([
+            'created_by'       => Auth::id(),
+            'source'           => 'close',
+            'client_id'        => $clientId,
+            'pre_purchase_id'  => null,
+            'usd_amount'       => $usdAmount,
+            'cost_rate'        => $closeRate,
+            'brl_cost'         => round($usdAmount * $closeRate, 8),
+            'usd_remaining'    => $usdAmount,
+            'realized_pnl_brl' => 0,
+            'status'           => 'open',
+            'purchased_at'     => now(),
+            'notes'            => 'Fechamento @ ' . number_format($closeRate, 4, ',', '.') .
+                                  ($notes ? ' — ' . $notes : ''),
+        ]);
+    }
+
+    /**
+     * Venda avulsa pelo dashboard de caixa (cria USD entrada + BRL saída no cliente).
+     */
+    public function sellToClient(int $clientId, float $usdAmount, float $sellRate, ?string $notes = null): TreasurySale
+    {
+        if ($usdAmount <= 0) throw new \InvalidArgumentException('USD deve ser maior que zero.');
+        if ($sellRate <= 0)  throw new \InvalidArgumentException('Taxa de venda inválida.');
+
+        return DB::transaction(function () use ($clientId, $usdAmount, $sellRate, $notes) {
+            $consumo  = $this->consumeLots($clientId, $usdAmount, $sellRate);
+            $brlTotal = round($usdAmount * $sellRate, 2);
+
+            $this->walletService->updateBalance($clientId, 'USD', $usdAmount);
+            $this->walletService->updateBalance($clientId, 'BRL', -$brlTotal);
+
+            $sale = TreasurySale::create([
+                'client_id'        => $clientId,
+                'created_by'       => Auth::id(),
+                'usd_amount'       => $usdAmount,
+                'sell_rate'        => $sellRate,
+                'brl_total'        => $brlTotal,
+                'cost_brl'         => $consumo['custo_brl'],
+                'realized_pnl_brl' => $consumo['pnl_brl'],
+                'realized_pnl_usd' => $consumo['pnl_usd'],
+                'notes'            => $notes,
+                'transaction_ids'  => null,
+            ]);
+
+            // Lucro em USD entra como novo lote no caixa da empresa.
+            $this->bookProfitLot($consumo['pnl_usd'], $sellRate, $clientId, $notes);
+
+            $usdTx = Transaction::create([
+                'client_id'        => $clientId,
+                'type'             => 'deposit',
+                'currency'         => 'USD',
+                'amount'           => $usdAmount,
+                'exchange_rate'    => $sellRate,
+                'realized_pnl_brl' => $consumo['pnl_brl'],
+                'realized_pnl_usd' => $consumo['pnl_usd'],
+                'treasury_sale_id' => $sale->id,
+                'description'      => 'Venda do caixa: US$ ' . number_format($usdAmount, 2, ',', '.') .
+                                      ' @ ' . number_format($sellRate, 4, ',', '.') .
+                                      ($notes ? ' — ' . $notes : ''),
+                'status'           => 'finalizado',
+            ]);
+
+            $brlTx = Transaction::create([
+                'client_id'        => $clientId,
+                'type'             => 'withdraw',
+                'currency'         => 'BRL',
+                'amount'           => -$brlTotal,
+                'exchange_rate'    => $sellRate,
+                'treasury_sale_id' => $sale->id,
+                'description'      => 'Pagamento da venda do caixa (US$ ' . number_format($usdAmount, 2, ',', '.') . ')',
+                'status'           => 'finalizado',
+            ]);
+
+            $sale->transaction_ids = [$usdTx->id, $brlTx->id];
+            $sale->save();
+
+            return $sale;
+        });
+    }
+
+    /**
+     * Finaliza transações USD em 'aguardando_venda' geradas pelo fechamento de dólar.
+     * Não mexe em BRL (já foi debitado no fechamento).
+     *
+     * @param  int[]  $transactionIds
+     */
+    public function sellPendingTransactions(int $clientId, array $transactionIds, float $sellRate, ?string $notes = null): TreasurySale
+    {
+        if ($sellRate <= 0) throw new \InvalidArgumentException('Taxa de venda inválida.');
+        if (empty($transactionIds)) throw new \InvalidArgumentException('Selecione ao menos uma transação para vender.');
+
+        return DB::transaction(function () use ($clientId, $transactionIds, $sellRate, $notes) {
+            $txs = Transaction::query()
+                ->whereIn('id', $transactionIds)
+                ->where('client_id', $clientId)
+                ->where('currency', 'USD')
+                ->where('amount', '>', 0)
+                ->where('status', 'aguardando_venda')
+                ->lockForUpdate()
+                ->get();
+
+            if ($txs->isEmpty()) {
+                throw new \RuntimeException('Nenhuma transação USD em "aguardando venda" foi encontrada na seleção.');
+            }
+
+            $usdTotal = round((float) $txs->sum('amount'), 8);
+            $consumo  = $this->consumeLots($clientId, $usdTotal, $sellRate);
+
+            $brlTotal = round($usdTotal * $sellRate, 2);
+            $pnlTotal = $consumo['pnl_brl'];
+
+            $sale = TreasurySale::create([
+                'client_id'        => $clientId,
+                'created_by'       => Auth::id(),
+                'usd_amount'       => $usdTotal,
+                'sell_rate'        => $sellRate,
+                'brl_total'        => $brlTotal,
+                'cost_brl'         => $consumo['custo_brl'],
+                'realized_pnl_brl' => $pnlTotal,
+                'realized_pnl_usd' => $consumo['pnl_usd'],
+                'notes'            => $notes,
+                'transaction_ids'  => null,
+            ]);
+
+            // Lucro em USD entra como novo lote no caixa da empresa.
+            $this->bookProfitLot($consumo['pnl_usd'], $sellRate, $clientId, $notes);
+
+            $finalizedIds = [];
+            $pnlUsdTotal = $consumo['pnl_usd'];
+            foreach ($txs as $tx) {
+                $share = $usdTotal > 0 ? ((float) $tx->amount / $usdTotal) : 0.0;
+                $pnlShareBrl = round($pnlTotal * $share, 8);
+                $pnlShareUsd = round($pnlUsdTotal * $share, 8);
+
+                $tx->status           = 'finalizado';
+                $tx->exchange_rate    = $sellRate;
+                $tx->realized_pnl_brl = $pnlShareBrl;
+                $tx->realized_pnl_usd = $pnlShareUsd;
+                $tx->treasury_sale_id = $sale->id;
+                $tx->save();
+
+                $finalizedIds[] = $tx->id;
+            }
+
+            // Entrega o USD na carteira do cliente.
+            $this->walletService->updateBalance($clientId, 'USD', $usdTotal);
+
+            $sale->transaction_ids = $finalizedIds;
+            $sale->save();
+
+            return $sale;
+        });
+    }
+}
