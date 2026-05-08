@@ -36,7 +36,7 @@ class RolesSeeder extends Seeder
 
         // Vincula o primeiro usuário como administrador, se existir e ainda não tiver cargo.
         $firstUser = User::query()->orderBy('id')->first();
-        dd($firstUser);
+
         if ($firstUser && !$firstUser->role_id) {
             $firstUser->role_id = $admin->id;
             $firstUser->save();
