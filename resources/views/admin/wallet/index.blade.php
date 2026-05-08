@@ -18,19 +18,47 @@
             </div>
 
             <div class="row g-3 mb-3">
-                <div class="col-md-6">
+                <div class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body">
-                            <h6 class="text-muted text-uppercase mb-2">Saldo total em Reais (BRL)</h6>
+                            <h6 class="text-muted text-uppercase mb-2">Saldo total em Reais</h6>
                             <h3 class="mb-0 text-success">R$ {{ number_format($totals['BRL'] ?? 0, 2, ',', '.') }}</h3>
+                            @if(($totals['CLIENTE_DEVE_BRL'] ?? 0) > 0)
+                                <small class="text-muted">
+                                    Clientes negativos somam <strong>R$ {{ number_format($totals['CLIENTE_DEVE_BRL'], 2, ',', '.') }}</strong> a receber.
+                                </small>
+                            @endif
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-6 col-xl-3">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body">
-                            <h6 class="text-muted text-uppercase mb-2">Saldo total em Dólar (USD)</h6>
+                            <h6 class="text-muted text-uppercase mb-2">Saldo total em Dólar</h6>
                             <h3 class="mb-0 text-info">US$ {{ number_format($totals['USD'] ?? 0, 2, ',', '.') }}</h3>
+                            <small class="text-muted">
+                                Pré-comprado: <strong>US$ {{ number_format($totals['USD_PRE'] ?? 0, 2, ',', '.') }}</strong>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="text-muted text-uppercase mb-2">Devo aos clientes</h6>
+                            <h3 class="mb-0 text-danger">R$ {{ number_format($totals['DEVO_BRL'] ?? 0, 2, ',', '.') }}</h3>
+                            <small class="text-muted">Pré-compras em aberto (R$ reservados).</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="text-muted text-uppercase mb-2">Lucro realizado</h6>
+                            <h3 class="mb-0 {{ ($totals['PNL'] ?? 0) >= 0 ? 'text-success' : 'text-danger' }}">
+                                {{ ($totals['PNL'] ?? 0) >= 0 ? '+' : '' }}R$ {{ number_format($totals['PNL'] ?? 0, 2, ',', '.') }}
+                            </h3>
+                            <small class="text-muted">PnL acumulado dos fechamentos.</small>
                         </div>
                     </div>
                 </div>
@@ -52,26 +80,67 @@
                                     <thead>
                                         <tr>
                                             <th>Cliente</th>
-                                            <th>E-mail</th>
-                                            <th>Telefone</th>
                                             <th class="text-end">Saldo BRL</th>
                                             <th class="text-end">Saldo USD</th>
-                                            <th style="width: 180px">Ações</th>
+                                            <th class="text-end" title="R$ que devo ao cliente (pré-compras em aberto)">
+                                                Devo (R$)
+                                            </th>
+                                            <th class="text-end" title="USD comprado pelo dono ainda não entregue">
+                                                USD pré-comprado
+                                            </th>
+                                            <th class="text-end" title="Lucro/prejuízo já realizado nos fechamentos">PnL (R$)</th>
+                                            <th style="width: 160px">Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         @forelse($clients as $client)
                                             @php
                                                 $clientWallets = $walletsByClient[$client->id] ?? ['BRL' => 0, 'USD' => 0];
+                                                $pp = $prePurchaseByClient[$client->id] ?? [
+                                                    'usd_pre_comprado' => 0, 'brl_em_aberto' => 0, 'pnl_realizado' => 0,
+                                                ];
+                                                $brl = (float) ($clientWallets['BRL'] ?? 0);
+                                                $usd = (float) ($clientWallets['USD'] ?? 0);
                                             @endphp
                                             <tr>
-                                                <td>{{ $client->name }}</td>
-                                                <td>{{ $client->email ?? '-' }}</td>
-                                                <td>{{ $client->formatted_phone ?? '-' }}</td>
-                                                <td class="text-end fw-semibold text-success">R$
-                                                    {{ number_format($clientWallets['BRL'] ?? 0, 2, ',', '.') }}</td>
-                                                <td class="text-end fw-semibold text-info">US$
-                                                    {{ number_format($clientWallets['USD'] ?? 0, 2, ',', '.') }}</td>
+                                                <td class="fw-medium">
+                                                    {{ $client->name }}
+                                                    @if($brl < 0 || $usd < 0)
+                                                        <span class="badge bg-warning-subtle text-warning ms-1"
+                                                            title="Cliente está negativo — você deu saída maior que o saldo, então ele te deve.">
+                                                            Cliente me deve
+                                                        </span>
+                                                    @endif
+                                                    @if($pp['brl_em_aberto'] > 0)
+                                                        <span class="badge bg-danger-subtle text-danger ms-1"
+                                                            title="Você tem pré-compras em aberto deste cliente.">
+                                                            Devo
+                                                        </span>
+                                                    @endif
+                                                </td>
+                                                <td class="text-end fw-semibold {{ $brl < 0 ? 'text-danger' : 'text-success' }}">
+                                                    {{ $brl < 0 ? '-' : '' }}R$
+                                                    {{ number_format(abs($brl), 2, ',', '.') }}
+                                                </td>
+                                                <td class="text-end fw-semibold {{ $usd < 0 ? 'text-danger' : 'text-info' }}">
+                                                    {{ $usd < 0 ? '-' : '' }}US$
+                                                    {{ number_format(abs($usd), 2, ',', '.') }}
+                                                </td>
+                                                <td class="text-end {{ $pp['brl_em_aberto'] > 0 ? 'text-danger fw-semibold' : 'text-muted' }}">
+                                                    R$ {{ number_format($pp['brl_em_aberto'], 2, ',', '.') }}
+                                                    @if($pp['taxa_media'])
+                                                        <small class="text-muted d-block">
+                                                            @ {{ number_format($pp['taxa_media'], 4, ',', '.') }}
+                                                        </small>
+                                                    @endif
+                                                </td>
+                                                <td class="text-end {{ $pp['usd_pre_comprado'] > 0 ? 'fw-semibold' : 'text-muted' }}">
+                                                    US$ {{ number_format($pp['usd_pre_comprado'], 2, ',', '.') }}
+                                                </td>
+                                                <td class="text-end {{ $pp['pnl_realizado'] >= 0 ? 'text-success' : 'text-danger' }}">
+                                                    {{ $pp['pnl_realizado'] >= 0 ? '+' : '' }}R$
+                                                    {{ number_format($pp['pnl_realizado'], 2, ',', '.') }}
+                                                </td>
                                                 <td>
                                                     <a href="{{ route('admin.wallet.client', $client) }}"
                                                         class="btn btn-sm btn-primary">
@@ -81,7 +150,7 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="6" class="text-center text-muted py-4">
+                                                <td colspan="7" class="text-center text-muted py-4">
                                                     Nenhum cliente com módulo de câmbio ativo.
                                                 </td>
                                             </tr>

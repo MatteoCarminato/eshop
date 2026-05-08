@@ -47,7 +47,6 @@ class WalletController extends Controller
             ->select('currency', DB::raw('COALESCE(SUM(balance), 0) as total_balance'))
             ->groupBy('currency')
             ->pluck('total_balance', 'currency');
-        // dd(\App\Models\Wallet::all()->toArray());
 
         $totals = [
             'BRL' => (float) ($walletTotals['BRL'] ?? 0),
@@ -65,7 +64,35 @@ class WalletController extends Controller
                 ];
             });
 
-        return view('admin.wallet.index', compact('clients', 'totals', 'walletsByClient'));
+        // Resumo de pré-compra por cliente (USD pré-comprado, BRL em aberto = devo, PnL realizado).
+        $prePurchaseByClient = [];
+        foreach ($clientIds as $cid) {
+            $prePurchaseByClient[$cid] = $this->walletService->prePurchaseSummary((int) $cid);
+        }
+
+        // Totais consolidados.
+        $totals['DEVO_BRL'] = 0.0;        // R$ que devo aos clientes (pré-compras em aberto)
+        $totals['USD_PRE']  = 0.0;        // USD pré-comprado total
+        $totals['PNL']      = 0.0;        // PnL realizado total
+        $totals['CLIENTE_DEVE_BRL'] = 0.0; // saldo BRL negativo (cliente está negativo → me deve)
+        $totals['CLIENTE_DEVE_USD'] = 0.0; // idem em USD
+
+        foreach ($clientIds as $cid) {
+            $totals['DEVO_BRL'] += $prePurchaseByClient[$cid]['brl_em_aberto'] ?? 0;
+            $totals['USD_PRE']  += $prePurchaseByClient[$cid]['usd_pre_comprado'] ?? 0;
+            $totals['PNL']      += $prePurchaseByClient[$cid]['pnl_realizado'] ?? 0;
+
+            $w = $walletsByClient[$cid] ?? ['BRL' => 0, 'USD' => 0];
+            if (($w['BRL'] ?? 0) < 0) $totals['CLIENTE_DEVE_BRL'] += abs($w['BRL']);
+            if (($w['USD'] ?? 0) < 0) $totals['CLIENTE_DEVE_USD'] += abs($w['USD']);
+        }
+
+        return view('admin.wallet.index', compact(
+            'clients',
+            'totals',
+            'walletsByClient',
+            'prePurchaseByClient'
+        ));
     }
 
      /**
@@ -84,15 +111,214 @@ class WalletController extends Controller
     /**
      * Exibe a carteira do cliente com saldos em BRL e USD e botões de ação
      */
-    public function clientWallet(\App\Models\Client $client)
+    public function clientWallet(\App\Models\Client $client, Request $request)
     {
         $wallets = $client->wallets()->get()->keyBy('currency');
         $balances = [
             'BRL' => $wallets['BRL']->balance ?? 0,
             'USD' => $wallets['USD']->balance ?? 0,
         ];
-        $transactions = $client->transactions()->orderByDesc('created_at')->get();
-        return view('admin.wallet.client', compact('client', 'balances', 'transactions'));
+
+        [$dateFrom, $dateTo] = $this->parseDateRange($request);
+
+        $transactions = $client->transactions()
+            ->when($dateFrom, fn ($q) => $q->where('created_at', '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->where('created_at', '<=', $dateTo))
+            ->orderByDesc('created_at')
+            ->get();
+
+        $prePurchaseSummary = $this->walletService->prePurchaseSummary($client->id);
+        $brlAvailableForPrePurchase = $this->walletService->brlAvailableForPrePurchase($client->id);
+
+        $prePurchases = \App\Models\WalletPrePurchase::query()
+            ->where('client_id', $client->id)
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get();
+
+        return view('admin.wallet.client', compact(
+            'client',
+            'balances',
+            'transactions',
+            'prePurchaseSummary',
+            'brlAvailableForPrePurchase',
+            'prePurchases',
+            'dateFrom',
+            'dateTo'
+        ));
+    }
+
+    /**
+     * Exporta extrato do cliente em CSV (UTF-8 com BOM, ; como separador) — sem cores.
+     * Layout (3 colunas lado a lado):
+     *   Saldo Fulano  R$ xx,xx   U$ xxx,xx
+     *   Entradas R$ | Saídas U$ | Entradas U$
+     */
+    public function exportClientCsv(\App\Models\Client $client, Request $request)
+    {
+        [$dateFrom, $dateTo] = $this->parseDateRange($request);
+
+        $wallets = $client->wallets()->get()->keyBy('currency');
+        $brl = (float) ($wallets['BRL']->balance ?? 0);
+        $usd = (float) ($wallets['USD']->balance ?? 0);
+
+        $base = $client->transactions()
+            ->when($dateFrom, fn ($q) => $q->where('created_at', '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->where('created_at', '<=', $dateTo))
+            ->orderBy('created_at');
+
+        $all = $base->get();
+
+        $entradasBrl = $all->filter(fn ($t) => $t->type === 'deposit' && $t->currency === 'BRL' && (float) $t->amount > 0)->values();
+        $saidasUsd   = $all->filter(fn ($t) => $t->currency === 'USD' && (float) $t->amount < 0)->values();
+        $entradasUsd = $all->filter(fn ($t) => $t->currency === 'USD' && (float) $t->amount > 0)->values();
+
+        $rowsCount = max($entradasBrl->count(), $saidasUsd->count(), $entradasUsd->count());
+
+        // Helpers de formatação local pt-BR.
+        $br = fn ($v, $dec = 2) => number_format((float) $v, $dec, ',', '.');
+        $dt = fn ($t) => optional($t->created_at)->format('d/m/Y H:i');
+
+        $filename = sprintf(
+            'extrato_%s_%s.csv',
+            \Illuminate\Support\Str::slug($client->name),
+            now()->format('Ymd_His')
+        );
+
+        return response()->streamDownload(function () use (
+            $client, $brl, $usd, $dateFrom, $dateTo,
+            $entradasBrl, $saidasUsd, $entradasUsd, $rowsCount, $br, $dt
+        ) {
+            $out = fopen('php://output', 'w');
+            // BOM UTF-8 → Excel/Numbers reconhecem acentos e separador ;
+            fwrite($out, "\xEF\xBB\xBF");
+
+            $sep = ';';
+
+            // Cabeçalho
+            fputcsv($out, ["Extrato — {$client->name}"], $sep);
+            $periodo = 'Período: ' . ($dateFrom ? $dateFrom->format('d/m/Y') : 'início') .
+                       ' até ' . ($dateTo ? $dateTo->format('d/m/Y') : 'hoje');
+            fputcsv($out, [$periodo], $sep);
+            fputcsv($out, [
+                'Saldo ' . $client->name,
+                'R$ ' . $br($brl),
+                'U$ ' . $br($usd),
+            ], $sep);
+            fputcsv($out, [], $sep);
+
+            // Cabeçalhos das 3 colunas (lado a lado).
+            fputcsv($out, [
+                'Entradas R$', '', '', '',
+                'Saídas U$', '', '',
+                'Entradas U$', '', '',
+            ], $sep);
+            fputcsv($out, [
+                'Data', 'Valor R$', 'Taxa', 'Valor U$',
+                'Data', 'Valor U$', 'Descrição',
+                'Data', 'Valor U$', 'Descrição',
+            ], $sep);
+
+            for ($i = 0; $i < $rowsCount; $i++) {
+                $e  = $entradasBrl->get($i);
+                $s  = $saidasUsd->get($i);
+                $eu = $entradasUsd->get($i);
+
+                $eValorUsd = null;
+                if ($e) {
+                    if ($e->converted_currency === 'USD' && $e->converted_amount !== null) {
+                        $eValorUsd = (float) $e->converted_amount;
+                    } elseif ((float) $e->exchange_rate > 0) {
+                        $eValorUsd = (float) $e->amount / (float) $e->exchange_rate;
+                    }
+                }
+
+                fputcsv($out, [
+                    $e ? $dt($e) : '',
+                    $e ? $br($e->amount) : '',
+                    $e && $e->exchange_rate ? $br($e->exchange_rate, 4) : '',
+                    $eValorUsd !== null ? $br($eValorUsd) : '',
+
+                    $s ? $dt($s) : '',
+                    $s ? $br(abs((float) $s->amount)) : '',
+                    $s ? (string) ($s->description ?? '') : '',
+
+                    $eu ? $dt($eu) : '',
+                    $eu ? $br((float) $eu->amount) : '',
+                    $eu ? (string) ($eu->description ?? '') : '',
+                ], $sep);
+            }
+
+            // Totais.
+            $totalEntradaBrl = (float) $entradasBrl->sum('amount');
+            $totalSaidaUsd   = (float) $saidasUsd->sum(fn ($t) => abs((float) $t->amount));
+            $totalEntradaUsd = (float) $entradasUsd->sum('amount');
+
+            fputcsv($out, [], $sep);
+            fputcsv($out, [
+                'TOTAL', 'R$ ' . $br($totalEntradaBrl), '', '',
+                'TOTAL', 'U$ ' . $br($totalSaidaUsd), '',
+                'TOTAL', 'U$ ' . $br($totalEntradaUsd), '',
+            ], $sep);
+
+            fclose($out);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    /**
+     * Lê os parâmetros de filtro de período (date_from / date_to) da request.
+     *
+     * @return array{0: ?\Illuminate\Support\Carbon, 1: ?\Illuminate\Support\Carbon}
+     */
+    protected function parseDateRange(Request $request): array
+    {
+        $from = $request->input('date_from');
+        $to   = $request->input('date_to');
+
+        try {
+            $dateFrom = $from ? \Illuminate\Support\Carbon::parse($from)->startOfDay() : null;
+        } catch (\Throwable $e) { $dateFrom = null; }
+        try {
+            $dateTo = $to ? \Illuminate\Support\Carbon::parse($to)->endOfDay() : null;
+        } catch (\Throwable $e) { $dateTo = null; }
+
+        return [$dateFrom, $dateTo];
+    }
+
+    /**
+     * Pré-compra de dólar pelo dono usando o BRL do cliente.
+     * Não altera o saldo da carteira: apenas registra o lote e reserva o R$ no(s) depósito(s).
+     */
+    public function prePurchaseDollar(Request $request)
+    {
+        $validated = $request->validate([
+            'client_id'     => 'required|exists:clients,id',
+            'amount'        => 'required|numeric|min:0.01',
+            'exchange_rate' => 'required|numeric|min:0.000001',
+            'description'   => 'nullable|string|max:255',
+        ]);
+
+        try {
+            $lotes = $this->walletService->prePurchaseDollar(
+                (int) $validated['client_id'],
+                (float) $validated['amount'],
+                (float) $validated['exchange_rate'],
+                $validated['description'] ?? null
+            );
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        $totalUsd = array_sum(array_map(fn ($l) => (float) $l->usd_amount, $lotes));
+        $totalBrl = array_sum(array_map(fn ($l) => (float) $l->brl_amount, $lotes));
+
+        return back()->with('success',
+            'Pré-compra registrada: R$ ' . number_format($totalBrl, 2, ',', '.') .
+            ' → US$ ' . number_format($totalUsd, 2, ',', '.') .
+            ' (taxa ' . number_format((float) $validated['exchange_rate'], 4, ',', '.') . ').'
+        );
     }
 
     /**
@@ -380,6 +606,7 @@ class WalletController extends Controller
 
             $totalBrlConsumido = 0.0;
             $totalUsdGerado    = 0.0;
+            $totalPnlBrl       = 0.0;
 
             foreach ($candidates as $tx) {
                 if ($remaining <= 0.005) {
@@ -391,6 +618,10 @@ class WalletController extends Controller
                 if ($valorTx <= $remaining + 0.005) {
                     // Consome o registro INTEIRO: marca como finalizado já com a nova taxa.
                     $convertido = round($valorTx / $newRate, 2);
+
+                    // Liquida lotes de pré-compra deste depósito (PnL).
+                    $pre = $this->walletService->consumePrePurchasesOnClose($tx, $valorTx, $newRate);
+                    $totalPnlBrl += (float) $pre['pnl_brl'];
 
                     $oldRate = (float) ($tx->exchange_rate ?? 0);
                     $tx->exchange_rate      = $newRate;
@@ -416,6 +647,21 @@ class WalletController extends Controller
                     // Consumo PARCIAL → split: soft-delete do original + 2 novos registros.
                     $consumido = round($remaining, 2);
                     $sobra     = round($valorTx - $consumido, 2);
+
+                    // Regra: não permitir split se o depósito tem pré-compra que ultrapasse a sobra.
+                    // Isso garante que toda parte pré-comprada seja liquidada nesta operação.
+                    $brlPre = round((float) $tx->brl_pre_purchased, 2);
+                    if ($brlPre > $consumido + 0.005) {
+                        throw new \RuntimeException(
+                            'O depósito BRL de R$ ' . number_format($valorTx, 2, ',', '.') .
+                            ' tem pré-compra de R$ ' . number_format($brlPre, 2, ',', '.') .
+                            '. Para fechar parcialmente é preciso liquidar ao menos toda a parte pré-comprada.'
+                        );
+                    }
+
+                    // Liquida lotes de pré-compra deste depósito sobre a parte consumida.
+                    $pre = $this->walletService->consumePrePurchasesOnClose($tx, $consumido, $newRate);
+                    $totalPnlBrl += (float) $pre['pnl_brl'];
 
                     // 1) Parte consumida: finalizada com a nova taxa.
                     $finalizada = new Transaction([
@@ -466,13 +712,14 @@ class WalletController extends Controller
 
             // Cria a entrada consolidada em USD (status finalizado).
             $usdTx = new Transaction([
-                'client_id'     => $validated['client_id'],
-                'type'          => 'deposit',
-                'currency'      => 'USD',
-                'amount'        => round($totalUsdGerado, 2),
-                'exchange_rate' => $newRate,
-                'description'   => $validated['description'],
-                'status'        => 'finalizado',
+                'client_id'        => $validated['client_id'],
+                'type'             => 'deposit',
+                'currency'         => 'USD',
+                'amount'           => round($totalUsdGerado, 2),
+                'exchange_rate'    => $newRate,
+                'realized_pnl_brl' => round($totalPnlBrl, 2),
+                'description'      => $validated['description'],
+                'status'           => 'finalizado',
             ]);
             $usdTx->created_at = $validated['date'];
             $usdTx->updated_at = now();
@@ -486,7 +733,11 @@ class WalletController extends Controller
             return redirect()->back()->with('success',
                 'Fechamento em dólar realizado: R$ ' . number_format($totalBrlConsumido, 2, ',', '.') .
                 ' → US$ ' . number_format($totalUsdGerado, 2, ',', '.') .
-                ' (taxa ' . number_format($newRate, 4, ',', '.') . ').');
+                ' (taxa ' . number_format($newRate, 4, ',', '.') . ').' .
+                ($totalPnlBrl != 0
+                    ? ' PnL pré-compra: ' . ($totalPnlBrl >= 0 ? '+' : '') . 'R$ ' . number_format($totalPnlBrl, 2, ',', '.')
+                    : '')
+            );
         });
     }
 }

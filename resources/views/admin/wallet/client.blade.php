@@ -51,6 +51,55 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div class="col">
+                                    <div class="py-4 px-3">
+                                        <h5 class="text-muted text-uppercase fs-13">USD Pré-comprado</h5>
+                                        <div class="d-flex align-items-center">
+                                            <div class="flex-shrink-0">
+                                                <i class="ri-shopping-cart-2-line display-6 text-muted cfs-22"></i>
+                                            </div>
+                                            <div class="flex-grow-1 ms-3">
+                                                <h2 class="mb-0 cfs-22 text-warning">
+                                                    US$ {{ number_format($prePurchaseSummary['usd_pre_comprado'], 2, ',', '.') }}
+                                                </h2>
+                                                @if($prePurchaseSummary['taxa_media'])
+                                                    <small class="text-muted">@ {{ number_format($prePurchaseSummary['taxa_media'], 4, ',', '.') }}</small>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="py-4 px-3">
+                                        <h5 class="text-muted text-uppercase fs-13">Devo ao Cliente (R$)</h5>
+                                        <div class="d-flex align-items-center">
+                                            <div class="flex-shrink-0">
+                                                <i class="ri-hand-coin-line display-6 text-muted cfs-22"></i>
+                                            </div>
+                                            <div class="flex-grow-1 ms-3">
+                                                <h2 class="mb-0 cfs-22 text-danger">
+                                                    R$ {{ number_format($prePurchaseSummary['brl_em_aberto'], 2, ',', '.') }}
+                                                </h2>
+                                                <small class="text-muted">Disp. p/ comprar: R$ {{ number_format($brlAvailableForPrePurchase, 2, ',', '.') }}</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="py-4 px-3">
+                                        <h5 class="text-muted text-uppercase fs-13">PnL Realizado</h5>
+                                        <div class="d-flex align-items-center">
+                                            <div class="flex-shrink-0">
+                                                <i class="ri-line-chart-line display-6 text-muted cfs-22"></i>
+                                            </div>
+                                            <div class="flex-grow-1 ms-3">
+                                                <h2 class="mb-0 cfs-22 {{ $prePurchaseSummary['pnl_realizado'] >= 0 ? 'text-success' : 'text-danger' }}">
+                                                    {{ $prePurchaseSummary['pnl_realizado'] >= 0 ? '+' : '' }}R$ {{ number_format($prePurchaseSummary['pnl_realizado'], 2, ',', '.') }}
+                                                </h2>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div><!-- end card body -->
@@ -334,6 +383,66 @@
                     });
                 });
 
+                // ===== Cotação global da página =====
+                // Busca a taxa USD/BRL no Investing + spread do cliente e aplica nos modais
+                // de Comprar Dólar (taxa de compra) e Fechar em Dólar (taxa de conversão).
+                window.WALLET_RATE = { base: null, final: null, spread: spreadValue };
+
+                function applyRateToTarget(input, statusEl, base, finalRate) {
+                    if (!input) return;
+                    input.value = finalRate.toFixed(4);
+                    if (statusEl) {
+                        statusEl.textContent = 'Base ' + base.toFixed(4) + ' + spread ' + spreadValue.toFixed(2);
+                        statusEl.className = 'ms-auto small text-success';
+                    }
+                    // Dispara input para sincronizar BRL/USD nos modais.
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+
+                function fetchGlobalRate() {
+                    var comprarTaxa = document.getElementById('comprar_taxa');
+                    var comprarStatus = document.getElementById('comprar_taxa_status');
+                    var fecharTaxa = document.getElementById('fechar_taxa');
+                    var fecharStatus = document.getElementById('fechar_taxa_status');
+                    var bulkRateInput = document.querySelector('#bulk_rate_form input[name="exchange_rate"]');
+
+                    [comprarStatus, fecharStatus].forEach(function (el) {
+                        if (el) { el.textContent = 'Buscando cotação...'; el.className = 'ms-auto small text-muted'; }
+                    });
+
+                    fetch('{{ route('admin.wallet.usd-brl-rate', [], false) }}', {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                        .then(function (r) { return r.json(); })
+                        .then(function (data) {
+                            if (data && data.success && data.rate) {
+                                var base = parseFloat(data.rate);
+                                var finalRate = base + spreadValue;
+                                window.WALLET_RATE.base = base;
+                                window.WALLET_RATE.final = finalRate;
+                                applyRateToTarget(comprarTaxa, comprarStatus, base, finalRate);
+                                applyRateToTarget(fecharTaxa, fecharStatus, base, finalRate);
+                                if (bulkRateInput) bulkRateInput.value = finalRate.toFixed(4);
+                            } else {
+                                [comprarStatus, fecharStatus].forEach(function (el) {
+                                    if (el) { el.textContent = 'Falha ao obter cotação. Edite manualmente.'; el.className = 'ms-auto small text-danger'; }
+                                });
+                            }
+                        })
+                        .catch(function () {
+                            [comprarStatus, fecharStatus].forEach(function (el) {
+                                if (el) { el.textContent = 'Erro ao consultar cotação. Edite manualmente.'; el.className = 'ms-auto small text-danger'; }
+                            });
+                        });
+                }
+
+                // Carrega ao abrir a tela e quando os modais forem reabertos.
+                fetchGlobalRate();
+                ['comprarDolarModal', 'fecharDolarModal'].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el) el.addEventListener('shown.bs.modal', fetchGlobalRate);
+                });
+
                 // Atualiza a página ao submeter os formulários dos modais
                 document.querySelectorAll('#depositModal form, #withdrawModal form').forEach(function (form) {
                     form.addEventListener('submit', function (e) {
@@ -400,7 +509,20 @@
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+                    <label class="form-label">De</label>
+                    <input type="date" name="date_from" class="form-control" value="{{ request('date_from') }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Até</label>
+                    <input type="date" name="date_to" class="form-control" value="{{ request('date_to') }}">
+                </div>
+                <div class="col-md-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary flex-grow-1">Filtrar</button>
+                    <a class="btn btn-outline-success"
+                        title="Exportar para Excel/CSV (sem cores) com o mesmo período selecionado"
+                        href="{{ route('admin.wallet.client.export', array_merge(['client' => $client->id], request()->only(['date_from','date_to','currency','payment_method','type']))) }}">
+                        <i class="ri-file-excel-2-line"></i>
+                    </a>
                 </div>
             </div>
         </form>
@@ -468,6 +590,12 @@
                             @method('PATCH')
                             <input type="hidden" name="client_id" value="{{ $client->id }}">
                             <div id="bulk_rate_controls" class="d-flex align-items-center gap-2 d-none">
+                                <button type="button"
+                                    class="btn btn-sm {{ $prePurchaseSummary['has_open'] ? 'btn-success' : 'btn-primary' }}"
+                                    id="btn-comprar-dolar"
+                                    data-bs-toggle="modal" data-bs-target="#comprarDolarModal">
+                                    <i class="ri-shopping-cart-2-line me-1"></i>Comprar DÓLAR
+                                </button>
                                 <button type="button" class="btn btn-sm btn-success" id="btn-fechar-dolar"
                                     data-bs-toggle="modal" data-bs-target="#fecharDolarModal">
                                     Fechar em dólar
@@ -499,6 +627,9 @@
                                             $taxa = $tx->exchange_rate;
                                             $valorConvertido = null;
                                             $isLocked = in_array($tx->status, ['fechado', 'finalizado'], true);
+                                            $brlPre = (float) ($tx->brl_pre_purchased ?? 0);
+                                            $brlLivre = max(0, (float) $tx->amount - $brlPre);
+                                            $hasPre = $brlPre > 0.005;
 
                                             if ($tx->converted_currency === 'USD' && $tx->converted_amount !== null) {
                                                 $valorConvertido = $tx->converted_amount;
@@ -517,14 +648,29 @@
                                             } elseif ($isLocked) {
                                                 $rowClass = 'table-light'; // Branco
                                             }
+                                            if ($hasPre && !$isLocked) {
+                                                $rowClass = 'table-pre-purchased'; // Verde-claro indicando pré-compra
+                                            }
                                         @endphp
-                                        <tr class="{{ $rowClass }}" data-locked="{{ $isLocked ? '1' : '0' }}">
+                                        <tr class="{{ $rowClass }}"
+                                            data-locked="{{ $isLocked ? '1' : '0' }}"
+                                            data-pre-purchased="{{ number_format($brlPre, 2, '.', '') }}"
+                                            data-brl-livre="{{ number_format($brlLivre, 2, '.', '') }}">
                                             <td>
                                                 <input type="checkbox" class="entrada-select-item" form="bulk_rate_form"
                                                     name="transaction_ids[]" value="{{ $tx->id }}"
                                                     @if($isLocked) disabled @endif>
                                             </td>
-                                            <td>{{ $tx->created_at->format('d/m/Y H:i') }}</td>
+                                            <td>
+                                                {{ $tx->created_at->format('d/m/Y H:i') }}
+                                                @if($hasPre)
+                                                    <span class="badge bg-success-subtle text-success ms-1"
+                                                        title="R$ {{ number_format($brlPre, 2, ',', '.') }} pré-comprado">
+                                                        <i class="ri-shopping-cart-2-line"></i>
+                                                        {{ number_format($brlPre, 2, ',', '.') }}
+                                                    </span>
+                                                @endif
+                                            </td>
                                             <td class="fw-bold text-success">{{ number_format($tx->amount, 2, ',', '.') }}</td>
                                             <td>
                                                 <div class="d-flex align-items-center gap-1">
@@ -600,6 +746,9 @@
                                         <th>Data</th>
                                         <th>Valor U$</th>
                                         <th>Descrição</th>
+                                        <th class="text-center" style="width: 36px">
+                                            <i class="ri-information-line" title="Lucro/prejuízo deste fechamento"></i>
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -608,10 +757,26 @@
                                             <td>{{ $tx->created_at->format('d/m/Y H:i') }}</td>
                                             <td class="fw-bold text-success">{{ number_format($tx->amount, 2, ',', '.') }}</td>
                                             <td>{{ $tx->description ?? '-' }}</td>
+                                            <td class="text-center">
+                                                @php $pnl = $tx->realized_pnl_brl; @endphp
+                                                @if($pnl !== null)
+                                                    @php
+                                                        $pnlVal = (float) $pnl;
+                                                        $pnlSign = $pnlVal > 0 ? '+' : ($pnlVal < 0 ? '' : '');
+                                                        $pnlColor = $pnlVal > 0 ? 'text-success' : ($pnlVal < 0 ? 'text-danger' : 'text-muted');
+                                                        $pnlLabel = $pnlVal > 0 ? 'Lucro' : ($pnlVal < 0 ? 'Prejuízo' : 'Sem PnL');
+                                                    @endphp
+                                                    <i class="ri-information-line {{ $pnlColor }}"
+                                                        data-bs-toggle="tooltip" data-bs-placement="left"
+                                                        title="{{ $pnlLabel }}: {{ $pnlSign }}R$ {{ number_format($pnlVal, 2, ',', '.') }}"></i>
+                                                @else
+                                                    <span class="text-muted">—</span>
+                                                @endif
+                                            </td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="3" class="text-center">Sem registros.</td>
+                                            <td colspan="4" class="text-center">Sem registros.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>
@@ -686,7 +851,185 @@
             opacity: 0.3;
             pointer-events: none !important;
         }
+
+        /* Linha de depósito que possui pré-compra parcial pelo dono */
+        .table-pre-purchased {
+            background-color: #d4edda !important;
+        }
+        .table-pre-purchased:hover {
+            background-color: #c3e6cb !important;
+        }
     </style>
+    <!-- Modal Comprar Dólar (pré-compra pelo dono — não altera saldo do cliente) -->
+    <div class="modal fade" id="comprarDolarModal" tabindex="-1" aria-labelledby="comprarDolarModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="comprarDolarForm" method="POST" action="{{ route('admin.wallet.pre-purchase-dollar') }}">
+                    @csrf
+                    <input type="hidden" name="client_id" value="{{ $client->id }}">
+                    <div class="modal-header bg-success-subtle">
+                        <h5 class="modal-title" id="comprarDolarModalLabel">
+                            <i class="ri-shopping-cart-2-line me-1"></i>Comprar DÓLAR (pré-compra)
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info py-2 small mb-3">
+                            Esta operação <strong>não altera o saldo do cliente</strong>. Apenas reserva
+                            R$ dos depósitos selecionados (FIFO) e registra que o dono comprou USD a essa taxa.
+                            O lucro/prejuízo será calculado quando o cliente fechar o BRL no fechamento real.
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label d-flex justify-content-between">
+                                <span>Taxa de compra</span>
+                                <small class="ms-auto small" id="comprar_taxa_status"></small>
+                            </label>
+                            <input type="number" step="0.000001" min="0.000001" name="exchange_rate"
+                                id="comprar_taxa" class="form-control" required>
+                            <small class="text-muted d-block mt-1">
+                                Cotação base do Investing + spread do cliente
+                                (<strong>{{ $client->spread_points }}</strong> pts = R$
+                                {{ number_format($client->spread_points * 0.01, 2, ',', '.') }}).
+                                <span id="comprar_disponivel" class="ms-2">Disp. seleção: R$ <span id="comprar_disp_valor">0,00</span></span>
+                            </small>
+                        </div>
+
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label">Valor a comprar (R$)</label>
+                                <input type="number" step="0.01" min="0.01" name="amount" id="comprar_brl"
+                                    class="form-control" required>
+                                <small class="text-muted">Será reservado dos depósitos abertos (FIFO).</small>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">USD comprado</label>
+                                <input type="number" step="0.01" min="0.01" id="comprar_usd"
+                                    class="form-control" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3 mt-3">
+                            <label class="form-label">Observação (opcional)</label>
+                            <input type="text" name="description" id="comprar_descricao" class="form-control"
+                                placeholder="Ex.: comprei dólar antecipado, USDT, etc.">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="ri-check-line me-1"></i>Confirmar compra
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Modal Comprar Dólar — sincronização BRL/USD/Taxa e cálculo do disponível na seleção.
+        document.addEventListener('DOMContentLoaded', function () {
+            var comprarBtn = document.getElementById('btn-comprar-dolar');
+            var comprarModal = document.getElementById('comprarDolarModal');
+            var comprarForm = document.getElementById('comprarDolarForm');
+            var comprarTaxa = document.getElementById('comprar_taxa');
+            var comprarBrl = document.getElementById('comprar_brl');
+            var comprarUsd = document.getElementById('comprar_usd');
+            var comprarDescricao = document.getElementById('comprar_descricao');
+            var comprarDispValor = document.getElementById('comprar_disp_valor');
+
+            var dispBrlSelecao = 0;
+            var sync = false;
+
+            function updateComprarDescricao() {
+                if (!comprarDescricao) return;
+                var b = parseFloat(comprarBrl.value);
+                var t = parseFloat(comprarTaxa.value);
+                var brlFmt = (b > 0 ? b : 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                var taxaFmt = (t > 0 ? t.toFixed(4) : 'N/A');
+                comprarDescricao.value = 'Compra DÓLAR (R$ ' + brlFmt + ' @ ' + taxaFmt + ')';
+            }
+
+            function recalcUsd() {
+                if (sync) return;
+                var t = parseFloat(comprarTaxa.value);
+                var b = parseFloat(comprarBrl.value);
+                if (t > 0 && b > 0) {
+                    sync = true;
+                    comprarUsd.value = (b / t).toFixed(2);
+                    sync = false;
+                }
+                updateComprarDescricao();
+            }
+
+            function recalcBrl() {
+                if (sync) return;
+                var t = parseFloat(comprarTaxa.value);
+                var u = parseFloat(comprarUsd.value);
+                if (t > 0 && u > 0) {
+                    sync = true;
+                    comprarBrl.value = (u * t).toFixed(2);
+                    sync = false;
+                }
+                updateComprarDescricao();
+            }
+
+            if (comprarBrl) comprarBrl.addEventListener('input', recalcUsd);
+            if (comprarUsd) comprarUsd.addEventListener('input', recalcBrl);
+            if (comprarTaxa) comprarTaxa.addEventListener('input', recalcUsd);
+
+            if (comprarBtn) {
+                comprarBtn.addEventListener('click', function () {
+                    var checked = Array.from(document.querySelectorAll('.entrada-select-item:checked'));
+                    dispBrlSelecao = 0;
+
+                    if (checked.length > 0) {
+                        checked.forEach(function (cb) {
+                            var row = cb.closest('tr');
+                            var livre = parseFloat(row.getAttribute('data-brl-livre')) || 0;
+                            dispBrlSelecao += livre;
+                        });
+                    } else {
+                        // Sem seleção: pega TODOS os depósitos abertos (livre).
+                        document.querySelectorAll('#bulk_rate_form ~ * .entrada-select-item, .entrada-select-item').forEach(function (cb) {
+                            if (cb.disabled) return;
+                            var row = cb.closest('tr');
+                            var livre = parseFloat(row.getAttribute('data-brl-livre')) || 0;
+                            dispBrlSelecao += livre;
+                        });
+                    }
+
+                    dispBrlSelecao = Math.round(dispBrlSelecao * 100) / 100;
+                    comprarDispValor.textContent = dispBrlSelecao.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+                    var bulkRateInput = document.querySelector('#bulk_rate_form input[name="exchange_rate"]');
+                    var taxaSugerida = bulkRateInput ? parseFloat(bulkRateInput.value) : 0;
+                    if (taxaSugerida > 0) comprarTaxa.value = taxaSugerida;
+
+                    comprarBrl.max = dispBrlSelecao.toFixed(2);
+                    if (!comprarBrl.value || parseFloat(comprarBrl.value) > dispBrlSelecao) {
+                        comprarBrl.value = dispBrlSelecao.toFixed(2);
+                    }
+                    recalcUsd();
+                    updateComprarDescricao();
+                });
+            }
+
+            if (comprarForm) {
+                comprarForm.addEventListener('submit', function (e) {
+                    var t = parseFloat(comprarTaxa.value);
+                    var b = parseFloat(comprarBrl.value);
+                    if (!(t > 0)) { e.preventDefault(); alert('Informe uma taxa válida.'); return; }
+                    if (!(b > 0)) { e.preventDefault(); alert('Informe o valor em R$.'); return; }
+                    if (dispBrlSelecao > 0 && b > dispBrlSelecao + 0.005) {
+                        e.preventDefault();
+                        alert('Valor maior que o disponível (R$ ' +
+                            dispBrlSelecao.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + ').');
+                    }
+                });
+            }
+        });
+    </script>
     <!-- Modal Fechar em Dólar -->
     <div class="modal fade" id="fecharDolarModal" tabindex="-1" aria-labelledby="fecharDolarModalLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -709,13 +1052,15 @@
                         <div class="mb-3">
                             <label for="fechar_taxa" class="form-label d-flex justify-content-between">
                                 <span>Taxa de conversão</span>
-                                <small class="text-muted" id="fechar_disponivel"></small>
+                                <small class="ms-auto small" id="fechar_taxa_status"></small>
                             </label>
                             <input type="number" step="0.000001" min="0.000001" id="fechar_taxa"
                                 class="form-control" required>
-                            <small class="text-muted">
-                                Esta taxa será gravada em todos os registros BRL consumidos nesta operação
-                                (status <strong>finalizado</strong>).
+                            <small class="text-muted d-block mt-1">
+                                Cotação base do Investing + spread do cliente
+                                (<strong>{{ $client->spread_points }}</strong> pts = R$
+                                {{ number_format($client->spread_points * 0.01, 2, ',', '.') }}).
+                                <span id="fechar_disponivel" class="ms-2"></span>
                             </small>
                         </div>
 

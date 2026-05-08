@@ -119,6 +119,52 @@
                     </div>
                 </li>
 
+                @auth
+                    @if (auth()->user()->hasModule('roles.manage'))
+                        <li class="nav-item">
+                            <a class="nav-link menu-link" href="#sidebarRoles" data-bs-toggle="collapse" role="button"
+                                aria-expanded="false" aria-controls="sidebarRoles">
+                                <i class="ri-shield-user-line"></i> <span>Cargos &amp; Permissões</span>
+                            </a>
+                            <div class="collapse menu-dropdown" id="sidebarRoles">
+                                <ul class="nav nav-sm flex-column">
+                                    <li class="nav-item">
+                                        <a href="{{ route('roles.index') }}" class="nav-link">
+                                            Cargos
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a href="{{ route('roles.index') }}" class="nav-link">
+                                            Gerenciar Permissões
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </li>
+                    @endif
+                @endauth
+
+                @auth
+                    @if (auth()->user()->hasModule('users.manage'))
+                        <li class="nav-item">
+                            <a class="nav-link menu-link" href="#sidebarUsers" data-bs-toggle="collapse" role="button"
+                                aria-expanded="false" aria-controls="sidebarUsers">
+                                <i class="ri-team-line"></i> <span>Funcionários</span>
+                            </a>
+                            <div class="collapse menu-dropdown" id="sidebarUsers">
+                                <ul class="nav nav-sm flex-column">
+                                    <li class="nav-item">
+                                        <a href="{{ route('users.index') }}" class="nav-link">Listar</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a href="{{ route('users.create') }}" class="nav-link">Cadastrar</a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </li>
+                    @endif
+                @endauth
+
                 <li class="nav-item">
                     <a class="nav-link menu-link" href="#sidebarWallet" data-bs-toggle="collapse" role="button"
                         aria-expanded="false" aria-controls="sidebarWallet">
