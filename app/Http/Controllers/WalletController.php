@@ -151,14 +151,20 @@ class WalletController extends Controller
 
         $prePurchaseSummary = $this->walletService->prePurchaseSummary($client->id);
         $brlAvailableForPrePurchase = $this->walletService->brlAvailableForPrePurchase($client->id);
+        $preSellSummary = $this->walletService->preSellSummary($client->id);
+        $brlAvailableForPreSell = $this->walletService->brlAvailableForPreSell($client->id);
         $treasuryClientSummary = $this->treasuryService->clientSummary($client->id);
         $treasurySummary = $this->treasuryService->summary();
 
-        $prePurchases = \App\Models\WalletPrePurchase::query()
+        // Lotes em aberto por depósito (para mostrar badges 🟢 compra / 🔴 venda).
+        $prePurchasesByDeposit = \App\Models\WalletPrePurchase::query()
             ->where('client_id', $client->id)
-            ->orderByDesc('created_at')
-            ->limit(50)
-            ->get();
+            ->whereIn('status', ['open', 'partial'])
+            ->get()->groupBy('source_transaction_id');
+        $preSellsByDeposit = \App\Models\WalletPreSell::query()
+            ->where('client_id', $client->id)
+            ->whereIn('status', ['open', 'partial'])
+            ->get()->groupBy('source_transaction_id');
 
         return view('admin.wallet.client', compact(
             'client',
@@ -166,7 +172,10 @@ class WalletController extends Controller
             'transactions',
             'prePurchaseSummary',
             'brlAvailableForPrePurchase',
-            'prePurchases',
+            'preSellSummary',
+            'brlAvailableForPreSell',
+            'prePurchasesByDeposit',
+            'preSellsByDeposit',
             'treasuryClientSummary',
             'treasurySummary',
             'dateFrom',
@@ -354,6 +363,45 @@ class WalletController extends Controller
             'Pré-compra registrada: R$ ' . number_format($totalBrl, 2, ',', '.') .
             ' → US$ ' . number_format($totalUsd, 2, ',', '.') .
             ' (taxa ' . number_format((float) $validated['exchange_rate'], 4, ',', '.') . ').'
+        );
+    }
+
+    /**
+     * Pré-venda de dólar: o dono fixa a taxa que vai cobrar do cliente sobre R$ de
+     * depósitos abertos. Não altera saldo do cliente nem cria transação de exchange.
+     */
+    public function preSellDollar(Request $request)
+    {
+        $validated = $request->validate([
+            'client_id'         => 'required|exists:clients,id',
+            'amount'            => 'required|numeric|min:0.01',
+            'sell_rate'         => 'required|numeric|min:0.000001',
+            'description'       => 'nullable|string|max:255',
+            'transaction_ids'   => 'nullable|array',
+            'transaction_ids.*' => 'integer|exists:transactions,id',
+        ]);
+
+        try {
+            $lotes = $this->walletService->preSellDollar(
+                (int) $validated['client_id'],
+                (float) $validated['amount'],
+                (float) $validated['sell_rate'],
+                $validated['description'] ?? null,
+                !empty($validated['transaction_ids'])
+                    ? array_map('intval', $validated['transaction_ids'])
+                    : null
+            );
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        $totalUsd = array_sum(array_map(fn ($l) => (float) $l->usd_amount, $lotes));
+        $totalBrl = array_sum(array_map(fn ($l) => (float) $l->brl_amount, $lotes));
+
+        return back()->with('success',
+            'Pré-venda registrada: R$ ' . number_format($totalBrl, 2, ',', '.') .
+            ' → US$ ' . number_format($totalUsd, 2, ',', '.') .
+            ' (taxa ' . number_format((float) $validated['sell_rate'], 4, ',', '.') . ').'
         );
     }
 
@@ -642,9 +690,9 @@ class WalletController extends Controller
             }
 
             $totalBrlConsumido = 0.0;
-            $totalUsdGerado    = 0.0;
-            $totalPnlUsd       = 0.0;
-            $totalUsdConsumidoDeLotes = 0.0; // soma do USD que veio de lotes pre_purchase já existentes
+            $entregas          = []; // [{usd, sell_rate}] — cada chunk de USD a entregar com sua taxa
+            $totalUsdComprado  = 0.0; // USD efetivamente "comprado pelo dono" nesta operação (custo)
+            $custoBrlCompra    = 0.0; // R$ efetivos do dono na compra (para preview)
 
             foreach ($candidates as $tx) {
                 if ($remaining <= 0.005) {
@@ -653,142 +701,190 @@ class WalletController extends Controller
 
                 $valorTx = round((float) $tx->amount, 2);
 
-                if ($valorTx <= $remaining + 0.005) {
-                    // Consome o registro INTEIRO: marca como finalizado já com a nova taxa.
-                    $convertido = round($valorTx / $newRate, 2);
+                // Decide quanto desse depósito será consumido nesta operação.
+                $consumido = ($valorTx <= $remaining + 0.005) ? $valorTx : round($remaining, 2);
+                $isParcial = $consumido < $valorTx - 0.005;
 
-                    // Liquida lotes de pré-compra deste depósito (PnL em USD).
-                    $pre = $this->walletService->consumePrePurchasesOnClose($tx, $valorTx, $newRate);
-                    $totalPnlUsd += (float) $pre['pnl_usd'];
-                    $totalUsdConsumidoDeLotes += (float) $pre['usd_consumido_lotes'];
+                if ($isParcial) {
+                    $brlPre = round((float) ($tx->brl_pre_purchased ?? 0), 2);
+                    $brlSld = round((float) ($tx->brl_pre_sold ?? 0), 2);
+                    if ($brlPre > $consumido + 0.005 || $brlSld > $consumido + 0.005) {
+                        throw new \RuntimeException(
+                            'O depósito BRL de R$ ' . number_format($valorTx, 2, ',', '.') .
+                            ' tem pré-compra/venda de R$ ' . number_format(max($brlPre, $brlSld), 2, ',', '.') .
+                            '. Para fechar parcialmente é preciso consumir ao menos toda a parte pré-comprada/vendida.'
+                        );
+                    }
+                }
 
+                // 1) Consume PRÉ-VENDAS deste depósito (gera USD a entregar pelas taxas dos lotes).
+                $preSellLotes = \App\Models\WalletPreSell::query()
+                    ->where('source_transaction_id', $tx->id)
+                    ->whereIn('status', ['open', 'partial'])
+                    ->orderBy('created_at')->orderBy('id')
+                    ->lockForUpdate()
+                    ->get();
+
+                $brlVendido = 0.0;
+                $restanteVenda = round(min($consumido, (float) ($tx->brl_pre_sold ?? 0)), 2);
+                foreach ($preSellLotes as $lote) {
+                    if ($restanteVenda <= 0.005) break;
+                    $brlLote = (float) $lote->brl_remaining;
+                    if ($brlLote <= 0.005) continue;
+
+                    $consumirLote = round(min($brlLote, $restanteVenda), 2);
+                    $rateLote     = (float) $lote->sell_rate;
+                    $usdParte     = $rateLote > 0 ? round($consumirLote / $rateLote, 4) : 0.0;
+
+                    $lote->brl_remaining = round((float) $lote->brl_remaining - $consumirLote, 2);
+                    $lote->usd_remaining = round((float) $lote->usd_remaining - $usdParte, 4);
+                    if ($lote->brl_remaining <= 0.005) {
+                        $lote->brl_remaining = 0; $lote->usd_remaining = 0; $lote->status = 'closed';
+                    } else { $lote->status = 'partial'; }
+                    $lote->save();
+
+                    $entregas[] = ['usd' => $usdParte, 'sell_rate' => $rateLote];
+                    $brlVendido += $consumirLote;
+                    $restanteVenda = round($restanteVenda - $consumirLote, 2);
+                }
+                $tx->brl_pre_sold = round(max(0.0, (float) ($tx->brl_pre_sold ?? 0) - $brlVendido), 2);
+
+                // 2) Consume PRÉ-COMPRAS deste depósito (libera USD do caixa que JÁ FOI espelhado).
+                $pre = $this->walletService->consumePrePurchasesOnClose($tx, $consumido, $newRate);
+                $totalUsdComprado += (float) $pre['usd_consumido_lotes'];
+                $custoBrlCompra   += (float) ($pre['brl_consumido_lotes'] ?? 0); // R$ que o dono já tinha "investido"
+
+                // 3) R$ que sobrou SEM venda registrada → entrega na taxa do fechamento.
+                $brlSemVenda = round($consumido - $brlVendido, 2);
+                if ($brlSemVenda > 0.005) {
+                    $usdResidual = round($brlSemVenda / $newRate, 4);
+                    $entregas[] = ['usd' => $usdResidual, 'sell_rate' => $newRate];
+                }
+
+                // 4) R$ que sobrou SEM compra registrada → dono compra agora à newRate (lote 'close').
+                $brlSemCompra = round($consumido - (float) ($pre['brl_consumido_lotes'] ?? 0), 2);
+                if ($brlSemCompra > 0.005) {
+                    $usdNovo = round($brlSemCompra / $newRate, 4);
+                    $this->treasuryService->bookCloseLot(
+                        (int) $validated['client_id'], $usdNovo, $newRate, $validated['description'] ?? null
+                    );
+                    $totalUsdComprado += $usdNovo;
+                    $custoBrlCompra   += $brlSemCompra;
+                }
+
+                // 5) Marca/quebra o depósito como hoje.
+                if (!$isParcial) {
                     $oldRate = (float) ($tx->exchange_rate ?? 0);
                     $tx->exchange_rate      = $newRate;
                     $tx->converted_currency = 'USD';
-                    $tx->converted_amount   = $convertido;
+                    $tx->converted_amount   = round($valorTx / $newRate, 2);
                     $tx->status             = 'finalizado';
                     $tx->save();
 
                     if ($oldRate !== $newRate) {
                         TransactionRateChangeLog::create([
-                            'transaction_id' => $tx->id,
-                            'client_id'      => $tx->client_id,
-                            'changed_by'     => Auth::id(),
-                            'old_rate'       => $oldRate,
-                            'new_rate'       => $newRate,
+                            'transaction_id' => $tx->id, 'client_id' => $tx->client_id,
+                            'changed_by' => Auth::id(), 'old_rate' => $oldRate, 'new_rate' => $newRate,
                         ]);
                     }
-
                     $totalBrlConsumido += $valorTx;
-                    $totalUsdGerado    += $convertido;
-                    $remaining         -= $valorTx;
+                    $remaining -= $valorTx;
                 } else {
-                    // Consumo PARCIAL → split: soft-delete do original + 2 novos registros.
-                    $consumido = round($remaining, 2);
-                    $sobra     = round($valorTx - $consumido, 2);
+                    $sobra = round($valorTx - $consumido, 2);
 
-                    // Regra: não permitir split se o depósito tem pré-compra que ultrapasse a sobra.
-                    // Isso garante que toda parte pré-comprada seja liquidada nesta operação.
-                    $brlPre = round((float) $tx->brl_pre_purchased, 2);
-                    if ($brlPre > $consumido + 0.005) {
-                        throw new \RuntimeException(
-                            'O depósito BRL de R$ ' . number_format($valorTx, 2, ',', '.') .
-                            ' tem pré-compra de R$ ' . number_format($brlPre, 2, ',', '.') .
-                            '. Para fechar parcialmente é preciso liquidar ao menos toda a parte pré-comprada.'
-                        );
-                    }
-
-                    // Liquida lotes de pré-compra deste depósito sobre a parte consumida.
-                    $pre = $this->walletService->consumePrePurchasesOnClose($tx, $consumido, $newRate);
-                    $totalPnlUsd += (float) $pre['pnl_usd'];
-                    $totalUsdConsumidoDeLotes += (float) $pre['usd_consumido_lotes'];
-
-                    // 1) Parte consumida: finalizada com a nova taxa.
                     $finalizada = new Transaction([
-                        'parent_transaction_id' => $tx->id,
-                        'client_id'             => $tx->client_id,
-                        'type'                  => $tx->type,
-                        'currency'              => $tx->currency,
-                        'amount'                => $consumido,
-                        'payment_method'        => $tx->payment_method,
-                        'converted_currency'    => 'USD',
-                        'converted_amount'      => round($consumido / $newRate, 2),
-                        'exchange_rate'         => $newRate,
-                        'description'           => $tx->description,
-                        'status'                => 'finalizado',
+                        'parent_transaction_id' => $tx->id, 'client_id' => $tx->client_id,
+                        'type' => $tx->type, 'currency' => $tx->currency,
+                        'amount' => $consumido, 'payment_method' => $tx->payment_method,
+                        'converted_currency' => 'USD', 'converted_amount' => round($consumido / $newRate, 2),
+                        'exchange_rate' => $newRate, 'description' => $tx->description,
+                        'status' => 'finalizado',
                     ]);
                     $finalizada->created_at = $tx->created_at;
                     $finalizada->updated_at = now();
                     $finalizada->save();
 
-                    // 2) Parte restante: preserva os dados originais (data, payment_method, status).
-                    $restante = new Transaction([
-                        'parent_transaction_id' => $tx->id,
-                        'client_id'             => $tx->client_id,
-                        'type'                  => $tx->type,
-                        'currency'              => $tx->currency,
-                        'amount'                => $sobra,
-                        'payment_method'        => $tx->payment_method,
-                        'converted_currency'    => $tx->converted_currency,
-                        'converted_amount'      => ($tx->exchange_rate && $tx->exchange_rate > 0)
-                            ? round($sobra / (float) $tx->exchange_rate, 2)
-                            : null,
-                        'exchange_rate'         => $tx->exchange_rate,
-                        'description'           => $tx->description,
-                        'status'                => $tx->status,
+                    $restanteTx = new Transaction([
+                        'parent_transaction_id' => $tx->id, 'client_id' => $tx->client_id,
+                        'type' => $tx->type, 'currency' => $tx->currency,
+                        'amount' => $sobra, 'payment_method' => $tx->payment_method,
+                        'converted_currency' => $tx->converted_currency,
+                        'converted_amount' => ($tx->exchange_rate && $tx->exchange_rate > 0)
+                            ? round($sobra / (float) $tx->exchange_rate, 2) : null,
+                        'exchange_rate' => $tx->exchange_rate, 'description' => $tx->description,
+                        'status' => $tx->status,
                     ]);
-                    $restante->created_at = $tx->created_at;
-                    $restante->updated_at = now();
-                    $restante->save();
+                    $restanteTx->created_at = $tx->created_at;
+                    $restanteTx->updated_at = now();
+                    $restanteTx->save();
 
-                    // 3) Soft-delete do registro original.
                     $tx->delete();
 
                     $totalBrlConsumido += $consumido;
-                    $totalUsdGerado    += $finalizada->converted_amount;
-                    $remaining          = 0;
+                    $remaining = 0;
                 }
             }
 
-            // USD que o dono está "comprando agora" pelo R$ do cliente: total gerado
-            // menos a parte que veio de lotes de pré-compra já existentes no caixa.
-            // Esse delta vira um lote 'close' no caixa, garantindo lastro para a venda.
-            $usdNovoNoCaixa = round($totalUsdGerado - $totalUsdConsumidoDeLotes, 8);
-            if ($usdNovoNoCaixa > 0.00000001) {
-                $this->treasuryService->bookCloseLot(
-                    (int) $validated['client_id'],
-                    $usdNovoNoCaixa,
-                    $newRate,
-                    $validated['description'] ?? null
+            // Total USD a entregar e taxa média ponderada.
+            $totalUsdEntregue = 0.0; $brlReceitaTotal = 0.0;
+            foreach ($entregas as $e) {
+                $totalUsdEntregue += (float) $e['usd'];
+                $brlReceitaTotal  += (float) $e['usd'] * (float) $e['sell_rate'];
+            }
+            $totalUsdEntregue = round($totalUsdEntregue, 2);
+            $taxaMediaVenda   = $totalUsdEntregue > 0 ? round($brlReceitaTotal / $totalUsdEntregue, 6) : $newRate;
+
+            // Consome USD do caixa por chunk (cada um na sua taxa) e acumula PnL.
+            $totalPnlBrl = 0.0; $totalPnlUsd = 0.0; $totalShortfall = 0.0;
+            foreach ($entregas as $e) {
+                $u = round((float) $e['usd'], 4);
+                if ($u <= 0.0001) continue;
+                $consumo = $this->treasuryService->deliverFromCash(
+                    (int) $validated['client_id'], $u, (float) $e['sell_rate'], $validated['description'] ?? null
                 );
+                $totalPnlBrl    += (float) $consumo['pnl_brl'];
+                $totalPnlUsd    += (float) $consumo['pnl_usd'];
+                $totalShortfall += (float) ($consumo['shortfall_usd'] ?? 0);
             }
 
-            // Cria a entrada consolidada em USD com status 'aguardando_venda':
-            // o BRL do cliente já foi consumido, mas o USD ainda não foi entregue.
-            // Só será entregue (e o PnL em R$ calculado) na ação "Vender" do caixa.
+            // Cria UMA transação USD FINALIZADA (a "Entrada U$" do cliente).
+            // A descrição mostra apenas a taxa de venda (visão do cliente).
             $usdTx = new Transaction([
-                'client_id'     => $validated['client_id'],
-                'type'          => 'deposit',
-                'currency'      => 'USD',
-                'amount'        => round($totalUsdGerado, 2),
-                'exchange_rate' => $newRate,
-                'description'   => $validated['description'],
-                'status'        => 'aguardando_venda',
+                'client_id'        => $validated['client_id'],
+                'type'             => 'deposit',
+                'currency'         => 'USD',
+                'amount'           => $totalUsdEntregue,
+                'exchange_rate'    => $taxaMediaVenda,
+                'description'      => $validated['description'],
+                'realized_pnl_brl' => round($totalPnlBrl, 2),
+                'realized_pnl_usd' => round($totalPnlUsd, 4),
+                'status'           => 'finalizado',
             ]);
             $usdTx->created_at = $validated['date'];
             $usdTx->updated_at = now();
             $usdTx->save();
 
-            // Atualiza apenas o BRL da carteira do cliente. O USD é entregue depois,
-            // pela ação de venda do caixa.
+            // Atualiza saldos: debita BRL e credita USD do cliente.
             $this->walletService->updateBalance((int) $validated['client_id'], 'BRL', -$totalBrlConsumido);
+            $this->walletService->updateBalance((int) $validated['client_id'], 'USD', $totalUsdEntregue);
 
-            return redirect()->back()->with('success',
-                'Fechamento em dólar realizado: R$ ' . number_format($totalBrlConsumido, 2, ',', '.') .
-                ' → US$ ' . number_format($totalUsdGerado, 2, ',', '.') .
-                ' (taxa ' . number_format($newRate, 4, ',', '.') . '). ' .
-                'Aguardando venda do dólar para entregar ao cliente.'
-            );
+            $sinal = $totalPnlBrl >= 0 ? '+' : '';
+            $msg = 'Fechamento em dólar: R$ ' . number_format($totalBrlConsumido, 2, ',', '.') .
+                ' → US$ ' . number_format($totalUsdEntregue, 2, ',', '.') .
+                ' (taxa média venda ' . number_format($taxaMediaVenda, 4, ',', '.') . '). ' .
+                'PnL: ' . $sinal . 'R$ ' . number_format($totalPnlBrl, 2, ',', '.') .
+                ' (' . $sinal . 'US$ ' . number_format($totalPnlUsd, 2, ',', '.') . ').';
+
+            $redirect = redirect()->back()->with('success', $msg);
+
+            if ($totalShortfall > 0.0001) {
+                $redirect = $redirect->with('warning',
+                    '⚠ Caixa USD ficou negativo em US$ ' . number_format($totalShortfall, 2, ',', '.') .
+                    '. O dólar entregue ao cliente excedeu o saldo do caixa — registre um aporte ou pré-compra para cobrir o déficit.'
+                );
+            }
+
+            return $redirect;
         });
     }
 }

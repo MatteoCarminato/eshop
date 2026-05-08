@@ -60,6 +60,7 @@ Route::middleware('auth')->group(function () {
             Route::patch('/transactions/rate/bulk', [\App\Http\Controllers\WalletController::class, 'updateDepositRateBulk'])->name('update-rate-bulk');
             Route::post('/fechamento-dolar', [\App\Http\Controllers\WalletController::class, 'fechamentoDolar'])->name('fechamento-dolar');
             Route::post('/pre-purchase-dollar', [\App\Http\Controllers\WalletController::class, 'prePurchaseDollar'])->name('pre-purchase-dollar');
+            Route::post('/pre-sell-dollar', [\App\Http\Controllers\WalletController::class, 'preSellDollar'])->name('pre-sell-dollar');
             Route::get('/deposit', function () { return view('admin.wallet.deposit'); })->name('deposit');
             Route::post('/deposit', [\App\Http\Controllers\WalletController::class, 'deposit']);
             Route::get('/withdraw', function () { return view('admin.wallet.withdraw'); })->name('withdraw');

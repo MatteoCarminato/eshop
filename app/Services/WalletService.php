@@ -6,6 +6,7 @@ use App\Models\Transaction;
 use App\Models\TreasuryLot;
 use App\Models\Wallet;
 use App\Models\WalletPrePurchase;
+use App\Models\WalletPreSell;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -284,5 +285,186 @@ class WalletService
             ->whereNotIn('status', ['fechado', 'finalizado'])
             ->orderBy('created_at')
             ->orderBy('id');
+    }
+
+    // ==========================================================================
+    //  PRÉ-VENDA — espelha a pré-compra mas representa o lado da venda ao cliente.
+    // ==========================================================================
+
+    /**
+     * Resumo das pré-vendas em aberto.
+     */
+    public function preSellSummary(int $clientId): array
+    {
+        $rows = WalletPreSell::query()
+            ->where('client_id', $clientId)
+            ->whereIn('status', ['open', 'partial'])
+            ->get();
+
+        $usd = (float) $rows->sum('usd_remaining');
+        $brl = (float) $rows->sum('brl_remaining');
+        $taxa = $usd > 0 ? round($brl / $usd, 6) : null;
+
+        return [
+            'usd_pre_vendido' => round($usd, 2),
+            'brl_em_aberto'   => round($brl, 2),
+            'taxa_media'      => $taxa,
+            'has_open'        => $rows->isNotEmpty(),
+        ];
+    }
+
+    /**
+     * Disponível em BRL para pré-venda: depósitos BRL abertos descontando o que
+     * já está pré-vendido em cada um.
+     */
+    public function brlAvailableForPreSell(int $clientId): float
+    {
+        $deposits = $this->openBrlDepositsQuery($clientId)->get();
+        $total = 0.0;
+        foreach ($deposits as $tx) {
+            $total += max(0.0, (float) $tx->amount - (float) ($tx->brl_pre_sold ?? 0));
+        }
+        return round($total, 2);
+    }
+
+    /**
+     * Pré-venda: o dono "fixa" a taxa que vai cobrar do cliente sobre R$ de depósitos
+     * abertos. Não altera saldo, não cria transação. Apenas reserva o R$ no(s)
+     * depósito(s) e cria lote(s) em wallet_pre_sells.
+     *
+     * @return array<int, WalletPreSell>
+     */
+    public function preSellDollar(
+        int $clientId,
+        float $brlAmount,
+        float $sellRate,
+        ?string $notes = null,
+        ?array $transactionIds = null
+    ): array {
+        if ($sellRate <= 0)  throw new \InvalidArgumentException('Taxa de venda inválida.');
+        if ($brlAmount <= 0) throw new \InvalidArgumentException('Valor em R$ inválido.');
+
+        return DB::transaction(function () use ($clientId, $brlAmount, $sellRate, $notes, $transactionIds) {
+            $query = $this->openBrlDepositsQuery($clientId);
+
+            if (is_array($transactionIds) && count($transactionIds) > 0) {
+                $query->whereIn('id', $transactionIds);
+            }
+
+            $deposits = $query->lockForUpdate()->get();
+
+            $disponivelTotal = 0.0;
+            foreach ($deposits as $tx) {
+                $disponivelTotal += max(0.0, (float) $tx->amount - (float) ($tx->brl_pre_sold ?? 0));
+            }
+            $disponivelTotal = round($disponivelTotal, 2);
+
+            if ($brlAmount > $disponivelTotal + 0.005) {
+                throw new \RuntimeException(
+                    'Valor solicitado (R$ ' . number_format($brlAmount, 2, ',', '.') .
+                    ') excede o disponível para pré-venda (R$ ' .
+                    number_format($disponivelTotal, 2, ',', '.') . ').'
+                );
+            }
+
+            $remaining = round($brlAmount, 2);
+            $lotes = [];
+
+            foreach ($deposits as $tx) {
+                if ($remaining <= 0.005) break;
+
+                $livre = round((float) $tx->amount - (float) ($tx->brl_pre_sold ?? 0), 2);
+                if ($livre <= 0.005) continue;
+
+                $consumir = min($livre, $remaining);
+                $consumir = round($consumir, 2);
+                $usdLote  = round($consumir / $sellRate, 2);
+
+                $lote = WalletPreSell::create([
+                    'client_id'             => $clientId,
+                    'source_transaction_id' => $tx->id,
+                    'created_by'            => Auth::id(),
+                    'brl_amount'            => $consumir,
+                    'usd_amount'            => $usdLote,
+                    'sell_rate'             => $sellRate,
+                    'brl_remaining'         => $consumir,
+                    'usd_remaining'         => $usdLote,
+                    'status'                => 'open',
+                    'notes'                 => $notes,
+                ]);
+
+                $tx->brl_pre_sold = round((float) ($tx->brl_pre_sold ?? 0) + $consumir, 2);
+                $tx->save();
+
+                $lotes[] = $lote;
+                $remaining = round($remaining - $consumir, 2);
+            }
+
+            return $lotes;
+        });
+    }
+
+    /**
+     * Liquida (consome) lotes de pré-venda de um depósito específico durante o fechamento.
+     * Retorna USD que deve ser entregue ao cliente.
+     *
+     * @return array{usd_a_entregar: float, brl_consumido_lotes: float}
+     */
+    public function consumePreSellsOnClose(Transaction $deposit, float $brlBeingConsumed): array
+    {
+        $brlPreSold = (float) ($deposit->brl_pre_sold ?? 0);
+        if ($brlPreSold <= 0.005 || $brlBeingConsumed <= 0.005) {
+            return ['usd_a_entregar' => 0.0, 'brl_consumido_lotes' => 0.0];
+        }
+
+        $brlParaLotes = round(min($brlBeingConsumed, $brlPreSold), 2);
+        if ($brlParaLotes <= 0.005) {
+            return ['usd_a_entregar' => 0.0, 'brl_consumido_lotes' => 0.0];
+        }
+
+        $lotes = WalletPreSell::query()
+            ->where('source_transaction_id', $deposit->id)
+            ->whereIn('status', ['open', 'partial'])
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        $restante = $brlParaLotes;
+        $usdEntregar = 0.0;
+
+        foreach ($lotes as $lote) {
+            if ($restante <= 0.005) break;
+
+            $brlLote = (float) $lote->brl_remaining;
+            if ($brlLote <= 0.005) continue;
+
+            $consumir = round(min($brlLote, $restante), 2);
+            $sellRate = (float) $lote->sell_rate;
+            $usdParte = $sellRate > 0 ? ($consumir / $sellRate) : 0.0;
+
+            $lote->brl_remaining = round((float) $lote->brl_remaining - $consumir, 2);
+            $lote->usd_remaining = round((float) $lote->usd_remaining - $usdParte, 4);
+
+            if ($lote->brl_remaining <= 0.005) {
+                $lote->brl_remaining = 0;
+                $lote->usd_remaining = 0;
+                $lote->status = 'closed';
+            } else {
+                $lote->status = 'partial';
+            }
+            $lote->save();
+
+            $usdEntregar += $usdParte;
+            $restante = round($restante - $consumir, 2);
+        }
+
+        $deposit->brl_pre_sold = round(max(0.0, (float) ($deposit->brl_pre_sold ?? 0) - $brlParaLotes), 2);
+        $deposit->save();
+
+        return [
+            'usd_a_entregar'      => round($usdEntregar, 4),
+            'brl_consumido_lotes' => $brlParaLotes,
+        ];
     }
 }

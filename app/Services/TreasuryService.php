@@ -121,21 +121,26 @@ class TreasuryService
 
     /**
      * Consome lotes FIFO. Atualiza status/PnL. Não cria transação aqui.
-     * @return array{custo_brl: float, pnl_brl: float, pnl_usd: float}
+     *
+     * Se o USD pedido for maior que o disponível, consome o que tem e cria um
+     * lote 'shortfall' com o déficit (usd_remaining negativo). O caixa fica
+     * negativo até um aporte ou pré-compra futura cobrir o rombo.
+     *
+     * @return array{custo_brl: float, pnl_brl: float, pnl_usd: float, shortfall_usd: float}
      */
     protected function consumeLots(?int $clientId, float $usdAmount, float $sellRate): array
     {
         $lotes = $this->loadOpenLotsForClient($clientId);
 
         $disponivel = (float) $lotes->sum('usd_remaining');
+        $shortfall  = 0.0;
         if ($usdAmount > $disponivel + 0.0001) {
-            throw new \RuntimeException(
-                'USD solicitado (' . number_format($usdAmount, 4, ',', '.') .
-                ') excede o disponível no caixa (' . number_format($disponivel, 4, ',', '.') . ').'
-            );
+            $shortfall = round($usdAmount - max(0.0, $disponivel), 8);
         }
 
-        $restante = $usdAmount;
+        // Quanto efetivamente conseguimos retirar dos lotes existentes.
+        $consumirDosLotes = min($usdAmount, max(0.0, $disponivel));
+        $restante = $consumirDosLotes;
         $custoBrlTotal = 0.0;
         $pnlBrlTotal = 0.0;
 
@@ -161,14 +166,39 @@ class TreasuryService
             $restante      -= $usdConsumir;
         }
 
+        // Déficit: registra um lote 'shortfall' com USD negativo.
+        // Custo presumido = sellRate (lucro=0 nessa fatia). Caixa do cliente
+        // (e total) ficam com saldo negativo até serem cobertos.
+        if ($shortfall > 0.00000001) {
+            TreasuryLot::create([
+                'created_by'       => Auth::id(),
+                'source'           => 'shortfall',
+                'client_id'        => $clientId,
+                'pre_purchase_id'  => null,
+                'usd_amount'       => -$shortfall,
+                'cost_rate'        => $sellRate,
+                'brl_cost'         => -round($shortfall * $sellRate, 8),
+                'usd_remaining'    => -$shortfall,
+                'realized_pnl_brl' => 0,
+                'status'           => 'open',
+                'purchased_at'     => now(),
+                'notes'            => 'Déficit no caixa: entregue US$ ' . number_format($shortfall, 4, ',', '.') .
+                                      ' acima do saldo disponível @ ' . number_format($sellRate, 4, ',', '.'),
+            ]);
+
+            // Considera o déficit como custo nominal à taxa de venda — PnL nessa parte = 0.
+            $custoBrlTotal += $shortfall * $sellRate;
+        }
+
         // Converte o lucro em R$ para USD na taxa da venda. Esse é o ganho que
         // "sobra" no caixa em dólar (lote 'profit' criado em quem chamar).
         $pnlUsd = ($sellRate > 0) ? round($pnlBrlTotal / $sellRate, 8) : 0.0;
 
         return [
-            'custo_brl' => round($custoBrlTotal, 8),
-            'pnl_brl'   => round($pnlBrlTotal, 8),
-            'pnl_usd'   => $pnlUsd,
+            'custo_brl'     => round($custoBrlTotal, 8),
+            'pnl_brl'       => round($pnlBrlTotal, 8),
+            'pnl_usd'       => $pnlUsd,
+            'shortfall_usd' => $shortfall,
         ];
     }
 
@@ -222,6 +252,28 @@ class TreasuryService
             'notes'            => 'Fechamento @ ' . number_format($closeRate, 4, ',', '.') .
                                   ($notes ? ' — ' . $notes : ''),
         ]);
+    }
+
+    /**
+     * Consome USD do caixa (FIFO priorizando lotes do cliente) para entregar diretamente
+     * no fechamento. Cria UM lote 'profit' pelo lucro USD residual e retorna detalhes.
+     *
+     * Não cria TreasurySale nem mexe em saldos do cliente — quem chama (fechamento)
+     * fica responsável por debitar BRL e creditar USD na carteira do cliente.
+     *
+     * @return array{custo_brl: float, pnl_brl: float, pnl_usd: float, shortfall_usd: float}
+     */
+    public function deliverFromCash(int $clientId, float $usdAmount, float $sellRate, ?string $notes = null): array
+    {
+        if ($usdAmount <= 0.00000001) {
+            return ['custo_brl' => 0.0, 'pnl_brl' => 0.0, 'pnl_usd' => 0.0, 'shortfall_usd' => 0.0];
+        }
+        if ($sellRate <= 0) throw new \InvalidArgumentException('Taxa de venda inválida.');
+
+        $consumo = $this->consumeLots($clientId, $usdAmount, $sellRate);
+        $this->bookProfitLot($consumo['pnl_usd'], $sellRate, $clientId, $notes);
+
+        return $consumo;
     }
 
     /**
