@@ -237,15 +237,6 @@ class WalletController extends Controller
     {
         $spreadsheet = $this->buildClientStatementSpreadsheet($client, $request);
 
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->getPageSetup()
-            ->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_LANDSCAPE)
-            ->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4)
-            ->setFitToWidth(1)
-            ->setFitToHeight(0);
-        $sheet->getPageMargins()
-            ->setTop(0.4)->setBottom(0.4)->setLeft(0.4)->setRight(0.4);
-
         $filename = sprintf(
             'extrato_%s_%s.pdf',
             \Illuminate\Support\Str::slug($client->name),
@@ -449,6 +440,55 @@ class WalletController extends Controller
         $sheet->getStyle('A' . $totalsRow . ':K' . $totalsRow)
             ->getBorders()->getBottom()
             ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+
+        // ---- Zebra striping (linhas alternadas cinza/branco) nas linhas de dados.
+        $cinza  = 'FFF2F2F2';
+        $branco = 'FFFFFFFF';
+        for ($i = 0; $i < $rowsCount; $i++) {
+            $row = $firstDataRow + $i;
+            $cor = ($i % 2 === 0) ? $branco : $cinza;
+            $sheet->getStyle('A' . $row . ':K' . $row)
+                ->getFill()
+                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                ->getStartColor()->setARGB($cor);
+            // Altura mais confortável para leitura no PDF.
+            $sheet->getRowDimension($row)->setRowHeight(22);
+        }
+
+        // ---- Larguras de coluna ajustadas para A4 paisagem caber inteiro.
+        $larguras = [
+            'A' => 4,    // N
+            'B' => 14,   // Data (Entrada R$)
+            'C' => 14,   // Valor R$
+            'D' => 10,   // Taxa
+            'E' => 13,   // Valor U$
+            'F' => 14,   // Data (Saída U$)
+            'G' => 13,   // Valor U$
+            'H' => 22,   // Descrição
+            'I' => 14,   // Data (Entrada U$)
+            'J' => 13,   // Valor U$
+            'K' => 22,   // Descrição
+        ];
+        foreach ($larguras as $col => $w) {
+            $sheet->getColumnDimension($col)->setWidth($w);
+        }
+
+        // ---- Altura mais generosa nas linhas de cabeçalho/totais.
+        $sheet->getRowDimension(1)->setRowHeight(28);
+        $sheet->getRowDimension(2)->setRowHeight(22);
+        $sheet->getRowDimension(3)->setRowHeight(22);
+        $sheet->getRowDimension($totalsRow)->setRowHeight(24);
+
+        // ---- Page setup: A4 paisagem, ajusta para caber em 1 página de largura.
+        $sheet->getPageSetup()
+            ->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_LANDSCAPE)
+            ->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4)
+            ->setFitToWidth(1)
+            ->setFitToHeight(0)
+            ->setHorizontalCentered(true);
+        $sheet->getPageMargins()
+            ->setTop(0.4)->setBottom(0.4)->setLeft(0.3)->setRight(0.3);
+        $sheet->setPrintGridlines(false);
 
         return $spreadsheet;
     }
