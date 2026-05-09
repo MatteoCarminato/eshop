@@ -443,41 +443,82 @@ class WalletController extends Controller
             ->getBorders()->getBottom()
             ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
 
-        // ---- Alinhamento à direita nas colunas de valores (dados + totais).
+        // ---- Bordas leves entre as linhas de dados (separação sutil) + zebra striping.
+        $cinza  = 'FFF2F2F2';
+        $branco = 'FFFFFFFF';
+        $bordaLeve = 'FFD9D9D9';
+        for ($i = 0; $i < $rowsCount; $i++) {
+            $row = $firstDataRow + $i;
+            $cor = ($i % 2 === 0) ? $cinza : $branco;
+
+            $rowStyle = $sheet->getStyle('A' . $row . ':K' . $row);
+            $rowStyle->getFill()
+                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                ->getStartColor()->setARGB($cor);
+            $rowStyle->getBorders()->getBottom()
+                ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_HAIR)
+                ->getColor()->setARGB($bordaLeve);
+
+            // Altura adequada para a data caber em uma linha só.
+            $sheet->getRowDimension($row)->setRowHeight(18);
+        }
+
+        // ---- Alinhamento à direita nas colunas de valores + fonte um pouco menor (dados).
         $colsRight = ['C', 'D', 'E', 'G', 'J'];
         $rangeStart = $firstDataRow;
         $rangeEnd   = $totalsRow;
         foreach ($colsRight as $col) {
-            $sheet->getStyle($col . $rangeStart . ':' . $col . $rangeEnd)
-                ->getAlignment()
-                ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+            $style = $sheet->getStyle($col . $rangeStart . ':' . $col . $rangeEnd);
+            $style->getAlignment()
+                ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT)
+                ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
         }
 
-        // ---- Zebra striping (linhas alternadas cinza/branco) nas linhas de dados.
-        $cinza  = 'FFF2F2F2';
-        $branco = 'FFFFFFFF';
+        // Garante alinhamento + tamanho de fonte por célula (sobrescreve qualquer
+        // estilo herdado do template, que vinha sobrescrevendo o range).
         for ($i = 0; $i < $rowsCount; $i++) {
             $row = $firstDataRow + $i;
-            $cor = ($i % 2 === 0) ? $cinza : $branco;
-            $sheet->getStyle('A' . $row . ':K' . $row)
-                ->getFill()
-                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-                ->getStartColor()->setARGB($cor);
-            // Altura mais confortável para leitura no PDF.
-            $sheet->getRowDimension($row)->setRowHeight(22);
+            // Datas centralizadas
+            foreach (['B', 'F', 'I'] as $col) {
+                $sheet->getStyle($col . $row)->getAlignment()
+                    ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+                    ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+            }
+            // Valores à direita
+            foreach ($colsRight as $col) {
+                $sheet->getStyle($col . $row)->getAlignment()
+                    ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT)
+                    ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+            }
+            // Descrições à esquerda
+            foreach (['H', 'K'] as $col) {
+                $sheet->getStyle($col . $row)->getAlignment()
+                    ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT)
+                    ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+            }
+            // Fonte menor nas linhas de dados.
+            $sheet->getStyle('A' . $row . ':K' . $row)->getFont()->setSize(9);
         }
+
+        // Linha de totais: também à direita nas colunas de valores e em negrito.
+        foreach (['C', 'E', 'G', 'J'] as $col) {
+            $sheet->getStyle($col . $totalsRow)->getAlignment()
+                ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT)
+                ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        }
+        $sheet->getStyle('A' . $totalsRow . ':K' . $totalsRow)->getFont()->setSize(10)->setBold(true);
 
         // ---- Larguras de coluna ajustadas para A4 paisagem caber inteiro.
         $larguras = [
             'A' => 4,    // N
-            'B' => 14,   // Data (Entrada R$)
+            'B' => 16,   // Data (Entrada R$) — largura suficiente para "dd/mm/aaaa hh:mm"
             'C' => 14,   // Valor R$
             'D' => 10,   // Taxa
             'E' => 13,   // Valor U$
-            'F' => 14,   // Data (Saída U$)
+            'F' => 16,   // Data (Saída U$)
             'G' => 13,   // Valor U$
             'H' => 22,   // Descrição
-            'I' => 14,   // Data (Entrada U$)
+            'I' => 16,   // Data (Entrada U$)
             'J' => 13,   // Valor U$
             'K' => 22,   // Descrição
         ];
@@ -485,11 +526,17 @@ class WalletController extends Controller
             $sheet->getColumnDimension($col)->setWidth($w);
         }
 
+        // Datas nunca devem quebrar — garante "wrap=false" nas colunas de data.
+        foreach (['B', 'F', 'I'] as $col) {
+            $sheet->getStyle($col . $firstDataRow . ':' . $col . $totalsRow)
+                ->getAlignment()->setWrapText(false);
+        }
+
         // ---- Altura mais generosa nas linhas de cabeçalho/totais.
         $sheet->getRowDimension(1)->setRowHeight(28);
-        $sheet->getRowDimension(2)->setRowHeight(22);
-        $sheet->getRowDimension(3)->setRowHeight(22);
-        $sheet->getRowDimension($totalsRow)->setRowHeight(24);
+        $sheet->getRowDimension(2)->setRowHeight(20);
+        $sheet->getRowDimension(3)->setRowHeight(20);
+        $sheet->getRowDimension($totalsRow)->setRowHeight(22);
 
         // ---- Page setup: A4 paisagem, ajusta para caber em 1 página de largura.
         $sheet->getPageSetup()
