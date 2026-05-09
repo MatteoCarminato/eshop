@@ -396,10 +396,10 @@ class WalletController extends Controller
                 } elseif ((float) $e->exchange_rate > 0) {
                     $valorUsd = (float) $e->amount / (float) $e->exchange_rate;
                 }
-                $sheet->setCellValue('B' . $row, $dt($e));
-                $sheet->setCellValue('C' . $row, (float) $e->amount);
-                $sheet->setCellValue('D' . $row, $e->exchange_rate ? (float) $e->exchange_rate : null);
-                $sheet->setCellValue('E' . $row, $valorUsd);
+                $sheet->setCellValueExplicit('B' . $row, $dt($e), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                $sheet->setCellValueExplicit('C' . $row, $br((float) $e->amount, 2), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                $sheet->setCellValueExplicit('D' . $row, $e->exchange_rate ? $br((float) $e->exchange_rate, 4) : '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                $sheet->setCellValueExplicit('E' . $row, $valorUsd !== null ? $br($valorUsd, 2) : '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
             } else {
                 // Limpa células do bloco para apagar valores que vieram do template (1..6).
                 foreach (['B','C','D','E'] as $col) $sheet->setCellValue($col . $row, null);
@@ -407,20 +407,21 @@ class WalletController extends Controller
 
             // Bloco "Saída U$" (F..H): Data | Valor U$ | Descrição
             if ($s) {
-                $sheet->setCellValue('F' . $row, $dt($s));
-                $sheet->setCellValue('G' . $row, abs((float) $s->amount));
+                $sheet->setCellValueExplicit('F' . $row, $dt($s), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                $sheet->setCellValueExplicit('G' . $row, $br(abs((float) $s->amount), 2), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                 $sheet->setCellValue('H' . $row, (string) ($s->description ?? ''));
             }
 
             // Bloco "Entrada U$" (I..K): Data | Valor U$ | Descrição
             if ($eu) {
-                $sheet->setCellValue('I' . $row, $dt($eu));
-                $sheet->setCellValue('J' . $row, (float) $eu->amount);
+                $sheet->setCellValueExplicit('I' . $row, $dt($eu), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                $sheet->setCellValueExplicit('J' . $row, $br((float) $eu->amount, 2), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                 $sheet->setCellValue('K' . $row, (string) ($eu->description ?? ''));
             }
         }
 
         // ---- Linha de totais
+        //valores com 2 casa decimais, vírgula como separador decimal e ponto como separador de milhar.
         $totalEntradaBrl = (float) $entradasBrl->sum('amount');
         $totalEntradaUsdEquiv = $entradasBrl->sum(function ($t) {
             if ($t->converted_currency === 'USD' && $t->converted_amount !== null) {
@@ -434,12 +435,23 @@ class WalletController extends Controller
         $sheet->setCellValue('C' . $totalsRow, 'R$ ' . $br($totalEntradaBrl));
         $sheet->setCellValue('E' . $totalsRow, 'U$ ' . $br($totalEntradaUsdEquiv));
         $sheet->setCellValue('G' . $totalsRow, 'U$ ' . $br($totalSaidaUsd));
-        $sheet->setCellValue('K' . $totalsRow, 'U$ ' . $br($totalEntradaUsd));
+        $sheet->setCellValue('J' . $totalsRow, 'U$ ' . $br($totalEntradaUsd));
+        $sheet->setCellValue('K' . $totalsRow, '');
 
         // ---- Borda simples embaixo da linha de totais (última linha do extrato).
         $sheet->getStyle('A' . $totalsRow . ':K' . $totalsRow)
             ->getBorders()->getBottom()
             ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+
+        // ---- Alinhamento à direita nas colunas de valores (dados + totais).
+        $colsRight = ['C', 'D', 'E', 'G', 'J'];
+        $rangeStart = $firstDataRow;
+        $rangeEnd   = $totalsRow;
+        foreach ($colsRight as $col) {
+            $sheet->getStyle($col . $rangeStart . ':' . $col . $rangeEnd)
+                ->getAlignment()
+                ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+        }
 
         // ---- Zebra striping (linhas alternadas cinza/branco) nas linhas de dados.
         $cinza  = 'FFF2F2F2';
