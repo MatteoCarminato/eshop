@@ -446,7 +446,7 @@ class WalletController extends Controller
         $branco = 'FFFFFFFF';
         for ($i = 0; $i < $rowsCount; $i++) {
             $row = $firstDataRow + $i;
-            $cor = ($i % 2 === 0) ? $branco : $cinza;
+            $cor = ($i % 2 === 0) ? $cinza : $branco;
             $sheet->getStyle('A' . $row . ':K' . $row)
                 ->getFill()
                 ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
