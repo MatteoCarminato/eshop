@@ -610,9 +610,14 @@
                 <div class="col-md-2 d-flex gap-2">
                     <button type="submit" class="btn btn-primary flex-grow-1">Filtrar</button>
                     <a class="btn btn-outline-success"
-                        title="Exportar para Excel/CSV (sem cores) com o mesmo período selecionado"
-                        href="{{ route('admin.wallet.client.export', array_merge(['client' => $client->id], request()->only(['date_from','date_to','currency','payment_method','type']))) }}">
+                        title="Exportar para Excel (.xlsx) usando o template oficial"
+                        href="{{ route('admin.wallet.client.export-xlsx', array_merge(['client' => $client->id], request()->only(['date_from','date_to','currency','payment_method','type']))) }}">
                         <i class="ri-file-excel-2-line"></i>
+                    </a>
+                    <a class="btn btn-outline-danger"
+                        title="Exportar para PDF (mesmo layout)"
+                        href="{{ route('admin.wallet.client.export-pdf', array_merge(['client' => $client->id], request()->only(['date_from','date_to','currency','payment_method','type']))) }}">
+                        <i class="ri-file-pdf-2-line"></i>
                     </a>
                 </div>
             </div>

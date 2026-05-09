@@ -191,6 +191,268 @@ class WalletController extends Controller
      *   Saldo Fulano  R$ xx,xx   U$ xxx,xx
      *   Entradas R$ | Saídas U$ | Entradas U$
      */
+    /**
+     * Exporta o extrato do cliente em XLSX usando o template em
+     * storage/app/templates/extrato_template.xlsx.
+     *
+     * Layout do template:
+     *   Linha 1 : A1:J1 = "Saldo {NOME} R$ X.XXX,XX"   |  K1 = "U$ X.XXX,00"
+     *   Linha 2 : Entrada R$ (A:E)  |  Saída U$ (F:H)  |  Entrada U$ (I:K)
+     *   Linha 3 : cabeçalhos das colunas
+     *   Linhas 4..10 : dados (template traz 7 linhas, expandimos conforme necessário)
+     *   Linha 11 : totais
+     */
+    public function exportClientXlsx(\App\Models\Client $client, Request $request)
+    {
+        $spreadsheet = $this->buildClientStatementSpreadsheet($client, $request);
+
+        $filename = sprintf(
+            'extrato_%s_%s.xlsx',
+            \Illuminate\Support\Str::slug($client->name),
+            now()->format('Ymd_His')
+        );
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    /**
+     * Exporta o mesmo extrato em PDF.
+     *
+     * Estratégia:
+     *   1) Gera o XLSX em arquivo temporário (mesmo do botão Excel).
+     *   2) Se o LibreOffice (`soffice`) estiver instalado, converte com ele
+     *      em paisagem — resultado idêntico ao "Salvar como PDF" do Excel.
+     *   3) Caso contrário, faz fallback usando Mpdf (layout aproximado).
+     *
+     * Para o resultado fiel ao Excel, instale o LibreOffice:
+     *   macOS: `brew install --cask libreoffice`
+     *   Ubuntu: `sudo apt install libreoffice`
+     */
+    public function exportClientPdf(\App\Models\Client $client, Request $request)
+    {
+        $spreadsheet = $this->buildClientStatementSpreadsheet($client, $request);
+
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->getPageSetup()
+            ->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_LANDSCAPE)
+            ->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4)
+            ->setFitToWidth(1)
+            ->setFitToHeight(0);
+        $sheet->getPageMargins()
+            ->setTop(0.4)->setBottom(0.4)->setLeft(0.4)->setRight(0.4);
+
+        $filename = sprintf(
+            'extrato_%s_%s.pdf',
+            \Illuminate\Support\Str::slug($client->name),
+            now()->format('Ymd_His')
+        );
+
+        // 1) Salva XLSX temporário.
+        $tmpDir   = storage_path('app/tmp');
+        if (!is_dir($tmpDir)) @mkdir($tmpDir, 0775, true);
+        $xlsxPath = $tmpDir . DIRECTORY_SEPARATOR . 'extrato_' . uniqid() . '.xlsx';
+        $writer   = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');
+        $writer->save($xlsxPath);
+
+        // 2) Tenta LibreOffice headless.
+        $soffice = $this->locateSoffice();
+        if ($soffice) {
+            $cmd = sprintf(
+                '%s --headless --norestore --nofirststartwizard --convert-to pdf:"calc_pdf_Export" --outdir %s %s 2>&1',
+                escapeshellarg($soffice),
+                escapeshellarg($tmpDir),
+                escapeshellarg($xlsxPath)
+            );
+            @exec($cmd, $output, $code);
+            $pdfPath = preg_replace('/\.xlsx$/', '.pdf', $xlsxPath);
+
+            if ($code === 0 && is_file($pdfPath)) {
+                @unlink($xlsxPath);
+                return response()->streamDownload(function () use ($pdfPath) {
+                    readfile($pdfPath);
+                    @unlink($pdfPath);
+                }, $filename, ['Content-Type' => 'application/pdf']);
+            }
+            // Se falhar, segue para Mpdf.
+        }
+
+        // 3) Fallback Mpdf.
+        @unlink($xlsxPath);
+        \PhpOffice\PhpSpreadsheet\IOFactory::registerWriter(
+            'Pdf', \PhpOffice\PhpSpreadsheet\Writer\Pdf\Mpdf::class
+        );
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Pdf');
+            $writer->save('php://output');
+        }, $filename, ['Content-Type' => 'application/pdf']);
+    }
+
+    /**
+     * Localiza o binário do LibreOffice (`soffice`) em paths conhecidos.
+     */
+    protected function locateSoffice(): ?string
+    {
+        // Permite override via .env: LIBREOFFICE_PATH=/caminho/soffice
+        $env = env('LIBREOFFICE_PATH');
+        if ($env && is_executable($env)) return $env;
+
+        $candidates = [
+            '/Applications/LibreOffice.app/Contents/MacOS/soffice',
+            '/usr/bin/soffice',
+            '/usr/local/bin/soffice',
+            '/opt/homebrew/bin/soffice',
+            '/usr/bin/libreoffice',
+        ];
+        foreach ($candidates as $p) {
+            if (is_executable($p)) return $p;
+        }
+
+        // Tenta `which`
+        $which = @shell_exec('command -v soffice 2>/dev/null');
+        if ($which) {
+            $which = trim($which);
+            if ($which && is_executable($which)) return $which;
+        }
+        return null;
+    }
+
+    /**
+     * Monta a Spreadsheet do extrato a partir do template em
+     * storage/app/templates/extrato_template.xlsx.
+     *
+     * Layout do template:
+     *   Linha 1 : A1:J1 = "Saldo {NOME} R$ X.XXX,XX"   |  K1 = "U$ X.XXX,00"
+     *   Linha 2 : Entrada R$ (A:E)  |  Saída U$ (F:H)  |  Entrada U$ (I:K)
+     *   Linha 3 : cabeçalhos das colunas
+     *   Linhas 4..9 : dados (template traz 6 linhas, ajustamos conforme registros)
+     *   Linha 10 : "..." (placeholder — removido)
+     *   Linha 11 : totais (com borda inferior simples)
+     */
+    protected function buildClientStatementSpreadsheet(\App\Models\Client $client, Request $request): \PhpOffice\PhpSpreadsheet\Spreadsheet
+    {
+        [$dateFrom, $dateTo] = $this->parseDateRange($request);
+
+        $wallets = $client->wallets()->get()->keyBy('currency');
+        $brl = (float) ($wallets['BRL']->balance ?? 0);
+        $usd = (float) ($wallets['USD']->balance ?? 0);
+
+        $all = $client->transactions()
+            ->when($dateFrom, fn ($q) => $q->where('created_at', '>=', $dateFrom))
+            ->when($dateTo,   fn ($q) => $q->where('created_at', '<=', $dateTo))
+            ->orderBy('created_at')
+            ->get();
+
+        $entradasBrl = $all->filter(fn ($t) => $t->type === 'deposit' && $t->currency === 'BRL' && (float) $t->amount > 0)->values();
+        $saidasUsd   = $all->filter(fn ($t) => $t->currency === 'USD' && (float) $t->amount < 0)->values();
+        $entradasUsd = $all->filter(fn ($t) => $t->currency === 'USD' && (float) $t->amount > 0)->values();
+
+        $rowsCount = max(1, $entradasBrl->count(), $saidasUsd->count(), $entradasUsd->count());
+
+        $br = fn ($v, $dec = 2) => number_format((float) $v, $dec, ',', '.');
+        $dt = fn ($t) => optional($t->created_at)->format('d/m/Y H:i');
+
+        $templatePath = storage_path('app/templates/extrato_template.xlsx');
+        if (!is_file($templatePath)) {
+            abort(500, 'Template extrato_template.xlsx não encontrado em storage/app/templates.');
+        }
+
+        $reader      = \PhpOffice\PhpSpreadsheet\IOFactory::createReader('Xlsx');
+        $spreadsheet = $reader->load($templatePath);
+        $sheet       = $spreadsheet->getActiveSheet();
+
+        // ---- Linha 1: saldos
+        $sheet->setCellValue('A1', 'Saldo ' . $client->name . ' R$ ' . $br($brl));
+        $sheet->setCellValue('K1', 'U$ ' . $br($usd));
+
+        // ---- Ajustar quantidade de linhas de dados.
+        // Template original: linhas 4..9 = 6 linhas com numeração 1..6,
+        // linha 10 = "..." (placeholder de exemplo) e linha 11 = totais.
+        // Removemos a linha do "..." e ajustamos as linhas reais conforme rowsCount.
+        $firstDataRow      = 4;
+        $templateDataRows  = 6;            // linhas reais (4..9)
+        $placeholderRow    = 10;           // linha do "..."
+        $sheet->removeRow($placeholderRow, 1); // totais agora estão na linha 10
+
+        if ($rowsCount > $templateDataRows) {
+            // Insere o que faltar ANTES da linha de totais (herda formatação).
+            $extra = $rowsCount - $templateDataRows;
+            $sheet->insertNewRowBefore($firstDataRow + $templateDataRows, $extra);
+        } elseif ($rowsCount < $templateDataRows) {
+            // Remove linhas excedentes do meio.
+            $remove = $templateDataRows - $rowsCount;
+            $sheet->removeRow($firstDataRow + $rowsCount, $remove);
+        }
+        $totalsRow = $firstDataRow + $rowsCount;
+
+        // ---- Preenche linhas de dados
+        for ($i = 0; $i < $rowsCount; $i++) {
+            $row = $firstDataRow + $i;
+            $e   = $entradasBrl->get($i);
+            $s   = $saidasUsd->get($i);
+            $eu  = $entradasUsd->get($i);
+
+            // Bloco "Entrada R$" (A..E): N | Data | Valor R$ | Taxa | Valor U$
+            $sheet->setCellValue('A' . $row, $i + 1);
+            if ($e) {
+                $valorUsd = null;
+                if ($e->converted_currency === 'USD' && $e->converted_amount !== null) {
+                    $valorUsd = (float) $e->converted_amount;
+                } elseif ((float) $e->exchange_rate > 0) {
+                    $valorUsd = (float) $e->amount / (float) $e->exchange_rate;
+                }
+                $sheet->setCellValue('B' . $row, $dt($e));
+                $sheet->setCellValue('C' . $row, (float) $e->amount);
+                $sheet->setCellValue('D' . $row, $e->exchange_rate ? (float) $e->exchange_rate : null);
+                $sheet->setCellValue('E' . $row, $valorUsd);
+            } else {
+                // Limpa células do bloco para apagar valores que vieram do template (1..6).
+                foreach (['B','C','D','E'] as $col) $sheet->setCellValue($col . $row, null);
+            }
+
+            // Bloco "Saída U$" (F..H): Data | Valor U$ | Descrição
+            if ($s) {
+                $sheet->setCellValue('F' . $row, $dt($s));
+                $sheet->setCellValue('G' . $row, abs((float) $s->amount));
+                $sheet->setCellValue('H' . $row, (string) ($s->description ?? ''));
+            }
+
+            // Bloco "Entrada U$" (I..K): Data | Valor U$ | Descrição
+            if ($eu) {
+                $sheet->setCellValue('I' . $row, $dt($eu));
+                $sheet->setCellValue('J' . $row, (float) $eu->amount);
+                $sheet->setCellValue('K' . $row, (string) ($eu->description ?? ''));
+            }
+        }
+
+        // ---- Linha de totais
+        $totalEntradaBrl = (float) $entradasBrl->sum('amount');
+        $totalEntradaUsdEquiv = $entradasBrl->sum(function ($t) {
+            if ($t->converted_currency === 'USD' && $t->converted_amount !== null) {
+                return (float) $t->converted_amount;
+            }
+            return ((float) $t->exchange_rate > 0) ? (float) $t->amount / (float) $t->exchange_rate : 0.0;
+        });
+        $totalSaidaUsd   = $saidasUsd->sum(fn ($t) => abs((float) $t->amount));
+        $totalEntradaUsd = (float) $entradasUsd->sum('amount');
+
+        $sheet->setCellValue('C' . $totalsRow, 'R$ ' . $br($totalEntradaBrl));
+        $sheet->setCellValue('E' . $totalsRow, 'U$ ' . $br($totalEntradaUsdEquiv));
+        $sheet->setCellValue('G' . $totalsRow, 'U$ ' . $br($totalSaidaUsd));
+        $sheet->setCellValue('K' . $totalsRow, 'U$ ' . $br($totalEntradaUsd));
+
+        // ---- Borda simples embaixo da linha de totais (última linha do extrato).
+        $sheet->getStyle('A' . $totalsRow . ':K' . $totalsRow)
+            ->getBorders()->getBottom()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+
+        return $spreadsheet;
+    }
+
     public function exportClientCsv(\App\Models\Client $client, Request $request)
     {
         [$dateFrom, $dateTo] = $this->parseDateRange($request);

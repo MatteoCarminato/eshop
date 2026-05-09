@@ -51,6 +51,8 @@ Route::middleware('auth')->group(function () {
             Route::get('/', [\App\Http\Controllers\WalletController::class, 'index'])->name('index');
             Route::get('/client/{client}', [\App\Http\Controllers\WalletController::class, 'clientWallet'])->name('client');
             Route::get('/client/{client}/export', [\App\Http\Controllers\WalletController::class, 'exportClientCsv'])->name('client.export');
+            Route::get('/client/{client}/export-xlsx', [\App\Http\Controllers\WalletController::class, 'exportClientXlsx'])->name('client.export-xlsx');
+            Route::get('/client/{client}/export-pdf', [\App\Http\Controllers\WalletController::class, 'exportClientPdf'])->name('client.export-pdf');
             Route::get('/transactions', [\App\Http\Controllers\WalletController::class, 'transactions'])->name('transactions');
             Route::get('/usd-brl-rate', [\App\Http\Controllers\WalletController::class, 'fetchUsdBrlRate'])->name('usd-brl-rate');
         });
