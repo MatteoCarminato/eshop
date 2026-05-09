@@ -459,8 +459,8 @@ class WalletController extends Controller
                 ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_HAIR)
                 ->getColor()->setARGB($bordaLeve);
 
-            // Altura adequada para a data caber em uma linha só.
-            $sheet->getRowDimension($row)->setRowHeight(18);
+            // Altura maior para dar respiro vertical entre linhas.
+            $sheet->getRowDimension($row)->setRowHeight(22);
         }
 
         // ---- Alinhamento à direita nas colunas de valores + fonte um pouco menor (dados).
@@ -478,49 +478,68 @@ class WalletController extends Controller
         // estilo herdado do template, que vinha sobrescrevendo o range).
         for ($i = 0; $i < $rowsCount; $i++) {
             $row = $firstDataRow + $i;
+            // Coluna A (numeração) à esquerda
+            $sheet->getStyle('A' . $row)->getAlignment()
+                ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT)
+                ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+                ->setIndent(1);
+
             // Datas centralizadas
             foreach (['B', 'F', 'I'] as $col) {
                 $sheet->getStyle($col . $row)->getAlignment()
                     ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
                     ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
             }
-            // Valores à direita
+            // Valores à direita com leve recuo à direita pra não colar na próxima coluna
             foreach ($colsRight as $col) {
                 $sheet->getStyle($col . $row)->getAlignment()
                     ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT)
-                    ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+                    ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+                    ->setIndent(1);
             }
-            // Descrições à esquerda
+            // Descrições à esquerda com recuo
             foreach (['H', 'K'] as $col) {
                 $sheet->getStyle($col . $row)->getAlignment()
                     ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT)
-                    ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+                    ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+                    ->setIndent(1);
             }
-            // Fonte menor nas linhas de dados.
-            $sheet->getStyle('A' . $row . ':K' . $row)->getFont()->setSize(9);
+            // Fonte menor nas linhas de dados (8.5pt para descrições caberem melhor).
+            $sheet->getStyle('A' . $row . ':K' . $row)->getFont()->setSize(8.5);
         }
 
-        // Linha de totais: também à direita nas colunas de valores e em negrito.
+        // Linha de totais: à direita nas colunas de valores e em negrito.
         foreach (['C', 'E', 'G', 'J'] as $col) {
             $sheet->getStyle($col . $totalsRow)->getAlignment()
                 ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT)
-                ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+                ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+                ->setIndent(1);
         }
         $sheet->getStyle('A' . $totalsRow . ':K' . $totalsRow)->getFont()->setSize(10)->setBold(true);
 
+        // ---- Separadores verticais entre os 3 blocos (E|F e H|I).
+        // Aplica borda direita leve ao final de Entrada R$ e Saída U$.
+        foreach (['E', 'H'] as $col) {
+            $sheet->getStyle($col . $firstDataRow . ':' . $col . $totalsRow)
+                ->getBorders()->getRight()
+                ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)
+                ->getColor()->setARGB('FFBFBFBF');
+        }
+
         // ---- Larguras de coluna ajustadas para A4 paisagem caber inteiro.
+        // Total ~ 152 unidades — calibrado para A4 paisagem com margens 0.3.
         $larguras = [
             'A' => 4,    // N
-            'B' => 16,   // Data (Entrada R$) — largura suficiente para "dd/mm/aaaa hh:mm"
-            'C' => 14,   // Valor R$
-            'D' => 10,   // Taxa
-            'E' => 13,   // Valor U$
+            'B' => 16,   // Data (Entrada R$)
+            'C' => 13,   // Valor R$
+            'D' => 9,    // Taxa
+            'E' => 12,   // Valor U$
             'F' => 16,   // Data (Saída U$)
-            'G' => 13,   // Valor U$
-            'H' => 22,   // Descrição
+            'G' => 12,   // Valor U$
+            'H' => 26,   // Descrição saída
             'I' => 16,   // Data (Entrada U$)
-            'J' => 13,   // Valor U$
-            'K' => 22,   // Descrição
+            'J' => 12,   // Valor U$
+            'K' => 28,   // Descrição entrada U$
         ];
         foreach ($larguras as $col => $w) {
             $sheet->getColumnDimension($col)->setWidth($w);
