@@ -254,17 +254,29 @@
                         @csrf
                         <input type="hidden" name="client_id" value="{{ $client->id }}">
                         <div class="modal-body">
+                            <div class="alert alert-info py-2 mb-3">
+                                <small>
+                                    <i class="ri-information-line"></i>
+                                    Saque sempre em <strong>Dólar (USD)</strong>. Será debitado do saldo USD do cliente.<br>
+                                    Saldo USD disponível:
+                                    <strong>U$ {{ number_format($balances['USD'] ?? 0, 2, ',', '.') }}</strong>
+                                </small>
+                            </div>
                             <div class="mb-3">
-                                <label for="withdraw_currency" class="form-label">Moeda</label>
-                                <select name="currency" id="withdraw_currency" class="form-select" required>
-                                    <option value="BRL">Reais (BRL)</option>
-                                    <option value="USD">Dólar (USD)</option>
+                                <label for="withdraw_payment_method" class="form-label">Tipo de envio</label>
+                                <select name="payment_method" id="withdraw_payment_method" class="form-select" required onchange="updateWithdrawDescription()">
+                                    <option value="efetivo">Efetivo (papel)</option>
+                                    <option value="usdt">USDT</option>
                                 </select>
                             </div>
                             <div class="mb-3">
-                                <label for="withdraw_amount" class="form-label">Valor</label>
-                                <input type="number" step="0.01" name="amount" id="withdraw_amount" class="form-control"
-                                    required>
+                                <label for="withdraw_amount" class="form-label">Valor (US$)</label>
+                                <input type="number" step="0.01" min="0.01" name="amount" id="withdraw_amount" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="withdraw_description" class="form-label">Descrição</label>
+                                <input type="text" name="description" id="withdraw_description" class="form-control" value="Efetivo Enviado" maxlength="255">
+                                <small class="text-muted">Auto-preenchido conforme o tipo. Pode ser editado livremente.</small>
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -272,6 +284,16 @@
                             <button type="submit" class="btn btn-danger">Sacar</button>
                         </div>
                     </form>
+                    <script>
+                        function updateWithdrawDescription() {
+                            var m = document.getElementById('withdraw_payment_method').value;
+                            var d = document.getElementById('withdraw_description');
+                            // só sobrescreve se ainda estiver com um dos defaults
+                            if (d.value === '' || d.value === 'Efetivo Enviado' || d.value === 'USDT Enviado') {
+                                d.value = m === 'usdt' ? 'USDT Enviado' : 'Efetivo Enviado';
+                            }
+                        }
+                    </script>
                 </div>
             </div>
         </div>
@@ -669,19 +691,9 @@
                                 <button type="button"
                                     class="btn btn-sm btn-danger"
                                     id="btn-vender-dolar-ant"
-                                    title="Pré-venda: fixa a taxa que vai cobrar do cliente"
+                                    title="Vende USD ao cliente na taxa informada (cria Entrada U$ imediatamente)"
                                     data-bs-toggle="modal" data-bs-target="#venderDolarAntecipadoModal">
                                     <i class="ri-arrow-up-circle-line me-1"></i>Vender DÓLAR
-                                </button>
-                                <button type="button" class="btn btn-sm btn-primary" id="btn-fechar-dolar"
-                                    data-bs-toggle="modal" data-bs-target="#fecharDolarModal">
-                                    <i class="ri-check-double-line me-1"></i>Fechar em dólar
-                                </button>
-                                <input type="number" step="0.000001" min="0.000001" name="exchange_rate"
-                                    class="form-control form-control-sm" style="width: 110px" value="4.9311"
-                                    placeholder="Nova taxa" required>
-                                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Aplica a taxa nas linhas selecionadas">
-                                    Taxa
                                 </button>
                             </div>
                         </form>

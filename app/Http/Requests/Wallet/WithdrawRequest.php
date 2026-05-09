@@ -15,8 +15,9 @@ class WithdrawRequest extends FormRequest
     {
         return [
             'client_id' => 'required|exists:clients,id',
-            'currency' => 'required|in:BRL,USD',
             'amount' => 'required|numeric|min:0.01',
+            'payment_method' => 'required|in:efetivo,usdt',
+            'description' => 'nullable|string|max:255',
         ];
     }
 }

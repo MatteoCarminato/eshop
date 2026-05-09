@@ -100,6 +100,8 @@ class WalletController extends Controller
 
         $totals['PNL_USD'] = (float) $pnlQuery->sum('realized_pnl_usd');
 
+        $totals['USD'] = $totals['USD'] + $totals['USD_PRE'] + $totals['PNL_USD']; // saldo USD + pré-comprado + PnL
+
         // PnL por cliente no período (para a coluna da tabela).
         $pnlByClient = (clone $pnlQuery)
             ->select('client_id', DB::raw('COALESCE(SUM(realized_pnl_usd), 0) as total'))
@@ -352,6 +354,15 @@ class WalletController extends Controller
                     ? array_map('intval', $validated['transaction_ids'])
                     : null
             );
+
+            // Finaliza depósitos-fonte cobertos por compra + venda.
+            $depositIds = array_unique(array_map(fn ($l) => (int) $l->source_transaction_id, $lotes));
+            foreach ($depositIds as $depId) {
+                $dep = \App\Models\Transaction::find($depId);
+                if ($dep) {
+                    $this->walletService->finalizeDepositIfCovered($dep);
+                }
+            }
         } catch (\Throwable $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -382,27 +393,81 @@ class WalletController extends Controller
         ]);
 
         try {
-            $lotes = $this->walletService->preSellDollar(
-                (int) $validated['client_id'],
-                (float) $validated['amount'],
-                (float) $validated['sell_rate'],
-                $validated['description'] ?? null,
-                !empty($validated['transaction_ids'])
-                    ? array_map('intval', $validated['transaction_ids'])
-                    : null
-            );
+            return DB::transaction(function () use ($validated) {
+                $clientId  = (int) $validated['client_id'];
+                $sellRate  = (float) $validated['sell_rate'];
+                $brlAmount = (float) $validated['amount'];
+                $userDesc  = $validated['description'] ?? null;
+
+                // 1) Cria lotes de pré-venda (reserva R$ nos depósitos selecionados).
+                $lotes = $this->walletService->preSellDollar(
+                    $clientId,
+                    $brlAmount,
+                    $sellRate,
+                    $userDesc,
+                    !empty($validated['transaction_ids'])
+                        ? array_map('intval', $validated['transaction_ids'])
+                        : null
+                );
+
+                $totalUsd = round(array_sum(array_map(fn ($l) => (float) $l->usd_amount, $lotes)), 2);
+                $totalBrl = round(array_sum(array_map(fn ($l) => (float) $l->brl_amount, $lotes)), 2);
+
+                $descricao = $userDesc ?: 'Fechamento R$ ' . number_format($totalBrl, 2, ',', '.') .
+                                          ' @ ' . number_format($sellRate, 4, ',', '.');
+
+                // 2) Entrega USD do caixa do dono ao cliente (consome lotes + calcula PnL).
+                $consumo = $this->treasuryService->deliverFromCash(
+                    $clientId, $totalUsd, $sellRate, $descricao
+                );
+                $totalPnlBrl = (float) ($consumo['pnl_brl'] ?? 0);
+                $totalPnlUsd = (float) ($consumo['pnl_usd'] ?? 0);
+                $shortfall   = (float) ($consumo['shortfall_usd'] ?? 0);
+
+                // 3) Cria a transação USD finalizada (Entrada U$ do cliente).
+                $this->transactionService->create([
+                    'client_id'        => $clientId,
+                    'type'             => 'deposit',
+                    'currency'         => 'USD',
+                    'amount'           => $totalUsd,
+                    'exchange_rate'    => $sellRate,
+                    'description'      => $descricao,
+                    'realized_pnl_brl' => round($totalPnlBrl, 2),
+                    'realized_pnl_usd' => round($totalPnlUsd, 4),
+                    'status'           => 'finalizado',
+                ]);
+
+                // 4) Credita USD no saldo do cliente.
+                $this->walletService->updateBalance($clientId, 'USD', $totalUsd);
+
+                // 5) Para cada depósito-fonte tocado, finaliza se compra+venda já cobrem tudo.
+                $depositIds = array_unique(array_map(fn ($l) => (int) $l->source_transaction_id, $lotes));
+                foreach ($depositIds as $depId) {
+                    $dep = \App\Models\Transaction::find($depId);
+                    if ($dep) {
+                        $this->walletService->finalizeDepositIfCovered($dep);
+                    }
+                }
+
+                $sinal = $totalPnlBrl >= 0 ? '+' : '';
+                $msg = 'Venda registrada: R$ ' . number_format($totalBrl, 2, ',', '.') .
+                       ' → US$ ' . number_format($totalUsd, 2, ',', '.') .
+                       ' (taxa ' . number_format($sellRate, 4, ',', '.') . '). ' .
+                       'PnL: ' . $sinal . 'R$ ' . number_format($totalPnlBrl, 2, ',', '.') .
+                       ' (' . $sinal . 'US$ ' . number_format($totalPnlUsd, 2, ',', '.') . ').';
+
+                $redirect = redirect()->back()->with('success', $msg);
+                if ($shortfall > 0.0001) {
+                    $redirect = $redirect->with('warning',
+                        '⚠ Caixa USD ficou negativo em US$ ' . number_format($shortfall, 2, ',', '.') .
+                        '. O dólar entregue ao cliente excedeu o saldo do caixa — registre um aporte ou pré-compra para cobrir o déficit.'
+                    );
+                }
+                return $redirect;
+            });
         } catch (\Throwable $e) {
             return back()->with('error', $e->getMessage());
         }
-
-        $totalUsd = array_sum(array_map(fn ($l) => (float) $l->usd_amount, $lotes));
-        $totalBrl = array_sum(array_map(fn ($l) => (float) $l->brl_amount, $lotes));
-
-        return back()->with('success',
-            'Pré-venda registrada: R$ ' . number_format($totalBrl, 2, ',', '.') .
-            ' → US$ ' . number_format($totalUsd, 2, ',', '.') .
-            ' (taxa ' . number_format((float) $validated['sell_rate'], 4, ',', '.') . ').'
-        );
     }
 
     /**
@@ -579,15 +644,18 @@ class WalletController extends Controller
     {
         return DB::transaction(function () use ($request) {
             $data = $request->validated();
-            $wallet = $this->walletService->updateBalance($data['client_id'], $data['currency'], -$data['amount']);
-            if ($wallet->balance < 0) {
-                throw new \Exception('Saldo insuficiente.');
-            }
+            $method = $data['payment_method']; // efetivo | usdt
+            $description = $data['description'] ?? ($method === 'usdt' ? 'USDT Enviado' : 'Efetivo Enviado');
+
+            $wallet = $this->walletService->updateBalance($data['client_id'], 'USD', -$data['amount']);
+            // Permitido sacar mais do que o cliente tem em carteira (saldo USD pode ficar negativo).
             $this->transactionService->create([
                 'client_id' => $data['client_id'],
                 'type' => 'withdraw',
-                'currency' => $data['currency'],
+                'currency' => 'USD',
                 'amount' => -$data['amount'],
+                'payment_method' => $method,
+                'description' => $description,
             ]);
             return response()->json(['message' => 'Saque realizado com sucesso.']);
         });

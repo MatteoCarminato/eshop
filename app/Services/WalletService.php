@@ -287,6 +287,94 @@ class WalletService
             ->orderBy('id');
     }
 
+    /**
+     * Finaliza o depósito BRL quando a PRÉ-VENDA já cobre todo o valor do depósito
+     * (a venda equivale ao fechamento — o USD já foi entregue ao cliente).
+     * Quando finaliza:
+     *   - debita o R$ do cliente (sai a "casca" do depósito da carteira),
+     *   - grava no depósito a taxa média de venda (visão do cliente),
+     *   - marca status = 'finalizado'.
+     *
+     * A pré-compra é apenas controle interno do dono (custo) e não bloqueia o fechamento.
+     *
+     * Retorna true se finalizou nesta chamada, false caso contrário.
+     */
+    public function finalizeDepositIfCovered(Transaction $deposit): bool
+    {
+        return DB::transaction(function () use ($deposit) {
+            $deposit->refresh();
+
+            if (in_array($deposit->status, ['fechado', 'finalizado'], true)) {
+                return false;
+            }
+
+            $amount  = round((float) $deposit->amount, 2);
+            $brlPre  = round((float) ($deposit->brl_pre_purchased ?? 0), 2);
+            $brlSold = round((float) ($deposit->brl_pre_sold ?? 0), 2);
+
+            // Só finaliza quando COMPRA e VENDA já cobrem todo o depósito.
+            if ($brlPre + 0.005 < $amount || $brlSold + 0.005 < $amount) {
+                return false;
+            }
+
+            // Taxa média de VENDA (visão do cliente) sobre TODOS os lotes de pré-venda deste depósito.
+            $sells  = WalletPreSell::where('source_transaction_id', $deposit->id)->get();
+            $brlSum = (float) $sells->sum('brl_amount');
+            $usdSum = (float) $sells->sum('usd_amount');
+            $taxa   = $usdSum > 0 ? round($brlSum / $usdSum, 6) : null;
+
+            $deposit->status = 'finalizado';
+            if ($taxa) {
+                $deposit->exchange_rate      = $taxa;
+                $deposit->converted_currency = 'USD';
+                $deposit->converted_amount   = round($usdSum, 2);
+            }
+            $deposit->save();
+
+            // Liquida (fecha) os lotes de PRÉ-COMPRA deste depósito.
+            // O USD pré-comprado pelo dono já foi efetivamente entregue ao cliente
+            // via venda — então não há mais "deve ao cliente" pendente nem USD em aberto.
+            // PnL USD por lote = USD pré-comprado − USD vendido (proporcional ao R$ do lote).
+            $purchases = WalletPrePurchase::where('source_transaction_id', $deposit->id)
+                ->whereIn('status', ['open', 'partial'])
+                ->get();
+
+            $taxaVendaMedia = $taxa ?: 0.0;
+
+            foreach ($purchases as $lote) {
+                $brlRem = (float) $lote->brl_remaining;
+                if ($brlRem <= 0.005) {
+                    $lote->brl_remaining = 0;
+                    $lote->usd_remaining = 0;
+                    $lote->status        = 'closed';
+                    $lote->save();
+                    continue;
+                }
+
+                $rateCompra = (float) $lote->exchange_rate;
+                $usdComprado = $rateCompra > 0 ? round($brlRem / $rateCompra, 4) : 0.0;
+                $usdVendido  = $taxaVendaMedia > 0 ? round($brlRem / $taxaVendaMedia, 4) : $usdComprado;
+                $pnlUsdLote  = round($usdComprado - $usdVendido, 8);
+
+                $lote->brl_remaining   = 0;
+                $lote->usd_remaining   = 0;
+                $lote->realized_pnl_usd = round((float) $lote->realized_pnl_usd + $pnlUsdLote, 8);
+                $lote->status          = 'closed';
+                $lote->save();
+            }
+
+            // Zera os marcadores no depósito (já está finalizado, mas mantém consistente).
+            $deposit->brl_pre_purchased = 0;
+            $deposit->brl_pre_sold      = 0;
+            $deposit->save();
+
+            // Debita o R$ do cliente — a "casca" do depósito sai da carteira.
+            $this->updateBalance((int) $deposit->client_id, 'BRL', -$amount);
+
+            return true;
+        });
+    }
+
     // ==========================================================================
     //  PRÉ-VENDA — espelha a pré-compra mas representa o lado da venda ao cliente.
     // ==========================================================================
