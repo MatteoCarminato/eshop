@@ -57,7 +57,8 @@
             @endphp
             <div class="row mt-2">
                 <div class="col-12">
-                    <div class="alert alert-secondary py-2 px-3 mb-0 d-flex flex-wrap align-items-center justify-content-between gap-3 small">
+                    <div
+                        class="alert alert-secondary py-2 px-3 mb-0 d-flex flex-wrap align-items-center justify-content-between gap-3 small">
                         <div>
                             <i class="ri-safe-2-line me-1"></i>
                             <strong>Caixa USD da empresa:</strong>
@@ -74,7 +75,8 @@
                         <div>
                             <i class="ri-line-chart-line me-1"></i>
                             <span class="text-muted">Lucro acumulado (caixa):</span>
-                            <strong class="{{ $pnlAcumUsd > 0 ? 'text-success' : ($pnlAcumUsd < 0 ? 'text-danger' : 'text-muted') }}">
+                            <strong
+                                class="{{ $pnlAcumUsd > 0 ? 'text-success' : ($pnlAcumUsd < 0 ? 'text-danger' : 'text-muted') }}">
                                 {{ $pnlAcumUsd >= 0 ? '+' : '' }}US$ {{ number_format($pnlAcumUsd, 2, ',', '.') }}
                             </strong>
                         </div>
@@ -125,10 +127,12 @@
                                             </div>
                                             <div class="flex-grow-1 ms-3">
                                                 <h2 class="mb-0 cfs-22 text-warning">
-                                                    US$ {{ number_format($prePurchaseSummary['usd_pre_comprado'], 2, ',', '.') }}
+                                                    US$
+                                                    {{ number_format($prePurchaseSummary['usd_pre_comprado'], 2, ',', '.') }}
                                                 </h2>
                                                 @if($prePurchaseSummary['taxa_media'])
-                                                    <small class="text-muted">@ {{ number_format($prePurchaseSummary['taxa_media'], 4, ',', '.') }}</small>
+                                                    <small class="text-muted">@
+                                                        {{ number_format($prePurchaseSummary['taxa_media'], 4, ',', '.') }}</small>
                                                 @endif
                                             </div>
                                         </div>
@@ -143,9 +147,11 @@
                                             </div>
                                             <div class="flex-grow-1 ms-3">
                                                 <h2 class="mb-0 cfs-22 text-danger">
-                                                    R$ {{ number_format($prePurchaseSummary['brl_em_aberto'], 2, ',', '.') }}
+                                                    R$
+                                                    {{ number_format($prePurchaseSummary['brl_em_aberto'], 2, ',', '.') }}
                                                 </h2>
-                                                <small class="text-muted">Disp. p/ comprar: R$ {{ number_format($brlAvailableForPrePurchase, 2, ',', '.') }}</small>
+                                                <small class="text-muted">Disp. p/ comprar: R$
+                                                    {{ number_format($brlAvailableForPrePurchase, 2, ',', '.') }}</small>
                                             </div>
                                         </div>
                                     </div>
@@ -159,8 +165,10 @@
                                             </div>
                                             <div class="flex-grow-1 ms-3">
                                                 @php $pnlUsdCard = (float) ($prePurchaseSummary['pnl_realizado_usd'] ?? 0); @endphp
-                                                <h2 class="mb-0 cfs-22 {{ $pnlUsdCard >= 0 ? 'text-success' : 'text-danger' }}">
-                                                    {{ $pnlUsdCard >= 0 ? '+' : '' }}US$ {{ number_format($pnlUsdCard, 4, ',', '.') }}
+                                                <h2
+                                                    class="mb-0 cfs-22 {{ $pnlUsdCard >= 0 ? 'text-success' : 'text-danger' }}">
+                                                    {{ $pnlUsdCard >= 0 ? '+' : '' }}US$
+                                                    {{ number_format($pnlUsdCard, 4, ',', '.') }}
                                                 </h2>
                                             </div>
                                         </div>
@@ -172,16 +180,6 @@
                 </div><!-- end card -->
             </div><!-- end col -->
         </div><!-- end row -->
-
-        <div class="row mb-4">
-            <div class="col-12 d-flex flex-wrap justify-content-md-end align-items-center gap-2">
-                <button type="button" class="btn btn-success" data-bs-toggle="modal"
-                    data-bs-target="#depositModal">Depositar</button>
-                <button type="button" class="btn btn-danger" data-bs-toggle="modal"
-                    data-bs-target="#withdrawModal">Sacar</button>
-
-            </div>
-        </div>
 
         <!-- Modal Depositar -->
         <div class="modal fade" id="depositModal" tabindex="-1" aria-labelledby="depositModalLabel" aria-hidden="true">
@@ -264,19 +262,23 @@
                             </div>
                             <div class="mb-3">
                                 <label for="withdraw_payment_method" class="form-label">Tipo de envio</label>
-                                <select name="payment_method" id="withdraw_payment_method" class="form-select" required onchange="updateWithdrawDescription()">
+                                <select name="payment_method" id="withdraw_payment_method" class="form-select" required
+                                    onchange="updateWithdrawDescription()">
                                     <option value="efetivo">Efetivo (papel)</option>
                                     <option value="usdt">USDT</option>
                                 </select>
                             </div>
                             <div class="mb-3">
                                 <label for="withdraw_amount" class="form-label">Valor (US$)</label>
-                                <input type="number" step="0.01" min="0.01" name="amount" id="withdraw_amount" class="form-control" required>
+                                <input type="number" step="0.01" min="0.01" name="amount" id="withdraw_amount"
+                                    class="form-control" required>
                             </div>
                             <div class="mb-3">
                                 <label for="withdraw_description" class="form-label">Descrição</label>
-                                <input type="text" name="description" id="withdraw_description" class="form-control" value="Efetivo Enviado" maxlength="255">
-                                <small class="text-muted">Auto-preenchido conforme o tipo. Pode ser editado livremente.</small>
+                                <input type="text" name="description" id="withdraw_description" class="form-control"
+                                    value="Efetivo Enviado" maxlength="255">
+                                <small class="text-muted">Auto-preenchido conforme o tipo. Pode ser editado
+                                    livremente.</small>
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -568,38 +570,6 @@
         <form method="GET" class="mb-3">
             <div class="row g-2 align-items-end">
                 <div class="col-md-2">
-                    <label class="form-label">Moeda</label>
-                    <select name="currency" class="form-select">
-                        <option value="">Todas</option>
-                        <option value="BRL" @if(request('currency') == 'BRL') selected @endif>BRL</option>
-                        <option value="USD" @if(request('currency') == 'USD') selected @endif>USD</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">Método</label>
-                    <select name="payment_method" class="form-select">
-                        <option value="">Todos</option>
-                        <option value="pix" @if(request('payment_method') == 'pix') selected @endif>Pix</option>
-                        <option value="dinheiro" @if(request('payment_method') == 'dinheiro') selected @endif>Dinheiro
-                        </option>
-                        <option value="efetivo" @if(request('payment_method') == 'efetivo') selected @endif>Efetivo
-                        </option>
-                        <option value="usdt" @if(request('payment_method') == 'usdt') selected @endif>USDT</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">Tipo</label>
-                    <select name="type" class="form-select">
-                        <option value="">Todos</option>
-                        <option value="deposit" @if(request('type') == 'deposit') selected @endif>Depósito</option>
-                        <option value="withdraw" @if(request('type') == 'withdraw') selected @endif>Saque</option>
-                        <option value="exchange_in" @if(request('type') == 'exchange_in') selected @endif>Conversão
-                            Entrada</option>
-                        <option value="exchange_out" @if(request('type') == 'exchange_out') selected @endif>Conversão
-                            Saída</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
                     <label class="form-label">De</label>
                     <input type="date" name="date_from" class="form-control" value="{{ request('date_from') }}">
                 </div>
@@ -609,16 +579,21 @@
                 </div>
                 <div class="col-md-2 d-flex gap-2">
                     <button type="submit" class="btn btn-primary flex-grow-1">Filtrar</button>
-                    <a class="btn btn-outline-success"
-                        title="Exportar para Excel (.xlsx) usando o template oficial"
-                        href="{{ route('admin.wallet.client.export-xlsx', array_merge(['client' => $client->id], request()->only(['date_from','date_to','currency','payment_method','type']))) }}">
+                    <a class="btn btn-outline-success" title="Exportar para Excel (.xlsx) usando o template oficial"
+                        href="{{ route('admin.wallet.client.export-xlsx', array_merge(['client' => $client->id], request()->only(['date_from', 'date_to', 'currency', 'payment_method', 'type']))) }}">
                         <i class="ri-file-excel-2-line"></i>
                     </a>
-                    <a class="btn btn-outline-danger"
-                        title="Exportar para PDF (mesmo layout)"
-                        href="{{ route('admin.wallet.client.export-pdf', array_merge(['client' => $client->id], request()->only(['date_from','date_to','currency','payment_method','type']))) }}">
+                    <a class="btn btn-outline-danger" title="Exportar para PDF (mesmo layout)"
+                        href="{{ route('admin.wallet.client.export-pdf', array_merge(['client' => $client->id], request()->only(['date_from', 'date_to', 'currency', 'payment_method', 'type']))) }}">
                         <i class="ri-file-pdf-2-line"></i>
                     </a>
+                </div>
+                <div class="col-6 d-flex flex-wrap justify-content-md-end align-items-center gap-2">
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal"
+                        data-bs-target="#depositModal">Depositar</button>
+                    <button type="button" class="btn btn-danger" data-bs-toggle="modal"
+                        data-bs-target="#withdrawModal">Sacar</button>
+
                 </div>
             </div>
         </form>
@@ -686,16 +661,12 @@
                             @method('PATCH')
                             <input type="hidden" name="client_id" value="{{ $client->id }}">
                             <div id="bulk_rate_controls" class="d-flex align-items-center gap-2 d-none flex-wrap">
-                                <button type="button"
-                                    class="btn btn-sm btn-success"
-                                    id="btn-comprar-dolar"
-                                    title="Pré-compra: dono compra USD a uma taxa (custo)"
-                                    data-bs-toggle="modal" data-bs-target="#comprarDolarModal">
+                                <button type="button" class="btn btn-sm btn-success" id="btn-comprar-dolar"
+                                    title="Pré-compra: dono compra USD a uma taxa (custo)" data-bs-toggle="modal"
+                                    data-bs-target="#comprarDolarModal">
                                     <i class="ri-arrow-down-circle-line me-1"></i>Comprar DÓLAR
                                 </button>
-                                <button type="button"
-                                    class="btn btn-sm btn-danger"
-                                    id="btn-vender-dolar-ant"
+                                <button type="button" class="btn btn-sm btn-danger" id="btn-vender-dolar-ant"
                                     title="Vende USD ao cliente na taxa informada (cria Entrada U$ imediatamente)"
                                     data-bs-toggle="modal" data-bs-target="#venderDolarAntecipadoModal">
                                     <i class="ri-arrow-up-circle-line me-1"></i>Vender DÓLAR
@@ -723,19 +694,19 @@
                                             $taxa = $tx->exchange_rate;
                                             $valorConvertido = null;
                                             $isLocked = in_array($tx->status, ['fechado', 'finalizado'], true);
-                                            $brlPre  = (float) ($tx->brl_pre_purchased ?? 0);
+                                            $brlPre = (float) ($tx->brl_pre_purchased ?? 0);
                                             $brlSold = (float) ($tx->brl_pre_sold ?? 0);
                                             $brlLivreCompra = max(0, (float) $tx->amount - $brlPre);
-                                            $brlLivreVenda  = max(0, (float) $tx->amount - $brlSold);
-                                            $hasPre  = $brlPre  > 0.005;
+                                            $brlLivreVenda = max(0, (float) $tx->amount - $brlSold);
+                                            $hasPre = $brlPre > 0.005;
                                             $hasSold = $brlSold > 0.005;
                                             $bothComplete = $hasPre && $hasSold
                                                 && abs($brlPre - (float) $tx->amount) < 0.01
                                                 && abs($brlSold - (float) $tx->amount) < 0.01;
 
-                                            $lotesPre  = $prePurchasesByDeposit[$tx->id] ?? collect();
+                                            $lotesPre = $prePurchasesByDeposit[$tx->id] ?? collect();
                                             $lotesSell = $preSellsByDeposit[$tx->id] ?? collect();
-                                            $taxaMediaPre  = $lotesPre->sum('brl_remaining') > 0
+                                            $taxaMediaPre = $lotesPre->sum('brl_remaining') > 0
                                                 ? $lotesPre->sum('brl_remaining') / max(0.0001, $lotesPre->sum('usd_remaining'))
                                                 : null;
                                             $taxaMediaSell = $lotesSell->sum('brl_remaining') > 0
@@ -767,16 +738,15 @@
                                                 $rowClass = 'table-pre-sold';
                                             }
                                         @endphp
-                                        <tr class="{{ $rowClass }}"
-                                            data-locked="{{ $isLocked ? '1' : '0' }}"
+                                        <tr class="{{ $rowClass }}" data-locked="{{ $isLocked ? '1' : '0' }}"
                                             data-pre-purchased="{{ number_format($brlPre, 2, '.', '') }}"
                                             data-pre-sold="{{ number_format($brlSold, 2, '.', '') }}"
                                             data-brl-livre-compra="{{ number_format($brlLivreCompra, 2, '.', '') }}"
                                             data-brl-livre-venda="{{ number_format($brlLivreVenda, 2, '.', '') }}">
                                             <td>
                                                 <input type="checkbox" class="entrada-select-item" form="bulk_rate_form"
-                                                    name="transaction_ids[]" value="{{ $tx->id }}"
-                                                    @if($isLocked) disabled @endif>
+                                                    name="transaction_ids[]" value="{{ $tx->id }}" @if($isLocked) disabled
+                                                    @endif>
                                             </td>
                                             <td>
                                                 <div>{{ $tx->created_at->format('d/m/Y H:i') }}</div>
@@ -785,7 +755,8 @@
                                                         title="Comprou R$ {{ number_format($brlPre, 2, ',', '.') }} @ {{ $taxaMediaPre ? number_format($taxaMediaPre, 4, ',', '.') : '' }}">
                                                         <i class="ri-arrow-down-circle-line"></i>
                                                         C: {{ number_format($brlPre, 2, ',', '.') }}
-                                                        @if($taxaMediaPre)<small>@ {{ number_format($taxaMediaPre, 4, ',', '.') }}</small>@endif
+                                                        @if($taxaMediaPre)<small>@
+                                                        {{ number_format($taxaMediaPre, 4, ',', '.') }}</small>@endif
                                                     </span>
                                                 @endif
                                                 @if($hasSold)
@@ -793,7 +764,8 @@
                                                         title="Vendeu R$ {{ number_format($brlSold, 2, ',', '.') }} @ {{ $taxaMediaSell ? number_format($taxaMediaSell, 4, ',', '.') : '' }}">
                                                         <i class="ri-arrow-up-circle-line"></i>
                                                         V: {{ number_format($brlSold, 2, ',', '.') }}
-                                                        @if($taxaMediaSell)<small>@ {{ number_format($taxaMediaSell, 4, ',', '.') }}</small>@endif
+                                                        @if($taxaMediaSell)<small>@
+                                                        {{ number_format($taxaMediaSell, 4, ',', '.') }}</small>@endif
                                                     </span>
                                                 @endif
                                                 @if($bothComplete)
@@ -811,8 +783,8 @@
                                                         class="form-control form-control-sm js-rate-input"
                                                         data-url="{{ route('admin.wallet.update-rate', $tx) }}"
                                                         data-original-value="{{ $taxa ? number_format($taxa, 6, '.', '') : '' }}"
-                                                        style="min-width: 110px" required
-                                                        @if($isLocked) disabled readonly @endif>
+                                                        style="min-width: 110px" required @if($isLocked) disabled readonly
+                                                        @endif>
                                                 </div>
                                             </td>
                                             <td>{{ $valorConvertido !== null ? number_format($valorConvertido, 2, ',', '.') : '-' }}
@@ -881,7 +853,8 @@
                                         <th>Taxa venda</th>
                                         <th>Descrição</th>
                                         <th class="text-center" style="width: 36px">
-                                            <i class="ri-information-line" title="PnL deste fechamento (apenas para o admin)"></i>
+                                            <i class="ri-information-line"
+                                                title="PnL deste fechamento (apenas para o admin)"></i>
                                         </th>
                                     </tr>
                                 </thead>
@@ -910,13 +883,12 @@
                                                         $vBrl = (float) ($pnlBrl ?? 0);
                                                         $vUsd = (float) ($pnlUsd ?? 0);
                                                         $color = $vBrl > 0 ? 'text-success' : ($vBrl < 0 ? 'text-danger' : 'text-muted');
-                                                        $sign  = $vBrl > 0 ? '+' : '';
-                                                        $tip   = 'PnL: ' . $sign . 'R$ ' . number_format($vBrl, 2, ',', '.') .
-                                                                 ' (' . $sign . 'US$ ' . number_format($vUsd, 4, ',', '.') . ')';
+                                                        $sign = $vBrl > 0 ? '+' : '';
+                                                        $tip = 'PnL: ' . $sign . 'R$ ' . number_format($vBrl, 2, ',', '.') .
+                                                            ' (' . $sign . 'US$ ' . number_format($vUsd, 4, ',', '.') . ')';
                                                     @endphp
-                                                    <i class="ri-information-line {{ $color }}"
-                                                        data-bs-toggle="tooltip" data-bs-placement="left"
-                                                        title="{{ $tip }}"></i>
+                                                    <i class="ri-information-line {{ $color }}" data-bs-toggle="tooltip"
+                                                        data-bs-placement="left" title="{{ $tip }}"></i>
                                                 @else
                                                     <span class="text-muted">—</span>
                                                 @endif
@@ -1004,6 +976,7 @@
         .table-pre-purchased {
             background-color: #d4edda !important;
         }
+
         .table-pre-purchased:hover {
             background-color: #c3e6cb !important;
         }
@@ -1012,6 +985,7 @@
         .table-pre-sold {
             background-color: #f8d7da !important;
         }
+
         .table-pre-sold:hover {
             background-color: #f5c6cb !important;
         }
@@ -1021,16 +995,26 @@
             background-color: #cfe9fb !important;
             border-left: 3px solid #0d6efd !important;
         }
+
         .table-info-pronto:hover {
             background-color: #b6dffb !important;
         }
 
         /* Badges nas linhas: separador visual */
-        td .badge { margin-left: 4px; font-weight: 500; }
-        td .badge small { font-weight: 400; opacity: .85; margin-left: 2px; }
+        td .badge {
+            margin-left: 4px;
+            font-weight: 500;
+        }
+
+        td .badge small {
+            font-weight: 400;
+            opacity: .85;
+            margin-left: 2px;
+        }
     </style>
     <!-- Modal Vender DÓLAR ANTECIPADO (cria lote de pré-venda — fixa a taxa cobrada do cliente) -->
-    <div class="modal fade" id="venderDolarAntecipadoModal" tabindex="-1" aria-labelledby="venderDolarAntecipadoLabel" aria-hidden="true">
+    <div class="modal fade" id="venderDolarAntecipadoModal" tabindex="-1" aria-labelledby="venderDolarAntecipadoLabel"
+        aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <form id="venderDolarAntecipadoForm" method="POST" action="{{ route('admin.wallet.pre-sell-dollar') }}">
@@ -1055,12 +1039,13 @@
                                 <span>Taxa de venda ao cliente</span>
                                 <small class="ms-auto small" id="venda_ant_taxa_status"></small>
                             </label>
-                            <input type="number" step="0.000001" min="0.000001" name="sell_rate"
-                                id="venda_ant_taxa" class="form-control" required>
+                            <input type="number" step="0.000001" min="0.000001" name="sell_rate" id="venda_ant_taxa"
+                                class="form-control" required>
                             <small class="text-muted d-block mt-1">
                                 Cotação base do Investing + spread do cliente
                                 (<strong>{{ $client->spread_points }}</strong> pts).
-                                <span id="venda_ant_disponivel" class="ms-2">Disp. seleção: R$ <span id="venda_ant_disp_valor">0,00</span></span>
+                                <span id="venda_ant_disponivel" class="ms-2">Disp. seleção: R$ <span
+                                        id="venda_ant_disp_valor">0,00</span></span>
                             </small>
                         </div>
 
@@ -1072,7 +1057,8 @@
                             </div>
                             <div class="col-6">
                                 <label class="form-label">USD que será entregue</label>
-                                <input type="number" step="0.01" min="0.01" id="venda_ant_usd" class="form-control" required>
+                                <input type="number" step="0.01" min="0.01" id="venda_ant_usd" class="form-control"
+                                    required>
                             </div>
                         </div>
 
@@ -1096,13 +1082,13 @@
     <script>
         // Modal Vender DÓLAR antecipado — espelho do Comprar.
         document.addEventListener('DOMContentLoaded', function () {
-            var btn   = document.getElementById('btn-vender-dolar-ant');
+            var btn = document.getElementById('btn-vender-dolar-ant');
             var modal = document.getElementById('venderDolarAntecipadoModal');
-            var form  = document.getElementById('venderDolarAntecipadoForm');
-            var taxa  = document.getElementById('venda_ant_taxa');
-            var brl   = document.getElementById('venda_ant_brl');
-            var usd   = document.getElementById('venda_ant_usd');
-            var desc  = document.getElementById('venda_ant_descricao');
+            var form = document.getElementById('venderDolarAntecipadoForm');
+            var taxa = document.getElementById('venda_ant_taxa');
+            var brl = document.getElementById('venda_ant_brl');
+            var usd = document.getElementById('venda_ant_usd');
+            var desc = document.getElementById('venda_ant_descricao');
             var dispEl = document.getElementById('venda_ant_disp_valor');
 
             var disp = 0; var sync = false;
@@ -1126,8 +1112,8 @@
                 if (t > 0 && u > 0) { sync = true; brl.value = (u * t).toFixed(2); sync = false; }
                 updateDesc();
             }
-            if (brl)  brl.addEventListener('input', recalcUsd);
-            if (usd)  usd.addEventListener('input', recalcBrl);
+            if (brl) brl.addEventListener('input', recalcUsd);
+            if (usd) usd.addEventListener('input', recalcBrl);
             if (taxa) taxa.addEventListener('input', recalcUsd);
 
             if (btn) {
@@ -1181,7 +1167,8 @@
     </script>
 
     <!-- Modal Comprar Dólar (pré-compra pelo dono — não altera saldo do cliente) -->
-    <div class="modal fade" id="comprarDolarModal" tabindex="-1" aria-labelledby="comprarDolarModalLabel" aria-hidden="true">
+    <div class="modal fade" id="comprarDolarModal" tabindex="-1" aria-labelledby="comprarDolarModalLabel"
+        aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <form id="comprarDolarForm" method="POST" action="{{ route('admin.wallet.pre-purchase-dollar') }}">
@@ -1206,13 +1193,14 @@
                                 <span>Taxa de compra</span>
                                 <small class="ms-auto small" id="comprar_taxa_status"></small>
                             </label>
-                            <input type="number" step="0.000001" min="0.000001" name="exchange_rate"
-                                id="comprar_taxa" class="form-control" required>
+                            <input type="number" step="0.000001" min="0.000001" name="exchange_rate" id="comprar_taxa"
+                                class="form-control" required>
                             <small class="text-muted d-block mt-1">
                                 Cotação base do Investing + spread do cliente
                                 (<strong>{{ $client->spread_points }}</strong> pts = R$
                                 {{ number_format($client->spread_points * 0.01, 2, ',', '.') }}).
-                                <span id="comprar_disponivel" class="ms-2">Disp. seleção: R$ <span id="comprar_disp_valor">0,00</span></span>
+                                <span id="comprar_disponivel" class="ms-2">Disp. seleção: R$ <span
+                                        id="comprar_disp_valor">0,00</span></span>
                             </small>
                         </div>
 
@@ -1225,8 +1213,7 @@
                             </div>
                             <div class="col-6">
                                 <label class="form-label">USD comprado</label>
-                                <input type="number" step="0.01" min="0.01" id="comprar_usd"
-                                    class="form-control" required>
+                                <input type="number" step="0.01" min="0.01" id="comprar_usd" class="form-control" required>
                             </div>
                         </div>
 
@@ -1388,8 +1375,8 @@
                                 <span>Taxa de conversão</span>
                                 <small class="ms-auto small" id="fechar_taxa_status"></small>
                             </label>
-                            <input type="number" step="0.000001" min="0.000001" id="fechar_taxa"
-                                class="form-control" required>
+                            <input type="number" step="0.000001" min="0.000001" id="fechar_taxa" class="form-control"
+                                required>
                             <small class="text-muted d-block mt-1">
                                 Cotação base do Investing + spread do cliente
                                 (<strong>{{ $client->spread_points }}</strong> pts = R$
@@ -1410,8 +1397,7 @@
                             </div>
                             <div class="col-6">
                                 <label for="fechar_usd" class="form-label">Valor convertido (US$)</label>
-                                <input type="number" step="0.01" min="0.01" id="fechar_usd"
-                                    class="form-control" required>
+                                <input type="number" step="0.01" min="0.01" id="fechar_usd" class="form-control" required>
                                 <small class="text-muted">
                                     Pode editar — atualiza R$ usando a taxa.
                                 </small>
@@ -1424,8 +1410,10 @@
                             <div class="row g-1">
                                 <div class="col-6">
                                     <div class="d-flex justify-content-between">
-                                        <span class="text-muted"><i class="ri-arrow-down-circle-line text-success"></i> Comprou:</span>
-                                        <span><strong id="prev_compra_usd">—</strong> @ <span id="prev_compra_taxa">—</span></span>
+                                        <span class="text-muted"><i class="ri-arrow-down-circle-line text-success"></i>
+                                            Comprou:</span>
+                                        <span><strong id="prev_compra_usd">—</strong> @ <span
+                                                id="prev_compra_taxa">—</span></span>
                                     </div>
                                     <div class="d-flex justify-content-between">
                                         <span class="text-muted">Custo R$:</span>
@@ -1434,8 +1422,10 @@
                                 </div>
                                 <div class="col-6">
                                     <div class="d-flex justify-content-between">
-                                        <span class="text-muted"><i class="ri-arrow-up-circle-line text-danger"></i> Venderá:</span>
-                                        <span><strong id="prev_venda_usd">—</strong> @ <span id="prev_venda_taxa">—</span></span>
+                                        <span class="text-muted"><i class="ri-arrow-up-circle-line text-danger"></i>
+                                            Venderá:</span>
+                                        <span><strong id="prev_venda_usd">—</strong> @ <span
+                                                id="prev_venda_taxa">—</span></span>
                                     </div>
                                     <div class="d-flex justify-content-between">
                                         <span class="text-muted">Receita R$:</span>
@@ -1564,17 +1554,17 @@
                         var preBrl = parseFloat(row.getAttribute('data-pre-purchased')) || 0;
                         var sldBrl = parseFloat(row.getAttribute('data-pre-sold')) || 0;
                         totalPreCompraBrl += preBrl;
-                        totalPreVendaBrl  += sldBrl;
+                        totalPreVendaBrl += sldBrl;
                         // Estimativa pela taxa média via badge "C: x @ y" / "V: x @ y"
                         var badges = row.querySelectorAll('.badge');
                         badges.forEach(function (b) {
                             var m = b.textContent.match(/([CV]):\s*([\d.,]+)\s*@\s*([\d.,]+)/);
                             if (!m) return;
-                            var v  = parseNumber(m[2]);
+                            var v = parseNumber(m[2]);
                             var tx = parseNumber(m[3]);
                             if (tx <= 0) return;
                             if (m[1] === 'C') { pondCompraBrl += v; pondCompraUsd += v / tx; }
-                            else              { pondVendaBrl  += v; pondVendaUsd  += v / tx; }
+                            else { pondVendaBrl += v; pondVendaUsd += v / tx; }
                         });
 
                         // Pega a data
@@ -1603,9 +1593,9 @@
                     window._fecharPreview = {
                         totalBrl: totalDisponivelBrl,
                         preCompraBrl: Math.round(totalPreCompraBrl * 100) / 100,
-                        preVendaBrl:  Math.round(totalPreVendaBrl  * 100) / 100,
+                        preVendaBrl: Math.round(totalPreVendaBrl * 100) / 100,
                         pondCompraBrl: pondCompraBrl, pondCompraUsd: pondCompraUsd,
-                        pondVendaBrl:  pondVendaBrl,  pondVendaUsd:  pondVendaUsd
+                        pondVendaBrl: pondVendaBrl, pondVendaUsd: pondVendaUsd
                     };
 
                     recalcFromBrl();
@@ -1635,25 +1625,25 @@
                 var brlComCompra = Math.min(p.preCompraBrl, brlFechar);
                 var brlSemCompra = Math.max(0, brlFechar - brlComCompra);
                 // R$ que tem venda registrada
-                var brlComVenda  = Math.min(p.preVendaBrl, brlFechar);
-                var brlSemVenda  = Math.max(0, brlFechar - brlComVenda);
+                var brlComVenda = Math.min(p.preVendaBrl, brlFechar);
+                var brlSemVenda = Math.max(0, brlFechar - brlComVenda);
 
                 // USD comprado: lotes (taxa média) + residual à newRate
                 var taxaMediaCompra = p.pondCompraUsd > 0 ? (p.pondCompraBrl / p.pondCompraUsd) : newRate;
-                var taxaMediaVenda  = p.pondVendaUsd  > 0 ? (p.pondVendaBrl  / p.pondVendaUsd)  : newRate;
+                var taxaMediaVenda = p.pondVendaUsd > 0 ? (p.pondVendaBrl / p.pondVendaUsd) : newRate;
 
                 var usdLoteCompra = (taxaMediaCompra > 0 && brlComCompra > 0)
                     ? Math.min(p.pondCompraUsd, brlComCompra / taxaMediaCompra) : 0;
-                var usdLoteVenda  = (taxaMediaVenda > 0 && brlComVenda > 0)
-                    ? Math.min(p.pondVendaUsd,  brlComVenda  / taxaMediaVenda)  : 0;
+                var usdLoteVenda = (taxaMediaVenda > 0 && brlComVenda > 0)
+                    ? Math.min(p.pondVendaUsd, brlComVenda / taxaMediaVenda) : 0;
 
                 var usdResCompra = (newRate > 0 && brlSemCompra > 0) ? brlSemCompra / newRate : 0;
-                var usdResVenda  = (newRate > 0 && brlSemVenda  > 0) ? brlSemVenda  / newRate : 0;
+                var usdResVenda = (newRate > 0 && brlSemVenda > 0) ? brlSemVenda / newRate : 0;
 
                 var totalUsdComprado = usdLoteCompra + usdResCompra;
-                var totalUsdVendido  = usdLoteVenda  + usdResVenda;
-                var custoBrl   = (usdLoteCompra * taxaMediaCompra) + (usdResCompra * newRate);
-                var receitaBrl = (usdLoteVenda  * taxaMediaVenda)  + (usdResVenda  * newRate);
+                var totalUsdVendido = usdLoteVenda + usdResVenda;
+                var custoBrl = (usdLoteCompra * taxaMediaCompra) + (usdResCompra * newRate);
+                var receitaBrl = (usdLoteVenda * taxaMediaVenda) + (usdResVenda * newRate);
 
                 var pnlBrl = receitaBrl - custoBrl;
                 // PnL em USD: lucro do dono em dólares = USD comprado - USD entregue
@@ -1667,9 +1657,9 @@
                 setText('prev_compra_usd', 'US$ ' + fmt(totalUsdComprado));
                 setText('prev_compra_taxa', (taxaMediaCompra > 0 ? fmt(taxaMediaCompra, 4) : '—'));
                 setText('prev_compra_brl', 'R$ ' + fmt(custoBrl));
-                setText('prev_venda_usd',  'US$ ' + fmt(totalUsdVendido));
+                setText('prev_venda_usd', 'US$ ' + fmt(totalUsdVendido));
                 setText('prev_venda_taxa', (taxaMediaVenda > 0 ? fmt(taxaMediaVenda, 4) : '—'));
-                setText('prev_venda_brl',  'R$ ' + fmt(receitaBrl));
+                setText('prev_venda_brl', 'R$ ' + fmt(receitaBrl));
 
                 var pnlEl = document.getElementById('prev_pnl');
                 if (pnlEl) {

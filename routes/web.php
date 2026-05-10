@@ -65,6 +65,11 @@ Route::middleware('auth')->group(function () {
             Route::post('/pre-sell-dollar', [\App\Http\Controllers\WalletController::class, 'preSellDollar'])->name('pre-sell-dollar');
             Route::get('/deposit', function () { return view('admin.wallet.deposit'); })->name('deposit');
             Route::post('/deposit', [\App\Http\Controllers\WalletController::class, 'deposit']);
+            // Página mobile (PWA-like) para entrada rápida via atalho do celular
+            Route::get('/quick-deposit', function () {
+                $clients = \App\Models\Client::orderBy('name')->get(['id', 'name', 'spread_points']);
+                return view('admin.wallet.quick-deposit', compact('clients'));
+            })->name('quick-deposit');
             Route::get('/withdraw', function () { return view('admin.wallet.withdraw'); })->name('withdraw');
             Route::post('/withdraw', [\App\Http\Controllers\WalletController::class, 'withdraw']);
             Route::post('/exchange', [\App\Http\Controllers\WalletController::class, 'exchange'])->name('exchange');
