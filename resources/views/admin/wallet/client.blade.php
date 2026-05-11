@@ -87,9 +87,9 @@
                 <div class="col-xl-12">
                     <div class="card crm-widget">
                         <div class="card-body p-0">
-                            <div class="row row-cols-xxl-5 row-cols-md-3 row-cols-1 g-0 text-center">
+                            <div class="row row-cols-xxl-4 row-cols-md-3 row-cols-1 g-0 text-center">
                                 <div class="col">
-                                    <div class="py-4 px-4">
+                                    <div class="py-4 px-3">
                                         <h5 class="text-muted text-uppercase fs-13">Saldo em Real (BRL)
                                         </h5>
                                         <div class="d-flex align-items-center">
@@ -114,26 +114,6 @@
                                             <div class="flex-grow-1 ms-3">
                                                 <h2 class="mb-0 cfs-22 text-info"><span>US$
                                                         {{ number_format($balances['USD'], 2, ',', '.') }}</span></h2>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col">
-                                    <div class="py-4 px-3">
-                                        <h5 class="text-muted text-uppercase fs-13">USD Pré-comprado</h5>
-                                        <div class="d-flex align-items-center">
-                                            <div class="flex-shrink-0">
-                                                <i class="ri-shopping-cart-2-line display-6 text-muted cfs-22"></i>
-                                            </div>
-                                            <div class="flex-grow-1 ms-3">
-                                                <h2 class="mb-0 cfs-22 text-warning">
-                                                    US$
-                                                    {{ number_format($prePurchaseSummary['usd_pre_comprado'], 2, ',', '.') }}
-                                                </h2>
-                                                @if($prePurchaseSummary['taxa_media'])
-                                                    <small class="text-muted">@
-                                                        {{ number_format($prePurchaseSummary['taxa_media'], 4, ',', '.') }}</small>
-                                                @endif
                                             </div>
                                         </div>
                                     </div>
@@ -233,7 +213,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            <button type="submit" class="btn btn-success">Depositar</button>
+                            <button type="submit" class="btn btn-success" id="depositModalSubmitBtn">Depositar</button>
                         </div>
                     </form>
                 </div>
@@ -541,6 +521,14 @@
                     form.addEventListener('submit', function (e) {
                         e.preventDefault();
                         var formEl = this;
+                        var submitBtn = formEl.querySelector('[type="submit"]');
+                        var isDepositForm = formEl.closest('#depositModal') !== null;
+
+                        // Bloqueia o botão durante a submissão
+                        submitBtn.disabled = true;
+                        var originalText = submitBtn.textContent;
+                        submitBtn.textContent = isDepositForm ? 'Processando...' : 'Enviando...';
+
                         var formData = new FormData(formEl);
                         fetch(formEl.action, {
                             method: 'POST',
@@ -556,11 +544,17 @@
                                 } else {
                                     return response.json().then(function (data) {
                                         alert(data.message || 'Erro ao processar a operação.');
+                                        // Desbloqueia se houver erro
+                                        submitBtn.disabled = false;
+                                        submitBtn.textContent = originalText;
                                     });
                                 }
                             })
                             .catch(function () {
                                 alert('Erro ao processar a operação.');
+                                // Desbloqueia se houver erro
+                                submitBtn.disabled = false;
+                                submitBtn.textContent = originalText;
                             });
                     });
                 });

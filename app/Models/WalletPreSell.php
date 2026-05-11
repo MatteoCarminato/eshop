@@ -13,6 +13,7 @@ class WalletPreSell extends Model
     protected $fillable = [
         'client_id',
         'source_transaction_id',
+        'transaction_id',
         'created_by',
         'brl_amount',
         'usd_amount',

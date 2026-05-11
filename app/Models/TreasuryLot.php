@@ -15,6 +15,7 @@ class TreasuryLot extends Model
         'source',
         'client_id',
         'pre_purchase_id',
+        'transaction_id',
         'usd_amount',
         'cost_rate',
         'brl_cost',

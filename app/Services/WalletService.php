@@ -50,8 +50,17 @@ class WalletService
 
         $usd = (float) $rows->sum('usd_remaining');
         $brl = (float) $rows->sum('brl_remaining');
-        $pnlUsd = (float) WalletPrePurchase::query()
+
+        // PnL realizado em USD: lê das transações USD finalizadas (mesma fonte do
+        // dashboard geral). O campo `realized_pnl_usd` é gravado no
+        // TreasuryService::consumeLots como `pnl_brl / sell_rate`, ou seja, é o
+        // ganho líquido convertido em dólares na taxa da venda — número fiel.
+        // Antes liamos de wallet_pre_purchases.realized_pnl_usd, que era apenas a
+        // diferença "usdComprado - usdVendido" calculada em finalizeDepositIfCovered
+        // e divergia do PnL real.
+        $pnlUsd = (float) Transaction::query()
             ->where('client_id', $clientId)
+            ->whereNotNull('realized_pnl_usd')
             ->sum('realized_pnl_usd');
 
         $taxaMedia = $usd > 0 ? round($brl / $usd, 6) : null;
@@ -160,7 +169,7 @@ class WalletService
                 // Espelha o USD comprado no caixa próprio (origem = pré-compra do cliente).
                 // Assim o caixa já reflete o USD que está "em estoque" mesmo que ainda não
                 // tenha sido entregue ao cliente.
-                TreasuryLot::create([
+                $cashLot = TreasuryLot::create([
                     'created_by'       => Auth::id(),
                     'source'           => 'pre_purchase',
                     'client_id'        => $clientId,
@@ -174,6 +183,11 @@ class WalletService
                     'purchased_at'     => now(),
                     'notes'            => $notes,
                 ]);
+
+                // Se o cliente tem lotes 'shortfall' abertos (vendeu antes de comprar),
+                // este USD recém-entrado cobre o rombo: calcula PnL real (sellRate − rateCompra)
+                // e propaga para a Transaction USD da venda original.
+                app(TreasuryService::class)->reconcileShortfall($cashLot);
 
                 $tx->brl_pre_purchased = round((float) $tx->brl_pre_purchased + $consumir, 2);
                 $tx->save();
@@ -341,6 +355,15 @@ class WalletService
 
             $taxaVendaMedia = $taxa ?: 0.0;
 
+            // Mapa: transaction_id da venda → R$ vendido nesse lote (para distribuir PnL).
+            $brlPorVendaTx = [];
+            foreach ($sells as $s) {
+                $tid = (int) ($s->transaction_id ?? 0);
+                if ($tid <= 0) continue;
+                $brlPorVendaTx[$tid] = round(($brlPorVendaTx[$tid] ?? 0.0) + (float) $s->brl_amount, 2);
+            }
+            $brlVendaTotal = array_sum($brlPorVendaTx);
+
             foreach ($purchases as $lote) {
                 $brlRem = (float) $lote->brl_remaining;
                 if ($brlRem <= 0.005) {
@@ -355,12 +378,42 @@ class WalletService
                 $usdComprado = $rateCompra > 0 ? round($brlRem / $rateCompra, 4) : 0.0;
                 $usdVendido  = $taxaVendaMedia > 0 ? round($brlRem / $taxaVendaMedia, 4) : $usdComprado;
                 $pnlUsdLote  = round($usdComprado - $usdVendido, 8);
+                $pnlBrlLote  = round($pnlUsdLote * $taxaVendaMedia, 8);
 
                 $lote->brl_remaining   = 0;
                 $lote->usd_remaining   = 0;
                 $lote->realized_pnl_usd = round((float) $lote->realized_pnl_usd + $pnlUsdLote, 8);
                 $lote->status          = 'closed';
                 $lote->save();
+
+                // Propaga PnL para a(s) Transaction(s) USD da venda, proporcional ao
+                // R$ vendido em cada uma. Sem isso, prePurchaseSummary (que lê de
+                // transactions.realized_pnl_usd) não enxerga o ganho da pré-compra.
+                if ($brlVendaTotal > 0.005 && abs($pnlUsdLote) > 0.00000001) {
+                    $usdRestante = $pnlUsdLote;
+                    $brlRestante = $pnlBrlLote;
+                    $items = $brlPorVendaTx;
+                    $i = 0; $n = count($items);
+                    foreach ($items as $tid => $brlVenda) {
+                        $i++;
+                        if ($i === $n) {
+                            $usdShare = round($usdRestante, 4);
+                            $brlShare = round($brlRestante, 2);
+                        } else {
+                            $frac = $brlVenda / $brlVendaTotal;
+                            $usdShare = round($pnlUsdLote * $frac, 4);
+                            $brlShare = round($pnlBrlLote * $frac, 2);
+                            $usdRestante -= $usdShare;
+                            $brlRestante -= $brlShare;
+                        }
+                        $tx = Transaction::find($tid);
+                        if ($tx) {
+                            $tx->realized_pnl_usd = round((float) ($tx->realized_pnl_usd ?? 0) + $usdShare, 4);
+                            $tx->realized_pnl_brl = round((float) ($tx->realized_pnl_brl ?? 0) + $brlShare, 2);
+                            $tx->save();
+                        }
+                    }
+                }
             }
 
             // Zera os marcadores no depósito (já está finalizado, mas mantém consistente).

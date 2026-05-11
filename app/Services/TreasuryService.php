@@ -126,7 +126,7 @@ class TreasuryService
      * lote 'shortfall' com o déficit (usd_remaining negativo). O caixa fica
      * negativo até um aporte ou pré-compra futura cobrir o rombo.
      *
-     * @return array{custo_brl: float, pnl_brl: float, pnl_usd: float, shortfall_usd: float}
+     * @return array{custo_brl: float, pnl_brl: float, pnl_usd: float, shortfall_usd: float, shortfall_lot: ?TreasuryLot}
      */
     protected function consumeLots(?int $clientId, float $usdAmount, float $sellRate): array
     {
@@ -169,8 +169,9 @@ class TreasuryService
         // Déficit: registra um lote 'shortfall' com USD negativo.
         // Custo presumido = sellRate (lucro=0 nessa fatia). Caixa do cliente
         // (e total) ficam com saldo negativo até serem cobertos.
+        $shortfallLot = null;
         if ($shortfall > 0.00000001) {
-            TreasuryLot::create([
+            $shortfallLot = TreasuryLot::create([
                 'created_by'       => Auth::id(),
                 'source'           => 'shortfall',
                 'client_id'        => $clientId,
@@ -199,6 +200,7 @@ class TreasuryService
             'pnl_brl'       => round($pnlBrlTotal, 8),
             'pnl_usd'       => $pnlUsd,
             'shortfall_usd' => $shortfall,
+            'shortfall_lot' => $shortfallLot,
         ];
     }
 
@@ -261,12 +263,12 @@ class TreasuryService
      * Não cria TreasurySale nem mexe em saldos do cliente — quem chama (fechamento)
      * fica responsável por debitar BRL e creditar USD na carteira do cliente.
      *
-     * @return array{custo_brl: float, pnl_brl: float, pnl_usd: float, shortfall_usd: float}
+     * @return array{custo_brl: float, pnl_brl: float, pnl_usd: float, shortfall_usd: float, shortfall_lot: ?TreasuryLot}
      */
     public function deliverFromCash(int $clientId, float $usdAmount, float $sellRate, ?string $notes = null): array
     {
         if ($usdAmount <= 0.00000001) {
-            return ['custo_brl' => 0.0, 'pnl_brl' => 0.0, 'pnl_usd' => 0.0, 'shortfall_usd' => 0.0];
+            return ['custo_brl' => 0.0, 'pnl_brl' => 0.0, 'pnl_usd' => 0.0, 'shortfall_usd' => 0.0, 'shortfall_lot' => null];
         }
         if ($sellRate <= 0) throw new \InvalidArgumentException('Taxa de venda inválida.');
 
@@ -274,6 +276,92 @@ class TreasuryService
         $this->bookProfitLot($consumo['pnl_usd'], $sellRate, $clientId, $notes);
 
         return $consumo;
+    }
+
+    /**
+     * Reconcilia um lote 'pre_purchase' recém-criado contra lotes 'shortfall'
+     * abertos do mesmo cliente (FIFO). O shortfall foi criado quando o dono vendeu
+     * USD sem ter caixa — assumindo custo = sellRate (PnL=0). Agora que entrou USD
+     * a uma taxa real (rateCompra), calcula o PnL real (sellRate − rateCompra) sobre
+     * a parte coberta e propaga para a Transaction USD da venda original
+     * (linkada via treasury_lots.transaction_id no shortfall).
+     *
+     * Não altera o saldo NET do caixa: shortfall (negativo) + pre_purchase (positivo)
+     * já se cancelam. Aqui apenas marcamos o shortfall como 'closed' (consumido) e
+     * descontamos a mesma quantidade do pre_purchase, de modo que a fatia do
+     * pre_purchase usada para tampar o rombo não fique disponível para vendas futuras.
+     */
+    public function reconcileShortfall(TreasuryLot $newLot): void
+    {
+        if ($newLot->source !== 'pre_purchase') return;
+        if ((float) $newLot->usd_remaining <= 0.00000001) return;
+
+        $shortfalls = TreasuryLot::query()
+            ->where('source', 'shortfall')
+            ->where('client_id', $newLot->client_id)
+            ->where('usd_remaining', '<', 0)
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        if ($shortfalls->isEmpty()) return;
+
+        $disponivel = (float) $newLot->usd_remaining;
+        $rateCompra = (float) $newLot->cost_rate;
+
+        foreach ($shortfalls as $sf) {
+            if ($disponivel <= 0.00000001) break;
+
+            $deficit = -1 * (float) $sf->usd_remaining; // positivo
+            if ($deficit <= 0.00000001) continue;
+
+            $cobrir = min($disponivel, $deficit);
+            $sellRate = (float) $sf->cost_rate; // foi gravado como sellRate na criação
+            $pnlBrlExtra = round($cobrir * ($sellRate - $rateCompra), 8);
+            $pnlUsdExtra = $sellRate > 0 ? round($pnlBrlExtra / $sellRate, 8) : 0.0;
+
+            // Atualiza shortfall: aumenta usd_remaining (vai em direção a 0), grava PnL.
+            $sf->usd_remaining = round((float) $sf->usd_remaining + $cobrir, 8);
+            $sf->realized_pnl_brl = round((float) $sf->realized_pnl_brl + $pnlBrlExtra, 8);
+            if ($sf->usd_remaining >= -0.00000001) {
+                $sf->usd_remaining = 0;
+                $sf->status = 'closed';
+            } else {
+                $sf->status = 'partial';
+            }
+            $sf->save();
+
+            // Desconta do pre_purchase a mesma fatia (USD usado para cobrir o rombo
+            // não está disponível pra venda futura — o saldo NET continua coerente).
+            $newLot->usd_remaining = round((float) $newLot->usd_remaining - $cobrir, 8);
+            if ($newLot->usd_remaining <= 0.00000001) {
+                $newLot->usd_remaining = 0;
+                $newLot->status = 'closed';
+            } else {
+                $newLot->status = 'partial';
+            }
+            $newLot->save();
+
+            // Propaga PnL pra Transaction USD da venda original.
+            if ($sf->transaction_id && abs($pnlBrlExtra) > 0.00000001) {
+                $tx = Transaction::find($sf->transaction_id);
+                if ($tx) {
+                    $tx->realized_pnl_brl = round((float) ($tx->realized_pnl_brl ?? 0) + $pnlBrlExtra, 2);
+                    $tx->realized_pnl_usd = round((float) ($tx->realized_pnl_usd ?? 0) + $pnlUsdExtra, 4);
+                    $tx->save();
+                }
+            }
+
+            // Espelha o lucro USD no caixa como lote 'profit' (mesmo padrão de bookProfitLot).
+            if ($pnlUsdExtra > 0.00000001) {
+                $this->bookProfitLot($pnlUsdExtra, $sellRate, $newLot->client_id,
+                    'Reconciliação shortfall @ venda ' . number_format($sellRate, 4, ',', '.') .
+                    ' / compra ' . number_format($rateCompra, 4, ',', '.'));
+            }
+
+            $disponivel -= $cobrir;
+        }
     }
 
     /**

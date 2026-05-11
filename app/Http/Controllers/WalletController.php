@@ -332,6 +332,18 @@ class WalletController extends Controller
         $brl = (float) ($wallets['BRL']->balance ?? 0);
         $usd = (float) ($wallets['USD']->balance ?? 0);
 
+        // Subtrai do saldo BRL exibido o valor já pré-vendido em depósitos abertos
+        // (linhas "vermelhas" no extrato): teoricamente esse R$ já foi convertido
+        // em USD para o cliente, então não deve ser contabilizado no saldo do cabeçalho.
+        $brlPreSoldOpen = (float) \App\Models\Transaction::query()
+            ->where('client_id', $client->id)
+            ->where('type', 'deposit')
+            ->where('currency', 'BRL')
+            ->where('amount', '>', 0)
+            ->whereNotIn('status', ['fechado', 'finalizado'])
+            ->sum('brl_pre_sold');
+        $brl = round($brl - $brlPreSoldOpen, 2);
+
         $all = $client->transactions()
             ->when($dateFrom, fn ($q) => $q->where('created_at', '>=', $dateFrom))
             ->when($dateTo,   fn ($q) => $q->where('created_at', '<=', $dateTo))
@@ -497,15 +509,18 @@ class WalletController extends Controller
                     ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
                     ->setIndent(1);
             }
-            // Descrições à esquerda com recuo
+            // Descrições à esquerda com recuo — sem wrap para não quebrar em 2 linhas
             foreach (['H', 'K'] as $col) {
                 $sheet->getStyle($col . $row)->getAlignment()
                     ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT)
                     ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
-                    ->setIndent(1);
+                    ->setIndent(1)
+                    ->setWrapText(false);
+                // Fonte menor nas descrições para caber em uma linha
+                $sheet->getStyle($col . $row)->getFont()->setSize(6.5);
             }
-            // Fonte menor nas linhas de dados (8.5pt para descrições caberem melhor).
-            $sheet->getStyle('A' . $row . ':K' . $row)->getFont()->setSize(8.5);
+            // Fonte geral nas linhas de dados.
+            $sheet->getStyle('A' . $row . ':K' . $row)->getFont()->setSize(7);
         }
 
         // Linha de totais: à direita nas colunas de valores e em negrito.
@@ -513,9 +528,12 @@ class WalletController extends Controller
             $sheet->getStyle($col . $totalsRow)->getAlignment()
                 ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT)
                 ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
-                ->setIndent(1);
+                ->setIndent(1)
+                ->setWrapText(false);  // Garante que valores não quebrem em 2 linhas
         }
-        $sheet->getStyle('A' . $totalsRow . ':K' . $totalsRow)->getFont()->setSize(10)->setBold(true);
+        $sheet->getStyle('A' . $totalsRow . ':K' . $totalsRow)->getFont()->setSize(7)->setBold(true);
+        // Garante wrap=false em toda linha de totais
+        $sheet->getStyle('A' . $totalsRow . ':K' . $totalsRow)->getAlignment()->setWrapText(false);
 
         // ---- Separadores verticais entre os 3 blocos (E|F e H|I).
         // Aplica borda direita leve ao final de Entrada R$ e Saída U$.
@@ -527,19 +545,20 @@ class WalletController extends Controller
         }
 
         // ---- Larguras de coluna ajustadas para A4 paisagem caber inteiro.
-        // Total ~ 152 unidades — calibrado para A4 paisagem com margens 0.3.
+        // Total ~ 150 unidades — calibrado para A4 paisagem com margens 0.3.
+        // Reduzidas para evitar quebra em múltiplas linhas (wrap=false truncará elegantemente).
         $larguras = [
-            'A' => 4,    // N
-            'B' => 16,   // Data (Entrada R$)
-            'C' => 13,   // Valor R$
-            'D' => 9,    // Taxa
-            'E' => 12,   // Valor U$
+            'A' => 2,    // N
+            'B' => 15,   // Data (Entrada R$)
+            'C' => 13,   // Valor R$ (reduzido de 13)
+            'D' => 8,    // Taxa (reduzido de 9)
+            'E' => 12,   // Valor U$ (reduzido de 12)
             'F' => 16,   // Data (Saída U$)
-            'G' => 12,   // Valor U$
-            'H' => 26,   // Descrição saída
+            'G' => 10,   // Valor U$ (reduzido de 12)
+            'H' => 21,   // Descrição saída (reduzido de 26)
             'I' => 16,   // Data (Entrada U$)
-            'J' => 12,   // Valor U$
-            'K' => 28,   // Descrição entrada U$
+            'J' => 11,   // Valor U$ (reduzido de 12)
+            'K' => 27,   // Descrição entrada U$ (reduzido de 28)
         ];
         foreach ($larguras as $col => $w) {
             $sheet->getColumnDimension($col)->setWidth($w);
@@ -567,6 +586,10 @@ class WalletController extends Controller
         $sheet->getPageMargins()
             ->setTop(0.4)->setBottom(0.4)->setLeft(0.3)->setRight(0.3);
         $sheet->setPrintGridlines(false);
+        
+        // Zoom out de ~15% para melhor alinhamento com valores altos
+        // 85% = 0.85 escala (85 de 100)
+        $sheet->getSheetView()->setZoomScale(85);
 
         return $spreadsheet;
     }
@@ -803,9 +826,10 @@ class WalletController extends Controller
                 $totalPnlBrl = (float) ($consumo['pnl_brl'] ?? 0);
                 $totalPnlUsd = (float) ($consumo['pnl_usd'] ?? 0);
                 $shortfall   = (float) ($consumo['shortfall_usd'] ?? 0);
+                $shortfallLot = $consumo['shortfall_lot'] ?? null;
 
                 // 3) Cria a transação USD finalizada (Entrada U$ do cliente).
-                $this->transactionService->create([
+                $usdTx = $this->transactionService->create([
                     'client_id'        => $clientId,
                     'type'             => 'deposit',
                     'currency'         => 'USD',
@@ -816,6 +840,24 @@ class WalletController extends Controller
                     'realized_pnl_usd' => round($totalPnlUsd, 4),
                     'status'           => 'finalizado',
                 ]);
+
+                // 3b) Linka o lote shortfall (se houver) à Transaction USD criada.
+                // Quando a pré-compra futura cobrir o rombo, o PnL real será propagado
+                // de volta para esta Transaction (TreasuryService::reconcileShortfall).
+                if ($shortfallLot && $usdTx && isset($usdTx->id)) {
+                    $shortfallLot->transaction_id = $usdTx->id;
+                    $shortfallLot->save();
+                }
+
+                // 3c) Linka todos os lotes de pré-venda criados à Transaction USD.
+                // Permite que finalizeDepositIfCovered propague o PnL real (compra a
+                // taxa diferente da venda) de volta para esta Transaction.
+                if ($usdTx && isset($usdTx->id)) {
+                    foreach ($lotes as $loteVenda) {
+                        $loteVenda->transaction_id = $usdTx->id;
+                        $loteVenda->save();
+                    }
+                }
 
                 // 4) Credita USD no saldo do cliente.
                 $this->walletService->updateBalance($clientId, 'USD', $totalUsd);
