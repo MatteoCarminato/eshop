@@ -343,15 +343,12 @@ class TreasuryService
             }
             $newLot->save();
 
-            // Propaga PnL pra Transaction USD da venda original.
-            if ($sf->transaction_id && abs($pnlBrlExtra) > 0.00000001) {
-                $tx = Transaction::find($sf->transaction_id);
-                if ($tx) {
-                    $tx->realized_pnl_brl = round((float) ($tx->realized_pnl_brl ?? 0) + $pnlBrlExtra, 2);
-                    $tx->realized_pnl_usd = round((float) ($tx->realized_pnl_usd ?? 0) + $pnlUsdExtra, 4);
-                    $tx->save();
-                }
-            }
+            // Propaga PnL pra Transaction USD da venda original?
+            // NÃO — política atual: o PnL da Transaction USD do cliente só é
+            // computado quando o depósito BRL fecha (finalizeDepositIfCovered),
+            // como (taxa de compra) − (taxa de venda) do MESMO depósito. Aqui
+            // só atualizamos o caixa (treasury_lots.realized_pnl_brl) para refletir
+            // o lucro do dono no caixa quando o shortfall é coberto.
 
             // Espelha o lucro USD no caixa como lote 'profit' (mesmo padrão de bookProfitLot).
             if ($pnlUsdExtra > 0.00000001) {
@@ -401,8 +398,10 @@ class TreasuryService
                 'currency'         => 'USD',
                 'amount'           => $usdAmount,
                 'exchange_rate'    => $sellRate,
-                'realized_pnl_brl' => $consumo['pnl_brl'],
-                'realized_pnl_usd' => $consumo['pnl_usd'],
+                // PnL do CLIENTE não é registrado em vendas avulsas do caixa.
+                // O PnL do CAIXA está em treasury_sales.realized_pnl_*.
+                'realized_pnl_brl' => 0,
+                'realized_pnl_usd' => 0,
                 'treasury_sale_id' => $sale->id,
                 'description'      => 'Venda do caixa: US$ ' . number_format($usdAmount, 2, ',', '.') .
                                       ' @ ' . number_format($sellRate, 4, ',', '.') .

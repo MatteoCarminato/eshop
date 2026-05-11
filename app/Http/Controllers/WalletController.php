@@ -819,16 +819,17 @@ class WalletController extends Controller
                 $descricao = $userDesc ?: 'Fechamento R$ ' . number_format($totalBrl, 2, ',', '.') .
                                           ' @ ' . number_format($sellRate, 4, ',', '.');
 
-                // 2) Entrega USD do caixa do dono ao cliente (consome lotes + calcula PnL).
+                // 2) Entrega USD do caixa do dono ao cliente (consome lotes — PnL do CAIXA
+                // é registrado ali; PnL do CLIENTE/DEPÓSITO só será computado quando a
+                // pré-compra fechar o depósito (finalizeDepositIfCovered).
                 $consumo = $this->treasuryService->deliverFromCash(
                     $clientId, $totalUsd, $sellRate, $descricao
                 );
-                $totalPnlBrl = (float) ($consumo['pnl_brl'] ?? 0);
-                $totalPnlUsd = (float) ($consumo['pnl_usd'] ?? 0);
-                $shortfall   = (float) ($consumo['shortfall_usd'] ?? 0);
-                $shortfallLot = $consumo['shortfall_lot'] ?? null;
+                $shortfall = (float) ($consumo['shortfall_usd'] ?? 0);
 
-                // 3) Cria a transação USD finalizada (Entrada U$ do cliente).
+                // 3) Cria a transação USD finalizada (Entrada U$ do cliente) com PnL ZERADO.
+                // O PnL real vem depois, via finalizeDepositIfCovered, calculado como
+                // (taxa de compra) − (taxa de venda) deste mesmo depósito.
                 $usdTx = $this->transactionService->create([
                     'client_id'        => $clientId,
                     'type'             => 'deposit',
@@ -836,22 +837,13 @@ class WalletController extends Controller
                     'amount'           => $totalUsd,
                     'exchange_rate'    => $sellRate,
                     'description'      => $descricao,
-                    'realized_pnl_brl' => round($totalPnlBrl, 2),
-                    'realized_pnl_usd' => round($totalPnlUsd, 4),
+                    'realized_pnl_brl' => 0,
+                    'realized_pnl_usd' => 0,
                     'status'           => 'finalizado',
                 ]);
 
-                // 3b) Linka o lote shortfall (se houver) à Transaction USD criada.
-                // Quando a pré-compra futura cobrir o rombo, o PnL real será propagado
-                // de volta para esta Transaction (TreasuryService::reconcileShortfall).
-                if ($shortfallLot && $usdTx && isset($usdTx->id)) {
-                    $shortfallLot->transaction_id = $usdTx->id;
-                    $shortfallLot->save();
-                }
-
-                // 3c) Linka todos os lotes de pré-venda criados à Transaction USD.
-                // Permite que finalizeDepositIfCovered propague o PnL real (compra a
-                // taxa diferente da venda) de volta para esta Transaction.
+                // 3b) Linka todos os lotes de pré-venda à Transaction USD.
+                // Permite que finalizeDepositIfCovered propague o PnL real pra esta transaction.
                 if ($usdTx && isset($usdTx->id)) {
                     foreach ($lotes as $loteVenda) {
                         $loteVenda->transaction_id = $usdTx->id;
@@ -871,12 +863,9 @@ class WalletController extends Controller
                     }
                 }
 
-                $sinal = $totalPnlBrl >= 0 ? '+' : '';
                 $msg = 'Venda registrada: R$ ' . number_format($totalBrl, 2, ',', '.') .
                        ' → US$ ' . number_format($totalUsd, 2, ',', '.') .
-                       ' (taxa ' . number_format($sellRate, 4, ',', '.') . '). ' .
-                       'PnL: ' . $sinal . 'R$ ' . number_format($totalPnlBrl, 2, ',', '.') .
-                       ' (' . $sinal . 'US$ ' . number_format($totalPnlUsd, 2, ',', '.') . ').';
+                       ' (taxa ' . number_format($sellRate, 4, ',', '.') . ').';
 
                 $redirect = redirect()->back()->with('success', $msg);
                 if ($shortfall > 0.0001) {
@@ -1346,8 +1335,11 @@ class WalletController extends Controller
                 'amount'           => $totalUsdEntregue,
                 'exchange_rate'    => $taxaMediaVenda,
                 'description'      => $validated['description'],
-                'realized_pnl_brl' => round($totalPnlBrl, 2),
-                'realized_pnl_usd' => round($totalPnlUsd, 4),
+                // PnL do CLIENTE só é gravado quando o depósito BRL fecha via
+                // finalizeDepositIfCovered (compra+venda do mesmo depósito). O PnL
+                // do FIFO contra o caixa segue gravado em treasury_lots/treasury_sales.
+                'realized_pnl_brl' => 0,
+                'realized_pnl_usd' => 0,
                 'status'           => 'finalizado',
             ]);
             $usdTx->created_at = $validated['date'];
@@ -1358,12 +1350,9 @@ class WalletController extends Controller
             $this->walletService->updateBalance((int) $validated['client_id'], 'BRL', -$totalBrlConsumido);
             $this->walletService->updateBalance((int) $validated['client_id'], 'USD', $totalUsdEntregue);
 
-            $sinal = $totalPnlBrl >= 0 ? '+' : '';
             $msg = 'Fechamento em dólar: R$ ' . number_format($totalBrlConsumido, 2, ',', '.') .
                 ' → US$ ' . number_format($totalUsdEntregue, 2, ',', '.') .
-                ' (taxa média venda ' . number_format($taxaMediaVenda, 4, ',', '.') . '). ' .
-                'PnL: ' . $sinal . 'R$ ' . number_format($totalPnlBrl, 2, ',', '.') .
-                ' (' . $sinal . 'US$ ' . number_format($totalPnlUsd, 2, ',', '.') . ').';
+                ' (taxa média venda ' . number_format($taxaMediaVenda, 4, ',', '.') . ').';
 
             $redirect = redirect()->back()->with('success', $msg);
 
