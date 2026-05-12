@@ -35,6 +35,82 @@ class WalletService
     }
 
     /**
+     * Recalcula o saldo BRL do cliente a partir do ledger atual.
+     *
+     * Regra aplicada:
+     * - depósitos BRL abertos somam;
+     * - depósitos BRL finalizados/fechados não entram;
+     * - saídas BRL (withdraw/exchange_out) subtraem;
+     * - entradas BRL em exchange_in somam.
+     */
+    public function recalculateBrlBalance(int $clientId, bool $dryRun = false): array
+    {
+        return DB::transaction(function () use ($clientId, $dryRun) {
+            $wallet = Wallet::firstOrCreate([
+                'client_id' => $clientId,
+                'currency' => 'BRL',
+            ]);
+
+            $transactions = Transaction::query()
+                ->where('client_id', $clientId)
+                ->where('currency', 'BRL')
+                ->orderBy('created_at')
+                ->orderBy('id')
+                ->get();
+
+            $computedBalance = 0.0;
+
+            foreach ($transactions as $transaction) {
+                $amount = round((float) $transaction->amount, 2);
+
+                if ($transaction->type === 'withdraw') {
+                    $computedBalance -= abs($amount);
+                    continue;
+                }
+
+                if ($transaction->type === 'exchange_out') {
+                    $computedBalance -= abs($amount);
+                    continue;
+                }
+
+                if ($transaction->type === 'exchange_in') {
+                    $computedBalance += abs($amount);
+                    continue;
+                }
+
+                if ($transaction->type === 'deposit') {
+                    if (in_array($transaction->status, ['fechado', 'finalizado'], true)) {
+                        continue;
+                    }
+
+                    $computedBalance += abs($amount);
+                    continue;
+                }
+
+                $computedBalance += $amount;
+            }
+
+            $computedBalance = round($computedBalance, 2);
+            $currentBalance = round((float) $wallet->balance, 2);
+            $difference = round($computedBalance - $currentBalance, 2);
+
+            if (!$dryRun) {
+                $wallet->balance = $computedBalance;
+                $wallet->save();
+            }
+
+            return [
+                'client_id' => $clientId,
+                'currency' => 'BRL',
+                'current_balance' => $currentBalance,
+                'computed_balance' => $computedBalance,
+                'difference' => $difference,
+                'mode' => $dryRun ? 'dry-run' : 'applied',
+            ];
+        });
+    }
+
+    /**
      * Resumo das pré-compras em aberto para um cliente.
      * - usd_pre_comprado: total de USD ainda não entregue ao cliente.
      * - brl_em_aberto: total de R$ que o dono "deve" ao cliente em aberto.

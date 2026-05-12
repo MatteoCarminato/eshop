@@ -1056,7 +1056,7 @@
                             </div>
                             <div class="col-6">
                                 <label class="form-label">USD que será entregue</label>
-                                <input type="number" step="0.01" min="0.01" id="venda_ant_usd" class="form-control"
+                                <input type="number" step="0.0001" min="0.0001" id="venda_ant_usd" class="form-control"
                                     required>
                             </div>
                         </div>
@@ -1102,7 +1102,7 @@
             function recalcUsd() {
                 if (sync) return;
                 var t = parseFloat(taxa.value), b = parseFloat(brl.value);
-                if (t > 0 && b > 0) { sync = true; usd.value = (b / t).toFixed(2); sync = false; }
+                if (t > 0 && b > 0) { sync = true; usd.value = (b / t).toFixed(4); sync = false; }
                 updateDesc();
             }
             function recalcBrl() {
@@ -1143,7 +1143,9 @@
 
                     var bulkRateInput = document.querySelector('#bulk_rate_form input[name="exchange_rate"]');
                     var sug = bulkRateInput ? parseFloat(bulkRateInput.value) : 0;
-                    if (sug > 0) taxa.value = sug;
+                    if (sug > 0 && (!taxa.value || parseFloat(taxa.value) <= 0)) {
+                        taxa.value = sug.toFixed(4);
+                    }
 
                     brl.max = disp.toFixed(2);
                     if (!brl.value || parseFloat(brl.value) > disp) brl.value = disp.toFixed(2);

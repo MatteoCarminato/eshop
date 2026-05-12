@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Transaction;
 use App\Models\TreasuryLot;
 use App\Models\TreasurySale;
+use App\Models\WalletPrePurchase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -207,7 +208,7 @@ class TreasuryService
     /**
      * Cria um lote 'profit' para que o lucro em USD entre no caixa da empresa.
      */
-    protected function bookProfitLot(float $pnlUsd, float $sellRate, ?int $clientId, ?string $notes): void
+    protected function bookProfitLot(float $pnlUsd, float $sellRate, ?int $clientId, ?string $notes, ?int $treasurySaleId = null): void
     {
         if ($pnlUsd <= 0.00000001) return;
 
@@ -216,6 +217,7 @@ class TreasuryService
             'source'           => 'profit',
             'client_id'        => $clientId,
             'pre_purchase_id'  => null,
+            'treasury_sale_id' => $treasurySaleId,
             'usd_amount'       => $pnlUsd,
             'cost_rate'        => 0,
             'brl_cost'         => 0,
@@ -390,7 +392,7 @@ class TreasuryService
             ]);
 
             // Lucro em USD entra como novo lote no caixa da empresa.
-            $this->bookProfitLot($consumo['pnl_usd'], $sellRate, $clientId, $notes);
+            $this->bookProfitLot($consumo['pnl_usd'], $sellRate, $clientId, $notes, $sale->id);
 
             $usdTx = Transaction::create([
                 'client_id'        => $clientId,
@@ -472,7 +474,7 @@ class TreasuryService
             ]);
 
             // Lucro em USD entra como novo lote no caixa da empresa.
-            $this->bookProfitLot($consumo['pnl_usd'], $sellRate, $clientId, $notes);
+            $this->bookProfitLot($consumo['pnl_usd'], $sellRate, $clientId, $notes, $sale->id);
 
             $finalizedIds = [];
             $pnlUsdTotal = $consumo['pnl_usd'];
@@ -498,6 +500,148 @@ class TreasuryService
             $sale->save();
 
             return $sale;
+        });
+    }
+
+    /**
+     * Desfaz uma venda em dólar criada por `sellToClient` ou `sellPendingTransactions`.
+     *
+     * Reverte o saldo do cliente, remove o lote de lucro associado e restaura/deleta
+     * as transações vinculadas à venda.
+     */
+    public function undoSale(int $saleId, bool $dryRun = false): array
+    {
+        return DB::transaction(function () use ($saleId, $dryRun) {
+            $sale = TreasurySale::query()
+                ->whereKey($saleId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($sale->deleted_at) {
+                throw new \RuntimeException('Essa venda já foi desfeita (registro removido).');
+            }
+
+            $transactionIds = is_array($sale->transaction_ids) ? $sale->transaction_ids : [];
+            $transactions = $transactionIds
+                ? Transaction::query()->whereIn('id', $transactionIds)->lockForUpdate()->get()->keyBy('id')
+                : collect();
+
+            $hasBrlWithdraw = $transactions->contains(fn (Transaction $tx) => $tx->currency === 'BRL' && $tx->type === 'withdraw');
+            $mode = $hasBrlWithdraw ? 'direct' : 'pending';
+
+            $profitLots = TreasuryLot::query()
+                ->where('treasury_sale_id', $sale->id)
+                ->lockForUpdate()
+                ->get();
+
+            $summary = [
+                'sale_id' => $sale->id,
+                'mode' => $mode,
+                'client_id' => $sale->client_id,
+                'usd_amount' => (float) $sale->usd_amount,
+                'brl_total' => (float) $sale->brl_total,
+                'transactions' => $transactions->count(),
+                'profit_lots' => $profitLots->count(),
+                'dry_run' => $dryRun,
+            ];
+
+            if ($dryRun) {
+                return $summary;
+            }
+
+            $this->walletService->updateBalance((int) $sale->client_id, 'USD', -((float) $sale->usd_amount));
+            $this->walletService->updateBalance((int) $sale->client_id, 'BRL', (float) $sale->brl_total);
+
+            foreach ($profitLots as $lot) {
+                $lot->delete();
+            }
+
+            foreach ($transactions as $tx) {
+                if ($mode === 'direct') {
+                    $tx->delete();
+                    continue;
+                }
+
+                // Venda finalizada a partir de transações já em aguardando_venda.
+                // Restaura o estado operacional sem apagar o histórico original.
+                $tx->status = 'aguardando_venda';
+                $tx->treasury_sale_id = null;
+                $tx->realized_pnl_brl = 0;
+                $tx->realized_pnl_usd = 0;
+                $tx->save();
+            }
+
+            $sale->delete();
+
+            return $summary;
+        });
+    }
+
+    /**
+     * Desfaz uma pré-compra completa, desde que os lotes ainda não tenham sido consumidos
+     * em fechamento. O comando é intencionalmente conservador para não corromper
+     * reconciliações posteriores.
+     */
+    public function undoPrePurchase(int $depositId, bool $dryRun = false): array
+    {
+        return DB::transaction(function () use ($depositId, $dryRun) {
+            $deposit = Transaction::query()
+                ->whereKey($depositId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $prePurchases = WalletPrePurchase::query()
+                ->where('source_transaction_id', $deposit->id)
+                ->lockForUpdate()
+                ->get();
+
+            if ($prePurchases->isEmpty()) {
+                throw new \RuntimeException('Nenhuma pré-compra encontrada para esse depósito.');
+            }
+
+            $blocked = $prePurchases->first(function (WalletPrePurchase $lot) {
+                return !in_array($lot->status, ['open'], true)
+                    || (float) $lot->brl_remaining < (float) $lot->brl_amount - 0.005
+                    || (float) $lot->usd_remaining < (float) $lot->usd_amount - 0.0001;
+            });
+
+            if ($blocked) {
+                throw new \RuntimeException(
+                    'Essa pré-compra já foi consumida ou parcialmente fechada. Não é seguro desfazer automaticamente.'
+                );
+            }
+
+            $cashLots = TreasuryLot::query()
+                ->whereIn('pre_purchase_id', $prePurchases->pluck('id')->all())
+                ->lockForUpdate()
+                ->get();
+
+            $summary = [
+                'deposit_id' => $deposit->id,
+                'client_id' => (int) $deposit->client_id,
+                'pre_purchase_lots' => $prePurchases->count(),
+                'cash_lots' => $cashLots->count(),
+                'brl_total' => (float) $prePurchases->sum('brl_amount'),
+                'usd_total' => (float) $prePurchases->sum('usd_amount'),
+                'dry_run' => $dryRun,
+            ];
+
+            if ($dryRun) {
+                return $summary;
+            }
+
+            foreach ($cashLots as $lot) {
+                $lot->delete();
+            }
+
+            foreach ($prePurchases as $lot) {
+                $lot->delete();
+            }
+
+            $deposit->brl_pre_purchased = round(max(0.0, (float) ($deposit->brl_pre_purchased ?? 0) - $summary['brl_total']), 2);
+            $deposit->save();
+
+            return $summary;
         });
     }
 }

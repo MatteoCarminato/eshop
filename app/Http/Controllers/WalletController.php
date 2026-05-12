@@ -813,7 +813,7 @@ class WalletController extends Controller
                         : null
                 );
 
-                $totalUsd = round(array_sum(array_map(fn ($l) => (float) $l->usd_amount, $lotes)), 2);
+                $totalUsd = round(array_sum(array_map(fn ($l) => (float) $l->usd_amount, $lotes)), 4);
                 $totalBrl = round(array_sum(array_map(fn ($l) => (float) $l->brl_amount, $lotes)), 2);
 
                 // Atualiza a taxa "atual" do depósito com a taxa da PRÉ-VENDA
