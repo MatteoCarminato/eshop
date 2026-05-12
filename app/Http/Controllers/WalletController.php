@@ -789,7 +789,7 @@ class WalletController extends Controller
         $validated = $request->validate([
             'client_id'         => 'required|exists:clients,id',
             'amount'            => 'required|numeric|min:0.01',
-            'sell_rate'         => 'required|numeric|min:0.000001',
+            'sell_rate'         => 'required|numeric|min:0.0001',
             'description'       => 'nullable|string|max:255',
             'transaction_ids'   => 'nullable|array',
             'transaction_ids.*' => 'integer|exists:transactions,id',
@@ -798,7 +798,7 @@ class WalletController extends Controller
         try {
             return DB::transaction(function () use ($validated) {
                 $clientId  = (int) $validated['client_id'];
-                $sellRate  = (float) $validated['sell_rate'];
+                $sellRate  = round((float) $validated['sell_rate'], 4);
                 $brlAmount = (float) $validated['amount'];
                 $userDesc  = $validated['description'] ?? null;
 
@@ -816,27 +816,17 @@ class WalletController extends Controller
                 $totalUsd = round(array_sum(array_map(fn ($l) => (float) $l->usd_amount, $lotes)), 2);
                 $totalBrl = round(array_sum(array_map(fn ($l) => (float) $l->brl_amount, $lotes)), 2);
 
-                // Atualiza a taxa "atual" do depósito com a taxa média da PRÉ-VENDA
-                // em aberto daquele depósito. Isso permite manter o campo de taxa
-                // da carteira em readonly após vender.
+                // Atualiza a taxa "atual" do depósito com a taxa da PRÉ-VENDA
+                // recém-registrada. Assim o campo de taxa na carteira reflete
+                // exatamente a taxa vendida e pode ficar readonly.
                 $depositIds = array_unique(array_map(fn ($l) => (int) $l->source_transaction_id, $lotes));
                 foreach ($depositIds as $depId) {
                     $dep = \App\Models\Transaction::find($depId);
                     if (!$dep) {
                         continue;
                     }
-
-                    $sells = \App\Models\WalletPreSell::query()
-                        ->where('source_transaction_id', $depId)
-                        ->whereIn('status', ['open', 'partial'])
-                        ->get();
-
-                    $brlSum = (float) $sells->sum('brl_remaining');
-                    $usdSum = (float) $sells->sum('usd_remaining');
-                    if ($usdSum > 0.000001) {
-                        $dep->exchange_rate = round($brlSum / $usdSum, 6);
-                        $dep->save();
-                    }
+                    $dep->exchange_rate = $sellRate;
+                    $dep->save();
                 }
 
                 $descricao = $userDesc ?: 'Fechamento R$ ' . number_format($totalBrl, 2, ',', '.') .
@@ -987,7 +977,7 @@ class WalletController extends Controller
     public function updateDepositRate(Request $request, Transaction $transaction)
     {
         $validated = $request->validate([
-            'exchange_rate' => 'required|numeric|min:0.000001',
+            'exchange_rate' => 'required|numeric|min:0.0001',
         ]);
 
         if (!($transaction->type === 'deposit' && $transaction->currency === 'BRL' && $transaction->amount > 0)) {
@@ -1002,7 +992,7 @@ class WalletController extends Controller
 
         return DB::transaction(function () use ($validated, $transaction) {
             $oldRate = (float) ($transaction->exchange_rate ?? 0);
-            $newRate = (float) $validated['exchange_rate'];
+            $newRate = round((float) $validated['exchange_rate'], 4);
 
             $transaction->exchange_rate = $newRate;
             $transaction->converted_currency = 'USD';
@@ -1028,12 +1018,12 @@ class WalletController extends Controller
     {
         $validated = $request->validate([
             'client_id' => 'required|exists:clients,id',
-            'exchange_rate' => 'required|numeric|min:0.000001',
+            'exchange_rate' => 'required|numeric|min:0.0001',
             'transaction_ids' => 'required|array|min:1',
             'transaction_ids.*' => 'integer|exists:transactions,id',
         ]);
 
-        $newRate = (float) $validated['exchange_rate'];
+        $newRate = round((float) $validated['exchange_rate'], 4);
 
         return DB::transaction(function () use ($validated, $newRate) {
             $transactions = Transaction::query()

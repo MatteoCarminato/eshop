@@ -482,6 +482,7 @@ class WalletService
         ?string $notes = null,
         ?array $transactionIds = null
     ): array {
+        $sellRate = round($sellRate, 4);
         if ($sellRate <= 0)  throw new \InvalidArgumentException('Taxa de venda inválida.');
         if ($brlAmount <= 0) throw new \InvalidArgumentException('Valor em R$ inválido.');
 
@@ -519,7 +520,7 @@ class WalletService
 
                 $consumir = min($livre, $remaining);
                 $consumir = round($consumir, 2);
-                $usdLote  = round($consumir / $sellRate, 2);
+                $usdLote  = round($consumir / $sellRate, 4);
 
                 $lote = WalletPreSell::create([
                     'client_id'             => $clientId,

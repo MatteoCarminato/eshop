@@ -343,16 +343,21 @@
                 var row = rateInput.closest('tr');
                 var url = rateInput.getAttribute('data-url');
                 var rateValue = rateInput.value;
+                var normalizedRate = parseFloat(rateValue);
                 var originalValue = rateInput.getAttribute('data-original-value');
 
                 if (originalValue !== null && parseFloat(originalValue) === parseFloat(rateValue)) {
                     return;
                 }
 
-                if (!rateValue || parseFloat(rateValue) <= 0) {
+                if (!rateValue || !(normalizedRate > 0)) {
                     alert('Informe uma taxa válida.');
                     return;
                 }
+
+                normalizedRate = parseFloat(normalizedRate.toFixed(4));
+                rateValue = normalizedRate.toFixed(4);
+                rateInput.value = rateValue;
 
                 var payload = new FormData();
                 payload.append('_token', '{{ csrf_token() }}');
@@ -772,11 +777,11 @@
                                             <td class="fw-bold text-success">{{ number_format($tx->amount, 2, ',', '.') }}</td>
                                             <td>
                                                 <div class="d-flex align-items-center gap-1">
-                                                    <input type="number" step="0.000001" min="0.000001"
-                                                        value="{{ $taxa ? number_format($taxa, 6, '.', '') : '' }}"
+                                                    <input type="number" step="0.0001" min="0.0001"
+                                                        value="{{ $taxa ? number_format($taxa, 4, '.', '') : '' }}"
                                                         class="form-control form-control-sm js-rate-input"
                                                         data-url="{{ route('admin.wallet.update-rate', $tx) }}"
-                                                        data-original-value="{{ $taxa ? number_format($taxa, 6, '.', '') : '' }}"
+                                                        data-original-value="{{ $taxa ? number_format($taxa, 4, '.', '') : '' }}"
                                                         style="min-width: 110px" required @if($isLocked || $hasSold) disabled
                                                         readonly @endif>
                                                 </div>
@@ -1033,7 +1038,7 @@
                                 <span>Taxa de venda ao cliente</span>
                                 <small class="ms-auto small" id="venda_ant_taxa_status"></small>
                             </label>
-                            <input type="number" step="0.000001" min="0.000001" name="sell_rate" id="venda_ant_taxa"
+                            <input type="number" step="0.0001" min="0.0001" name="sell_rate" id="venda_ant_taxa"
                                 class="form-control" required>
                             <small class="text-muted d-block mt-1">
                                 Cotação base do Investing + spread do cliente
