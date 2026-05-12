@@ -87,6 +87,20 @@ Route::middleware('auth')->group(function () {
             Route::post('/sell-pending', [\App\Http\Controllers\TreasuryController::class, 'sellPending'])->name('sell-pending');
         });
     });
+
+    // WhatsApp (conexão com serviço Node já existente)
+    Route::prefix('admin/whatsapp')->name('admin.whatsapp.')->group(function () {
+        Route::middleware('module:whatsapp.view,wallet.view')->group(function () {
+            Route::get('/', [\App\Http\Controllers\WhatsappController::class, 'index'])->name('index');
+            Route::get('/status', [\App\Http\Controllers\WhatsappController::class, 'status'])->name('status');
+            Route::get('/qr', [\App\Http\Controllers\WhatsappController::class, 'qr'])->name('qr');
+            Route::get('/qr-image', [\App\Http\Controllers\WhatsappController::class, 'qrImage'])->name('qr-image');
+        });
+
+        Route::middleware('module:whatsapp.manage,wallet.manage')->group(function () {
+            Route::post('/connect', [\App\Http\Controllers\WhatsappController::class, 'connect'])->name('connect');
+        });
+    });
 });
 
 

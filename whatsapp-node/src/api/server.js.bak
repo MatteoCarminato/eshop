@@ -1,0 +1,124 @@
+const { registerScreenRoutes } = require("./screenRoutes");
+const express = require('express');
+const config = require('../config/env');
+const logger = require('../utils/logger');
+const { loadFilteredContacts, getLabels } = require('../contacts/whatsappLoader');
+
+/**
+ * Cria o servidor Express para controle do bot via API REST.
+ * @param {import('whatsapp-web.js').Client} client - WhatsApp client.
+ * @param {Object} botState - Estado compartilhado do bot.
+ * @returns {express.Application} App Express configurado.
+ */
+const createServer = (client, botState) => {
+  const app = express();
+  app.use(express.json());
+
+  // Middleware de autenticação por API Key
+  const authMiddleware = (req, res, next) => {
+    const apiKey = req.headers['x-api-key'];
+    if (apiKey !== config.apiKey) {
+      return res.status(401).json({ error: 'API Key inválida' });
+    }
+    next();
+  };
+
+  // Health check (sem auth)
+  app.get('/health', (_req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
+  // Status do bot
+  app.get('/api/status', authMiddleware, (_req, res) => {
+    const state = client.info ? 'connected' : 'disconnected';
+    res.json({
+      state,
+      sending: botState.isSending || false,
+      messagesSent: botState.messagesSent || 0,
+      lastReport: botState.lastReport || null,
+    });
+  });
+
+  // Listar contatos do WhatsApp
+  app.get('/api/contacts', authMiddleware, async (req, res) => {
+    try {
+      const { savedOnly, withName } = req.query;
+      const contacts = await loadFilteredContacts(client, {
+        savedOnly: savedOnly === 'true',
+        withName: withName === 'true',
+      });
+      res.json({ total: contacts.length, contacts });
+    } catch (error) {
+      logger.error('Erro ao listar contatos:', { error: error.message });
+      res.status(500).json({ error: 'Erro ao carregar contatos do WhatsApp' });
+    }
+  });
+
+  // Listar etiquetas do WhatsApp Business
+  app.get('/api/labels', authMiddleware, async (_req, res) => {
+    try {
+      const labels = await getLabels(client);
+      res.json({ total: labels.length, labels });
+    } catch (error) {
+      logger.error('Erro ao listar etiquetas:', { error: error.message });
+      res.status(500).json({ error: 'Erro ao carregar etiquetas do WhatsApp' });
+    }
+  });
+
+  // Iniciar envio
+  app.post('/api/send', authMiddleware, async (req, res) => {
+    if (botState.isSending) {
+      return res.status(409).json({ error: 'Envio já em andamento' });
+    }
+
+    const { template, imagePath, extraParams, savedOnly, withName, excludePhones, labelName } =
+      req.body;
+
+    res.json({
+      message: 'Envio iniciado',
+      template: template || 'ofertaPadrao',
+      imagePath: imagePath || config.defaultImagePath,
+      labelName: labelName || config.sendLabel || null,
+    });
+
+    // O envio real será disparado pelo controller
+    // eslint-disable-next-line no-param-reassign
+    botState.pendingSend = {
+      template,
+      imagePath,
+      extraParams,
+      savedOnly,
+      withName,
+      excludePhones,
+      labelName,
+    };
+  });
+
+  // Parar envio
+  app.post('/api/stop', authMiddleware, (_req, res) => {
+    // eslint-disable-next-line no-param-reassign
+    botState.shouldStop = true;
+    logger.info('🛑 Parada solicitada via API');
+    res.json({ message: 'Parada solicitada' });
+  });
+
+  // Rotas de captura de tela
+  registerScreenRoutes(app, client, authMiddleware);
+
+  return app;
+};
+
+/**
+ * Inicia o servidor Express.
+ * @param {express.Application} app - App Express.
+ * @returns {Promise<void>}
+ */
+const startServer = (app) =>
+  new Promise((resolve) => {
+    app.listen(config.port, () => {
+      logger.info(`🌐 API rodando em http://localhost:${config.port}`);
+      resolve();
+    });
+  });
+
+module.exports = { createServer, startServer };

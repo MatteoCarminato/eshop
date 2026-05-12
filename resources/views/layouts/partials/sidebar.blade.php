@@ -179,6 +179,16 @@
                     </div>
                 </li>
 
+                @auth
+                    @if (auth()->user()->isAdmin() || auth()->user()->hasModule('whatsapp.view') || auth()->user()->hasModule('wallet.view'))
+                        <li class="nav-item">
+                            <a class="nav-link menu-link" href="{{ route('admin.whatsapp.index') }}">
+                                <i class="ri-whatsapp-line"></i> <span>WhatsApp</span>
+                            </a>
+                        </li>
+                    @endif
+                @endauth
+
                 {{-- <li class="nav-item">
                     <a class="nav-link menu-link" href="#sidebarApps" data-bs-toggle="collapse" role="button"
                         aria-expanded="false" aria-controls="sidebarApps">

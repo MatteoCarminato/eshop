@@ -73,6 +73,17 @@ return [
             'group' => 'Câmbio',
             'description' => 'Aportar USD no caixa e vender USD do caixa para clientes.',
         ],
+
+        'whatsapp.view' => [
+            'label' => 'Visualizar módulo WhatsApp',
+            'group' => 'Comunicação',
+            'description' => 'Acessar painel de conexão WhatsApp e status da instância.',
+        ],
+        'whatsapp.manage' => [
+            'label' => 'Operar módulo WhatsApp',
+            'group' => 'Comunicação',
+            'description' => 'Atualizar conexão, QR e operações de envio no WhatsApp.',
+        ],
     ],
 
 ];

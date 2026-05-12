@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'whatsapp_node' => [
+        'url' => env('WHATSAPP_NODE_URL', 'http://127.0.0.1:3000'),
+        'api_key' => env('WHATSAPP_NODE_API_KEY', ''),
+        'timeout' => env('WHATSAPP_NODE_TIMEOUT', 10),
+    ],
+
 ];

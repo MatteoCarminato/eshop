@@ -1,0 +1,29 @@
+# Dependências
+node_modules/
+
+# Ambiente
+.env
+
+# WhatsApp Web.js
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Logs
+logs/*.log
+
+# Dados sensíveis
+data/contacts.csv
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Coverage
+coverage/
+
+# Build
+dist/
