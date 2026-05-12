@@ -328,9 +328,38 @@ class WalletController extends Controller
     {
         [$dateFrom, $dateTo] = $this->parseDateRange($request);
 
-        $wallets = $client->wallets()->get()->keyBy('currency');
-        $brl = (float) ($wallets['BRL']->balance ?? 0);
-        $usd = (float) ($wallets['USD']->balance ?? 0);
+        // Recalcula os saldos diretamente das transações ativas (sem soft-deleted)
+        // para garantir que reversões manuais (soft-delete de transação + pre_sell)
+        // sejam refletidas corretamente no cabeçalho do extrato.
+        $allBrlTxs = \App\Models\Transaction::query()
+            ->where('client_id', $client->id)
+            ->where('currency', 'BRL')
+            ->get();
+
+        $brl = 0.0;
+        foreach ($allBrlTxs as $_t) {
+            $amt = (float) $_t->amount;
+            if ($_t->type === 'deposit') {
+                if (in_array($_t->status, ['fechado', 'finalizado'], true)) continue;
+                $brl += abs($amt);
+            } elseif ($_t->type === 'withdraw' || $_t->type === 'exchange_out') {
+                $brl -= abs($amt);
+            } else {
+                $brl += $amt;
+            }
+        }
+        $brl = round($brl, 2);
+
+        $allUsdTxs = \App\Models\Transaction::query()
+            ->where('client_id', $client->id)
+            ->where('currency', 'USD')
+            ->get();
+
+        $usd = 0.0;
+        foreach ($allUsdTxs as $_t) {
+            $usd += (float) $_t->amount;
+        }
+        $usd = round($usd, 2);
 
         // Subtrai do saldo BRL exibido o valor já pré-vendido em depósitos abertos
         // (linhas "vermelhas" no extrato): teoricamente esse R$ já foi convertido
