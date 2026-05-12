@@ -235,7 +235,7 @@ class WalletController extends Controller
      */
     public function exportClientPdf(\App\Models\Client $client, Request $request)
     {
-        $spreadsheet = $this->buildClientStatementSpreadsheet($client, $request);
+        $spreadsheet = $this->buildClientStatementSpreadsheet($client, $request, true);
 
         $filename = sprintf(
             'extrato_%s_%s.pdf',
@@ -324,7 +324,7 @@ class WalletController extends Controller
      *   Linha 10 : "..." (placeholder — removido)
      *   Linha 11 : totais (com borda inferior simples)
      */
-    protected function buildClientStatementSpreadsheet(\App\Models\Client $client, Request $request): \PhpOffice\PhpSpreadsheet\Spreadsheet
+    protected function buildClientStatementSpreadsheet(\App\Models\Client $client, Request $request, bool $newestFirst = false): \PhpOffice\PhpSpreadsheet\Spreadsheet
     {
         [$dateFrom, $dateTo] = $this->parseDateRange($request);
 
@@ -347,7 +347,7 @@ class WalletController extends Controller
         $all = $client->transactions()
             ->when($dateFrom, fn ($q) => $q->where('created_at', '>=', $dateFrom))
             ->when($dateTo,   fn ($q) => $q->where('created_at', '<=', $dateTo))
-            ->orderBy('created_at')
+            ->orderBy('created_at', $newestFirst ? 'desc' : 'asc')
             ->get();
 
         $entradasBrl = $all->filter(fn ($t) => $t->type === 'deposit' && $t->currency === 'BRL' && (float) $t->amount > 0)->values();
@@ -816,6 +816,29 @@ class WalletController extends Controller
                 $totalUsd = round(array_sum(array_map(fn ($l) => (float) $l->usd_amount, $lotes)), 2);
                 $totalBrl = round(array_sum(array_map(fn ($l) => (float) $l->brl_amount, $lotes)), 2);
 
+                // Atualiza a taxa "atual" do depósito com a taxa média da PRÉ-VENDA
+                // em aberto daquele depósito. Isso permite manter o campo de taxa
+                // da carteira em readonly após vender.
+                $depositIds = array_unique(array_map(fn ($l) => (int) $l->source_transaction_id, $lotes));
+                foreach ($depositIds as $depId) {
+                    $dep = \App\Models\Transaction::find($depId);
+                    if (!$dep) {
+                        continue;
+                    }
+
+                    $sells = \App\Models\WalletPreSell::query()
+                        ->where('source_transaction_id', $depId)
+                        ->whereIn('status', ['open', 'partial'])
+                        ->get();
+
+                    $brlSum = (float) $sells->sum('brl_remaining');
+                    $usdSum = (float) $sells->sum('usd_remaining');
+                    if ($usdSum > 0.000001) {
+                        $dep->exchange_rate = round($brlSum / $usdSum, 6);
+                        $dep->save();
+                    }
+                }
+
                 $descricao = $userDesc ?: 'Fechamento R$ ' . number_format($totalBrl, 2, ',', '.') .
                                           ' @ ' . number_format($sellRate, 4, ',', '.');
 
@@ -855,7 +878,6 @@ class WalletController extends Controller
                 $this->walletService->updateBalance($clientId, 'USD', $totalUsd);
 
                 // 5) Para cada depósito-fonte tocado, finaliza se compra+venda já cobrem tudo.
-                $depositIds = array_unique(array_map(fn ($l) => (int) $l->source_transaction_id, $lotes));
                 foreach ($depositIds as $depId) {
                     $dep = \App\Models\Transaction::find($depId);
                     if ($dep) {
