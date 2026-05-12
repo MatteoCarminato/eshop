@@ -777,8 +777,8 @@
                                                         class="form-control form-control-sm js-rate-input"
                                                         data-url="{{ route('admin.wallet.update-rate', $tx) }}"
                                                         data-original-value="{{ $taxa ? number_format($taxa, 6, '.', '') : '' }}"
-                                                        style="min-width: 110px" required @if($isLocked || $hasSold) disabled
-                                                        readonly @endif>
+                                                        style="min-width: 110px" required @if($isLocked) disabled readonly
+                                                        @endif>
                                                 </div>
                                             </td>
                                             <td>{{ $valorConvertido !== null ? number_format($valorConvertido, 2, ',', '.') : '-' }}
