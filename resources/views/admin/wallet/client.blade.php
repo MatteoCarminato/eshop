@@ -57,7 +57,7 @@
             @endphp
             <div class="row mt-2">
                 <div class="col-12">
-                    <div
+                    {{-- <div
                         class="alert alert-secondary py-2 px-3 mb-0 d-flex flex-wrap align-items-center justify-content-between gap-3 small">
                         <div>
                             <i class="ri-safe-2-line me-1"></i>
@@ -69,7 +69,7 @@
                                 US$ {{ number_format($caixaCliente, 2, ',', '.') }}
                             </strong>
                             @if($custoMedioCli)
-                                <span class="text-muted ms-1">@ R$ {{ number_format($custoMedioCli, 4, ',', '.') }}</span>
+                            <span class="text-muted ms-1">@ R$ {{ number_format($custoMedioCli, 4, ',', '.') }}</span>
                             @endif
                         </div>
                         <div>
@@ -80,7 +80,7 @@
                                 {{ $pnlAcumUsd >= 0 ? '+' : '' }}US$ {{ number_format($pnlAcumUsd, 2, ',', '.') }}
                             </strong>
                         </div>
-                    </div>
+                    </div> --}}
                 </div>
             </div>
             <div class="row justify-content-center">
