@@ -843,6 +843,8 @@ class WalletController extends Controller
                     if (!$dep) {
                         continue;
                     }
+                    #atualizar o converted_amount , com base na nova taxa de venda, para refletir o valor USD equivalente do depósito após a pré-venda
+                    $dep->converted_amount = round((float) $dep->amount / $sellRate, 2);
                     $dep->exchange_rate = $sellRate;
                     $dep->save();
                 }
@@ -861,6 +863,7 @@ class WalletController extends Controller
                 // 3) Cria a transação USD finalizada (Entrada U$ do cliente) com PnL ZERADO.
                 // O PnL real vem depois, via finalizeDepositIfCovered, calculado como
                 // (taxa de compra) − (taxa de venda) deste mesmo depósito.
+                
                 $usdTx = $this->transactionService->create([
                     'client_id'        => $clientId,
                     'type'             => 'deposit',
