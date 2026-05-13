@@ -92,27 +92,14 @@ class WalletController extends Controller
 
         $clientIds = $clients->pluck('id');
 
-        $walletTotals = \App\Models\Wallet::query()
-            ->whereIn('client_id', $clientIds)
-            ->select('currency', DB::raw('COALESCE(SUM(balance), 0) as total_balance'))
-            ->groupBy('currency')
-            ->pluck('total_balance', 'currency');
+        $walletsByClient = $clients->mapWithKeys(function (\App\Models\Client $client) {
+            return [$client->id => $this->calculateDisplayedBalances($client)];
+        });
 
         $totals = [
-            'BRL' => (float) ($walletTotals['BRL'] ?? 0),
-            'USD' => (float) ($walletTotals['USD'] ?? 0),
+            'BRL' => round((float) $walletsByClient->sum('BRL'), 2),
+            'USD' => round((float) $walletsByClient->sum('USD'), 2),
         ];
-
-        $walletsByClient = \App\Models\Wallet::query()
-            ->whereIn('client_id', $clientIds)
-            ->get()
-            ->groupBy('client_id')
-            ->map(function ($wallets) {
-                return [
-                    'BRL' => (float) optional($wallets->firstWhere('currency', 'BRL'))->balance,
-                    'USD' => (float) optional($wallets->firstWhere('currency', 'USD'))->balance,
-                ];
-            });
 
         // Resumo de pré-compra por cliente (USD pré-comprado, BRL em aberto = devo, PnL realizado).
         $prePurchaseByClient = [];
