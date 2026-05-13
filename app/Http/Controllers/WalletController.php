@@ -33,6 +33,53 @@ class WalletController extends Controller
         $this->treasuryService = $treasuryService;
     }
 
+    protected function calculateDisplayedBalances(\App\Models\Client $client): array
+    {
+        $brlTransactions = Transaction::query()
+            ->where('client_id', $client->id)
+            ->where('currency', 'BRL')
+            ->get();
+
+        $brl = 0.0;
+        foreach ($brlTransactions as $transaction) {
+            $amount = (float) $transaction->amount;
+
+            if ($transaction->type === 'deposit') {
+                if (in_array($transaction->status, ['fechado', 'finalizado'], true)) {
+                    continue;
+                }
+
+                $brl += abs($amount);
+                continue;
+            }
+
+            if ($transaction->type === 'withdraw' || $transaction->type === 'exchange_out') {
+                $brl -= abs($amount);
+                continue;
+            }
+
+            $brl += $amount;
+        }
+
+        $usd = round((float) Transaction::query()
+            ->where('client_id', $client->id)
+            ->where('currency', 'USD')
+            ->sum('amount'), 2);
+
+        $brlPreSoldOpen = (float) Transaction::query()
+            ->where('client_id', $client->id)
+            ->where('type', 'deposit')
+            ->where('currency', 'BRL')
+            ->where('amount', '>', 0)
+            ->whereNotIn('status', ['fechado', 'finalizado'])
+            ->sum('brl_pre_sold');
+
+        return [
+            'BRL' => round($brl - $brlPreSoldOpen, 2),
+            'USD' => $usd,
+        ];
+    }
+
     /**
      * Exibe as carteiras do cliente
      */
@@ -137,11 +184,7 @@ class WalletController extends Controller
      */
     public function clientWallet(\App\Models\Client $client, Request $request)
     {
-        $wallets = $client->wallets()->get()->keyBy('currency');
-        $balances = [
-            'BRL' => $wallets['BRL']->balance ?? 0,
-            'USD' => $wallets['USD']->balance ?? 0,
-        ];
+        $balances = $this->calculateDisplayedBalances($client);
 
         [$dateFrom, $dateTo] = $this->parseDateRange($request);
 
@@ -328,50 +371,9 @@ class WalletController extends Controller
     {
         [$dateFrom, $dateTo] = $this->parseDateRange($request);
 
-        // Recalcula os saldos diretamente das transações ativas (sem soft-deleted)
-        // para garantir que reversões manuais (soft-delete de transação + pre_sell)
-        // sejam refletidas corretamente no cabeçalho do extrato.
-        $allBrlTxs = \App\Models\Transaction::query()
-            ->where('client_id', $client->id)
-            ->where('currency', 'BRL')
-            ->get();
-
-        $brl = 0.0;
-        foreach ($allBrlTxs as $_t) {
-            $amt = (float) $_t->amount;
-            if ($_t->type === 'deposit') {
-                if (in_array($_t->status, ['fechado', 'finalizado'], true)) continue;
-                $brl += abs($amt);
-            } elseif ($_t->type === 'withdraw' || $_t->type === 'exchange_out') {
-                $brl -= abs($amt);
-            } else {
-                $brl += $amt;
-            }
-        }
-        $brl = round($brl, 2);
-
-        $allUsdTxs = \App\Models\Transaction::query()
-            ->where('client_id', $client->id)
-            ->where('currency', 'USD')
-            ->get();
-
-        $usd = 0.0;
-        foreach ($allUsdTxs as $_t) {
-            $usd += (float) $_t->amount;
-        }
-        $usd = round($usd, 2);
-
-        // Subtrai do saldo BRL exibido o valor já pré-vendido em depósitos abertos
-        // (linhas "vermelhas" no extrato): teoricamente esse R$ já foi convertido
-        // em USD para o cliente, então não deve ser contabilizado no saldo do cabeçalho.
-        $brlPreSoldOpen = (float) \App\Models\Transaction::query()
-            ->where('client_id', $client->id)
-            ->where('type', 'deposit')
-            ->where('currency', 'BRL')
-            ->where('amount', '>', 0)
-            ->whereNotIn('status', ['fechado', 'finalizado'])
-            ->sum('brl_pre_sold');
-        $brl = round($brl - $brlPreSoldOpen, 2);
+        $balances = $this->calculateDisplayedBalances($client);
+        $brl = (float) ($balances['BRL'] ?? 0);
+        $usd = (float) ($balances['USD'] ?? 0);
 
         $all = $client->transactions()
             ->when($dateFrom, fn ($q) => $q->where('created_at', '>=', $dateFrom))
@@ -627,9 +629,9 @@ class WalletController extends Controller
     {
         [$dateFrom, $dateTo] = $this->parseDateRange($request);
 
-        $wallets = $client->wallets()->get()->keyBy('currency');
-        $brl = (float) ($wallets['BRL']->balance ?? 0);
-        $usd = (float) ($wallets['USD']->balance ?? 0);
+        $balances = $this->calculateDisplayedBalances($client);
+        $brl = (float) ($balances['BRL'] ?? 0);
+        $usd = (float) ($balances['USD'] ?? 0);
 
         $base = $client->transactions()
             ->when($dateFrom, fn ($q) => $q->where('created_at', '>=', $dateFrom))
