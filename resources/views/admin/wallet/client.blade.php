@@ -652,33 +652,52 @@
         <div class="row mt-4 g-3">
             <div class="col-lg-4">
                 <div class="card h-100">
-                    <div class="card-header border-0 d-flex justify-content-between align-items-center gap-2 flex-wrap">
-                        <h5 class="mb-0 text-uppercase">Entrada</h5>
-                        <span id="entrada_selected_total"
-                            class="badge bg-primary-subtle text-primary border border-primary-subtle d-none">
-                            Selecionado: R$ 0,00
-                        </span>
-                        <div class="d-flex align-items-center gap-2">
+                    <div class="card-header border-0">
+
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+
+                            {{-- ESQUERDA --}}
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <h5 class="mb-0 text-uppercase">Entrada</h5>
+
+                                <span id="entrada_selected_total"
+                                    class="badge bg-primary-subtle text-primary border border-primary-subtle d-none">
+                                    Selecionado: R$ 0,00
+                                </span>
+                            </div>
+
+                            {{-- DIREITA --}}
+                            <form id="bulk_rate_form" method="POST" action="{{ route('admin.wallet.update-rate-bulk') }}"
+                                novalidate>
+
+                                @csrf
+                                @method('PATCH')
+
+                                <input type="hidden" name="client_id" value="{{ $client->id }}">
+
+                                <div id="bulk_rate_controls"
+                                    class="d-flex flex-wrap gap-2 justify-content-start justify-content-md-end d-none">
+
+                                    <button type="button" class="btn btn-sm btn-success" id="btn-comprar-dolar"
+                                        title="Pré-compra: dono compra USD a uma taxa (custo)" data-bs-toggle="modal"
+                                        data-bs-target="#comprarDolarModal">
+
+                                        <i class="ri-arrow-down-circle-line me-1"></i>
+                                        Comprar DÓLAR
+                                    </button>
+
+                                    <button type="button" class="btn btn-sm btn-danger" id="btn-vender-dolar-ant"
+                                        title="Vende USD ao cliente na taxa informada (cria Entrada U$ imediatamente)"
+                                        data-bs-toggle="modal" data-bs-target="#venderDolarAntecipadoModal">
+
+                                        <i class="ri-arrow-up-circle-line me-1"></i>
+                                        Vender DÓLAR
+                                    </button>
+
+                                </div>
+                            </form>
 
                         </div>
-                        <form id="bulk_rate_form" method="POST" action="{{ route('admin.wallet.update-rate-bulk') }}"
-                            novalidate>
-                            @csrf
-                            @method('PATCH')
-                            <input type="hidden" name="client_id" value="{{ $client->id }}">
-                            <div id="bulk_rate_controls" class="d-flex align-items-center gap-2 d-none flex-wrap">
-                                <button type="button" class="btn btn-sm btn-success" id="btn-comprar-dolar"
-                                    title="Pré-compra: dono compra USD a uma taxa (custo)" data-bs-toggle="modal"
-                                    data-bs-target="#comprarDolarModal">
-                                    <i class="ri-arrow-down-circle-line me-1"></i>Comprar DÓLAR
-                                </button>
-                                <button type="button" class="btn btn-sm btn-danger" id="btn-vender-dolar-ant"
-                                    title="Vende USD ao cliente na taxa informada (cria Entrada U$ imediatamente)"
-                                    data-bs-toggle="modal" data-bs-target="#venderDolarAntecipadoModal">
-                                    <i class="ri-arrow-up-circle-line me-1"></i>Vender DÓLAR
-                                </button>
-                            </div>
-                        </form>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
@@ -804,11 +823,11 @@
                                                 @if(!$isLocked)
                                                     <form method="POST" action="{{ route('admin.wallet.rollback-deposit', $tx) }}"
                                                         onsubmit="
-                                                                                                            const motivo = prompt('Motivo do rollback (opcional):', '');
-                                                                                                            if (motivo === null) return false;
-                                                                                                            this.querySelector('input[name=reason]').value = motivo;
-                                                                                                            return confirm('Confirmar rollback completo do depósito #{{ $tx->id }}?');
-                                                                                                        ">
+                                                                                                                                    const motivo = prompt('Motivo do rollback (opcional):', '');
+                                                                                                                                    if (motivo === null) return false;
+                                                                                                                                    this.querySelector('input[name=reason]').value = motivo;
+                                                                                                                                    return confirm('Confirmar rollback completo do depósito #{{ $tx->id }}?');
+                                                                                                                                ">
                                                         @csrf
                                                         <input type="hidden" name="reason" value="">
                                                         <button type="submit" class="btn btn-sm btn-outline-danger"
