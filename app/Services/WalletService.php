@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\DepositRollbackLog;
 use App\Models\Transaction;
 use App\Models\TreasuryLot;
 use App\Models\Wallet;
@@ -34,6 +35,58 @@ class WalletService
         });
     }
 
+    protected function computeBrlBalanceFromLedger(int $clientId): float
+    {
+        $transactions = Transaction::query()
+            ->where('client_id', $clientId)
+            ->where('currency', 'BRL')
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get();
+
+        $computedBalance = 0.0;
+
+        foreach ($transactions as $transaction) {
+            $amount = round((float) $transaction->amount, 2);
+
+            if ($transaction->type === 'withdraw') {
+                $computedBalance -= abs($amount);
+                continue;
+            }
+
+            if ($transaction->type === 'exchange_out') {
+                $computedBalance -= abs($amount);
+                continue;
+            }
+
+            if ($transaction->type === 'exchange_in') {
+                $computedBalance += abs($amount);
+                continue;
+            }
+
+            if ($transaction->type === 'deposit') {
+                if (in_array($transaction->status, ['fechado', 'finalizado'], true)) {
+                    continue;
+                }
+
+                $computedBalance += abs($amount);
+                continue;
+            }
+
+            $computedBalance += $amount;
+        }
+
+        return round($computedBalance, 2);
+    }
+
+    protected function computeUsdBalanceFromLedger(int $clientId): float
+    {
+        return round((float) Transaction::query()
+            ->where('client_id', $clientId)
+            ->where('currency', 'USD')
+            ->sum('amount'), 2);
+    }
+
     /**
      * Recalcula o saldo BRL do cliente a partir do ledger atual.
      *
@@ -51,46 +104,7 @@ class WalletService
                 'currency' => 'BRL',
             ]);
 
-            $transactions = Transaction::query()
-                ->where('client_id', $clientId)
-                ->where('currency', 'BRL')
-                ->orderBy('created_at')
-                ->orderBy('id')
-                ->get();
-
-            $computedBalance = 0.0;
-
-            foreach ($transactions as $transaction) {
-                $amount = round((float) $transaction->amount, 2);
-
-                if ($transaction->type === 'withdraw') {
-                    $computedBalance -= abs($amount);
-                    continue;
-                }
-
-                if ($transaction->type === 'exchange_out') {
-                    $computedBalance -= abs($amount);
-                    continue;
-                }
-
-                if ($transaction->type === 'exchange_in') {
-                    $computedBalance += abs($amount);
-                    continue;
-                }
-
-                if ($transaction->type === 'deposit') {
-                    if (in_array($transaction->status, ['fechado', 'finalizado'], true)) {
-                        continue;
-                    }
-
-                    $computedBalance += abs($amount);
-                    continue;
-                }
-
-                $computedBalance += $amount;
-            }
-
-            $computedBalance = round($computedBalance, 2);
+            $computedBalance = $this->computeBrlBalanceFromLedger($clientId);
             $currentBalance = round((float) $wallet->balance, 2);
             $difference = round($computedBalance - $currentBalance, 2);
 
@@ -107,6 +121,143 @@ class WalletService
                 'difference' => $difference,
                 'mode' => $dryRun ? 'dry-run' : 'applied',
             ];
+        });
+    }
+
+    public function recalculateUsdBalance(int $clientId, bool $dryRun = false): array
+    {
+        return DB::transaction(function () use ($clientId, $dryRun) {
+            $wallet = Wallet::firstOrCreate([
+                'client_id' => $clientId,
+                'currency' => 'USD',
+            ]);
+
+            $computedBalance = $this->computeUsdBalanceFromLedger($clientId);
+            $currentBalance = round((float) $wallet->balance, 2);
+            $difference = round($computedBalance - $currentBalance, 2);
+
+            if (!$dryRun) {
+                $wallet->balance = $computedBalance;
+                $wallet->save();
+            }
+
+            return [
+                'client_id' => $clientId,
+                'currency' => 'USD',
+                'current_balance' => $currentBalance,
+                'computed_balance' => $computedBalance,
+                'difference' => $difference,
+                'mode' => $dryRun ? 'dry-run' : 'applied',
+            ];
+        });
+    }
+
+    public function rollbackDeposit(int $depositId, ?int $deletedBy = null, ?string $reason = null, bool $dryRun = false): array
+    {
+        return DB::transaction(function () use ($depositId, $deletedBy, $reason, $dryRun) {
+            $deposit = Transaction::query()
+                ->whereKey($depositId)
+                ->where('type', 'deposit')
+                ->where('currency', 'BRL')
+                ->where('amount', '>', 0)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (in_array($deposit->status, ['fechado', 'finalizado'], true)) {
+                throw new \RuntimeException('Depósito já finalizado/fechado. Use rollback específico da operação fechada.');
+            }
+
+            $hasChildren = Transaction::query()
+                ->where('parent_transaction_id', $deposit->id)
+                ->exists();
+
+            if ($hasChildren) {
+                throw new \RuntimeException('Depósito possui transações derivadas (split/fechamento). Não é seguro apagar automaticamente.');
+            }
+
+            $preSells = WalletPreSell::query()
+                ->where('source_transaction_id', $deposit->id)
+                ->lockForUpdate()
+                ->get();
+
+            if ($preSells->isNotEmpty()) {
+                throw new \RuntimeException('Depósito possui pré-venda vinculada. Desfaça a pré-venda antes do rollback do depósito.');
+            }
+
+            $prePurchases = WalletPrePurchase::query()
+                ->where('source_transaction_id', $deposit->id)
+                ->lockForUpdate()
+                ->get();
+
+            $blockedPrePurchase = $prePurchases->first(function (WalletPrePurchase $lot) {
+                return !in_array($lot->status, ['open'], true)
+                    || (float) $lot->brl_remaining < (float) $lot->brl_amount - 0.005
+                    || (float) $lot->usd_remaining < (float) $lot->usd_amount - 0.0001;
+            });
+
+            if ($blockedPrePurchase) {
+                throw new \RuntimeException('Depósito possui pré-compra já consumida/fechada. Faça o undo da pré-compra antes.');
+            }
+
+            $cashLots = TreasuryLot::query()
+                ->whereIn('pre_purchase_id', $prePurchases->pluck('id')->all())
+                ->lockForUpdate()
+                ->get();
+
+            $summary = [
+                'deposit_id' => (int) $deposit->id,
+                'client_id' => (int) $deposit->client_id,
+                'amount_brl' => round((float) $deposit->amount, 2),
+                'status' => (string) $deposit->status,
+                'pre_purchase_lots' => $prePurchases->count(),
+                'pre_purchase_ids' => $prePurchases->pluck('id')->values()->all(),
+                'cash_lots' => $cashLots->count(),
+                'cash_lot_ids' => $cashLots->pluck('id')->values()->all(),
+                'deleted_by' => $deletedBy,
+                'reason' => $reason,
+                'dry_run' => $dryRun,
+            ];
+
+            if ($dryRun) {
+                return $summary;
+            }
+
+            foreach ($cashLots as $lot) {
+                $lot->delete();
+            }
+
+            foreach ($prePurchases as $lot) {
+                $lot->delete();
+            }
+
+            $deposit->delete();
+
+            DepositRollbackLog::create([
+                'deposit_transaction_id' => $deposit->id,
+                'client_id' => $deposit->client_id,
+                'deleted_by' => $deletedBy,
+                'reason' => $reason,
+                'payload' => $summary,
+            ]);
+
+            $brlWallet = Wallet::firstOrCreate([
+                'client_id' => (int) $deposit->client_id,
+                'currency' => 'BRL',
+            ]);
+            $usdWallet = Wallet::firstOrCreate([
+                'client_id' => (int) $deposit->client_id,
+                'currency' => 'USD',
+            ]);
+
+            $brlWallet->balance = $this->computeBrlBalanceFromLedger((int) $deposit->client_id);
+            $usdWallet->balance = $this->computeUsdBalanceFromLedger((int) $deposit->client_id);
+            $brlWallet->save();
+            $usdWallet->save();
+
+            $summary['wallet_brl_after'] = round((float) $brlWallet->balance, 2);
+            $summary['wallet_usd_after'] = round((float) $usdWallet->balance, 2);
+
+            return $summary;
         });
     }
 

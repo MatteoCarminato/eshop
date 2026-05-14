@@ -189,7 +189,7 @@
                     @endif
                 @endauth
 
-                {{-- <li class="nav-item">
+                <li class="nav-item">
                     <a class="nav-link menu-link" href="#sidebarApps" data-bs-toggle="collapse" role="button"
                         aria-expanded="false" aria-controls="sidebarApps">
                         <i class="ri-apps-2-line"></i> <span data-key="t-apps">Produtos</span>
@@ -201,7 +201,7 @@
                             </li>
                         </ul>
                     </div>
-                </li> --}}
+                </li>
 
             </ul>
         </div>

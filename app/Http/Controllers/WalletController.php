@@ -914,6 +914,30 @@ class WalletController extends Controller
         }
     }
 
+    public function rollbackDeposit(Request $request, Transaction $transaction)
+    {
+        $validated = $request->validate([
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        try {
+            $result = $this->walletService->rollbackDeposit(
+                (int) $transaction->id,
+                (int) Auth::id(),
+                $validated['reason'] ?? null,
+                false
+            );
+
+            return back()->with('success',
+                'Depósito #' . $result['deposit_id'] . ' removido com rollback completo. ' .
+                'Novo saldo: R$ ' . number_format((float) ($result['wallet_brl_after'] ?? 0), 2, ',', '.') .
+                ' | US$ ' . number_format((float) ($result['wallet_usd_after'] ?? 0), 2, ',', '.')
+            );
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
     /**
      * Depósito
      */

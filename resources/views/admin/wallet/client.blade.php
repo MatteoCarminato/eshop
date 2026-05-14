@@ -654,6 +654,13 @@
                 <div class="card h-100">
                     <div class="card-header border-0 d-flex justify-content-between align-items-center gap-2 flex-wrap">
                         <h5 class="mb-0 text-uppercase">Entrada</h5>
+                        <span id="entrada_selected_total"
+                            class="badge bg-primary-subtle text-primary border border-primary-subtle d-none">
+                            Selecionado: R$ 0,00
+                        </span>
+                        <div class="d-flex align-items-center gap-2">
+
+                        </div>
                         <form id="bulk_rate_form" method="POST" action="{{ route('admin.wallet.update-rate-bulk') }}"
                             novalidate>
                             @csrf
@@ -685,6 +692,7 @@
                                         <th>Valor R$</th>
                                         <th>Taxa</th>
                                         <th>Valor U$</th>
+                                        <th style="width: 90px">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -743,9 +751,13 @@
                                             data-brl-livre-compra="{{ number_format($brlLivreCompra, 2, '.', '') }}"
                                             data-brl-livre-venda="{{ number_format($brlLivreVenda, 2, '.', '') }}">
                                             <td>
-                                                <input type="checkbox" class="entrada-select-item" form="bulk_rate_form"
+                                                {{-- <input type="checkbox" class="entrada-select-item" form="bulk_rate_form"
                                                     name="transaction_ids[]" value="{{ $tx->id }}" @if($isLocked) disabled
-                                                    @endif>
+                                                    @endif> --}}
+                                                <input type="checkbox" class="entrada-select-item" form="bulk_rate_form"
+                                                    name="transaction_ids[]" value="{{ $tx->id }}"
+                                                    data-amount="{{ number_format($tx->amount, 2, '.', '') }}" @if($isLocked)
+                                                    disabled @endif>
                                             </td>
                                             <td>
                                                 <div>{{ $tx->created_at->format('d/m/Y H:i') }}</div>
@@ -788,10 +800,30 @@
                                             </td>
                                             <td>{{ $valorConvertido !== null ? number_format($valorConvertido, 2, ',', '.') : '-' }}
                                             </td>
+                                            <td>
+                                                @if(!$isLocked)
+                                                    <form method="POST" action="{{ route('admin.wallet.rollback-deposit', $tx) }}"
+                                                        onsubmit="
+                                                                                                            const motivo = prompt('Motivo do rollback (opcional):', '');
+                                                                                                            if (motivo === null) return false;
+                                                                                                            this.querySelector('input[name=reason]').value = motivo;
+                                                                                                            return confirm('Confirmar rollback completo do depósito #{{ $tx->id }}?');
+                                                                                                        ">
+                                                        @csrf
+                                                        <input type="hidden" name="reason" value="">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                            title="Apaga o depósito com rollback (soft-delete e reconciliação)">
+                                                            <i class="ri-delete-bin-line"></i>
+                                                        </button>
+                                                    </form>
+                                                @else
+                                                    <span class="text-muted">-</span>
+                                                @endif
+                                            </td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="5" class="text-center">Sem registros.</td>
+                                            <td colspan="6" class="text-center">Sem registros.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>
@@ -800,6 +832,58 @@
                     </div>
                 </div>
             </div>
+
+
+            <script>
+                document.addEventListener('DOMContentLoaded', function () {
+
+                    const checkboxes = document.querySelectorAll('.entrada-select-item');
+                    const selectAll = document.getElementById('entrada_select_all');
+                    const totalBadge = document.getElementById('entrada_selected_total');
+
+                    function formatBRL(value) {
+                        return value.toLocaleString('pt-BR', {
+                            style: 'currency',
+                            currency: 'BRL'
+                        });
+                    }
+
+                    function updateSelectedTotal() {
+                        let total = 0;
+
+                        checkboxes.forEach(cb => {
+                            if (cb.checked && !cb.disabled) {
+                                total += parseFloat(cb.dataset.amount || 0);
+                            }
+                        });
+
+                        if (total > 0) {
+                            totalBadge.classList.remove('d-none');
+                            totalBadge.textContent = `Selecionado: ${formatBRL(total)}`;
+                        } else {
+                            totalBadge.classList.add('d-none');
+                        }
+                    }
+
+                    checkboxes.forEach(cb => {
+                        cb.addEventListener('change', updateSelectedTotal);
+                    });
+
+                    if (selectAll) {
+                        selectAll.addEventListener('change', function () {
+                            checkboxes.forEach(cb => {
+                                if (!cb.disabled) {
+                                    cb.checked = selectAll.checked;
+                                }
+                            });
+
+                            updateSelectedTotal();
+                        });
+                    }
+
+                    updateSelectedTotal();
+                });
+            </script>
 
             <div class="col-lg-4">
                 <div class="card h-100">
