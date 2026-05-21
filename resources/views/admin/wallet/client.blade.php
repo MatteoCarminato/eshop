@@ -820,14 +820,14 @@
                                             <td>{{ $valorConvertido !== null ? number_format($valorConvertido, 2, ',', '.') : '-' }}
                                             </td>
                                             <td>
-                                                @if(!$isLocked)
+                                                @if(!$isLocked && Auth::user()->hasModule('wallet.delete'))
                                                     <form method="POST" action="{{ route('admin.wallet.rollback-deposit', $tx) }}"
                                                         onsubmit="
-                                                                                                                                    const motivo = prompt('Motivo do rollback (opcional):', '');
-                                                                                                                                    if (motivo === null) return false;
-                                                                                                                                    this.querySelector('input[name=reason]').value = motivo;
-                                                                                                                                    return confirm('Confirmar rollback completo do depósito #{{ $tx->id }}?');
-                                                                                                                                ">
+                                                                                                                                                const motivo = prompt('Motivo do rollback (opcional):', '');
+                                                                                                                                                if (motivo === null) return false;
+                                                                                                                                                this.querySelector('input[name=reason]').value = motivo;
+                                                                                                                                                return confirm('Confirmar rollback completo do depósito #{{ $tx->id }}?');
+                                                                                                                                            ">
                                                         @csrf
                                                         <input type="hidden" name="reason" value="">
                                                         <button type="submit" class="btn btn-sm btn-outline-danger"

@@ -62,6 +62,11 @@ return [
             'group' => 'Câmbio',
             'description' => 'Realizar operações financeiras nas carteiras dos clientes.',
         ],
+        'wallet.delete' => [
+            'label' => 'Deletar depósitos (rollback)',
+            'group' => 'Câmbio',
+            'description' => 'Apagar depósitos com soft delete e auditoria via rollback.',
+        ],
 
         'treasury.view' => [
             'label' => 'Visualizar caixa próprio (USD)',

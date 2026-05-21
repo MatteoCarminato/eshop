@@ -162,7 +162,7 @@ class WalletService
                 ->where('amount', '>', 0)
                 ->lockForUpdate()
                 ->firstOrFail();
-
+            
             if (in_array($deposit->status, ['fechado', 'finalizado'], true)) {
                 throw new \RuntimeException('Depósito já finalizado/fechado. Use rollback específico da operação fechada.');
             }

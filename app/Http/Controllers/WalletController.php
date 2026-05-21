@@ -927,7 +927,7 @@ class WalletController extends Controller
                 $validated['reason'] ?? null,
                 false
             );
-
+            
             return back()->with('success',
                 'Depósito #' . $result['deposit_id'] . ' removido com rollback completo. ' .
                 'Novo saldo: R$ ' . number_format((float) ($result['wallet_brl_after'] ?? 0), 2, ',', '.') .
