@@ -660,7 +660,7 @@
                             <div class="d-flex align-items-center gap-2 flex-wrap">
                                 <h5 class="mb-0 text-uppercase">Entrada</h5>
 
-                                <span id="entrada_selected_total"
+                                <span id="entrada_selected_total_old"
                                     class="badge bg-primary-subtle text-primary border border-primary-subtle d-none">
                                     Selecionado: R$ 0,00
                                 </span>
@@ -697,6 +697,18 @@
                                 </div>
                             </form>
 
+                        </div>
+
+                        <div id="entrada_red_summary"
+                            class="alert alert-danger-subtle border border-danger-subtle py-2 px-3 mt-2 mb-0 d-none">
+                            <ul class="mb-0 ps-3 small" style="list-style: disc;">
+                                <li><strong>Entradas selecionadas:</strong> <span id="entrada_selected_total">R$ 0,00</span>
+                                </li>
+                                <li><strong>Vermelhos selecionados:</strong> <span id="red_count">0</span></li>
+                                <li><strong>Total R$ vendido:</strong> <span id="red_total_brl">R$ 0,00</span></li>
+                                <li><strong>USD estimado vendido:</strong> <span id="red_total_usd">US$ 0,0000</span></li>
+                                <li><strong>Taxa de equilíbrio p/ compra:</strong> <span id="red_break_even">—</span></li>
+                            </ul>
                         </div>
                     </div>
                     <div class="card-body">
@@ -738,6 +750,7 @@
                                             $taxaMediaSell = $lotesSell->sum('brl_remaining') > 0
                                                 ? $lotesSell->sum('brl_remaining') / max(0.0001, $lotesSell->sum('usd_remaining'))
                                                 : null;
+                                            $usdSell = (float) $lotesSell->sum('usd_remaining');
 
                                             if ($tx->converted_currency === 'USD' && $tx->converted_amount !== null) {
                                                 $valorConvertido = $tx->converted_amount;
@@ -768,7 +781,11 @@
                                             data-pre-purchased="{{ number_format($brlPre, 2, '.', '') }}"
                                             data-pre-sold="{{ number_format($brlSold, 2, '.', '') }}"
                                             data-brl-livre-compra="{{ number_format($brlLivreCompra, 2, '.', '') }}"
-                                            data-brl-livre-venda="{{ number_format($brlLivreVenda, 2, '.', '') }}">
+                                            data-brl-livre-venda="{{ number_format($brlLivreVenda, 2, '.', '') }}"
+                                            data-is-red-row="{{ $rowClass === 'table-pre-sold' ? '1' : '0' }}"
+                                            data-sold-brl="{{ number_format($brlSold, 2, '.', '') }}"
+                                            data-sold-usd="{{ number_format($usdSell, 4, '.', '') }}"
+                                            data-sold-rate="{{ $taxaMediaSell ? number_format($taxaMediaSell, 6, '.', '') : '' }}">
                                             <td>
                                                 {{-- <input type="checkbox" class="entrada-select-item" form="bulk_rate_form"
                                                     name="transaction_ids[]" value="{{ $tx->id }}" @if($isLocked) disabled
@@ -823,11 +840,11 @@
                                                 @if(!$isLocked && Auth::user()->hasModule('wallet.delete'))
                                                     <form method="POST" action="{{ route('admin.wallet.rollback-deposit', $tx) }}"
                                                         onsubmit="
-                                                                                                                                                const motivo = prompt('Motivo do rollback (opcional):', '');
-                                                                                                                                                if (motivo === null) return false;
-                                                                                                                                                this.querySelector('input[name=reason]').value = motivo;
-                                                                                                                                                return confirm('Confirmar rollback completo do depósito #{{ $tx->id }}?');
-                                                                                                                                            ">
+                                                                                                                                                                                                                                                                                                                                                                                                const motivo = prompt('Motivo do rollback (opcional):', '');
+                                                                                                                                                                                                                                                                                                                                                                                                if (motivo === null) return false;
+                                                                                                                                                                                                                                                                                                                                                                                                this.querySelector('input[name=reason]').value = motivo;
+                                                                                                                                                                                                                                                                                                                                                                                                return confirm('Confirmar rollback completo do depósito #{{ $tx->id }}?');
+                                                                                                                                                                                                                                                                                                                                                                                            ">
                                                         @csrf
                                                         <input type="hidden" name="reason" value="">
                                                         <button type="submit" class="btn btn-sm btn-outline-danger"
@@ -859,6 +876,11 @@
                     const checkboxes = document.querySelectorAll('.entrada-select-item');
                     const selectAll = document.getElementById('entrada_select_all');
                     const totalBadge = document.getElementById('entrada_selected_total');
+                    const redSummary = document.getElementById('entrada_red_summary');
+                    const redCountEl = document.getElementById('red_count');
+                    const redTotalBrlEl = document.getElementById('red_total_brl');
+                    const redTotalUsdEl = document.getElementById('red_total_usd');
+                    const redBreakEvenEl = document.getElementById('red_break_even');
 
                     function formatBRL(value) {
                         return value.toLocaleString('pt-BR', {
@@ -869,18 +891,53 @@
 
                     function updateSelectedTotal() {
                         let total = 0;
+                        let redCount = 0;
+                        let redBrl = 0;
+                        let redUsd = 0;
 
                         checkboxes.forEach(cb => {
                             if (cb.checked && !cb.disabled) {
                                 total += parseFloat(cb.dataset.amount || 0);
+
+                                const row = cb.closest('tr');
+                                const isRedRow = row && row.getAttribute('data-is-red-row') === '1';
+                                if (isRedRow) {
+                                    redCount += 1;
+                                    redBrl += parseFloat(row.getAttribute('data-sold-brl') || 0);
+                                    redUsd += parseFloat(row.getAttribute('data-sold-usd') || 0);
+                                }
                             }
                         });
 
                         if (total > 0) {
                             totalBadge.classList.remove('d-none');
-                            totalBadge.textContent = `Selecionado: ${formatBRL(total)}`;
+                            totalBadge.textContent = `${formatBRL(total)}`;
                         } else {
                             totalBadge.classList.add('d-none');
+                        }
+
+                        if (redSummary) {
+                            if (redCount > 0 && redBrl > 0 && redUsd > 0) {
+                                const avgRate = redBrl / redUsd;
+
+                                redSummary.classList.remove('d-none');
+                                if (redCountEl) redCountEl.textContent = String(redCount);
+                                if (redTotalBrlEl) redTotalBrlEl.textContent = formatBRL(redBrl);
+                                if (redTotalUsdEl) {
+                                    redTotalUsdEl.textContent = 'US$ ' + redUsd.toLocaleString('pt-BR', {
+                                        minimumFractionDigits: 4,
+                                        maximumFractionDigits: 4
+                                    });
+                                }
+                                if (redBreakEvenEl) {
+                                    redBreakEvenEl.textContent = avgRate.toLocaleString('pt-BR', {
+                                        minimumFractionDigits: 4,
+                                        maximumFractionDigits: 4
+                                    });
+                                }
+                            } else {
+                                redSummary.classList.add('d-none');
+                            }
                         }
                     }
 
@@ -1164,6 +1221,16 @@
                             </div>
                         </div>
 
+                        <div class="row g-2 mt-1">
+                            <div class="col-12">
+                                <label for="venda_ant_payment_method" class="form-label">Tipo de envio</label>
+                                <select name="payment_method" id="venda_ant_payment_method" class="form-select" required>
+                                    <option value="usdt" selected>USDT</option>
+                                    <option value="efetivo">Efetivo</option>
+                                </select>
+                            </div>
+                        </div>
+
                         <div class="mb-3 mt-3">
                             <label class="form-label">Observação (opcional)</label>
                             <input type="text" name="description" id="venda_ant_descricao" class="form-control"
@@ -1192,15 +1259,25 @@
             var usd = document.getElementById('venda_ant_usd');
             var desc = document.getElementById('venda_ant_descricao');
             var dispEl = document.getElementById('venda_ant_disp_valor');
+            var paymentMethod = document.getElementById('venda_ant_payment_method');
 
             var disp = 0; var sync = false;
 
             function updateDesc() {
                 if (!desc) return;
-                var b = parseFloat(brl.value), t = parseFloat(taxa.value);
+
+                var b = parseFloat(brl.value);
+                var t = parseFloat(taxa.value);
+
+                var metodo = paymentMethod ? paymentMethod.options[paymentMethod.selectedIndex].text : '';
+
                 desc.value = 'Venda DÓLAR (R$ ' +
-                    (b > 0 ? b : 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) +
-                    ' @ ' + (t > 0 ? t.toFixed(4) : 'N/A') + ')';
+                    (b > 0 ? b : 0).toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }) +
+                    ' @ ' + (t > 0 ? t.toFixed(4) : 'N/A') +
+                    ') ' + metodo;
             }
             function recalcUsd() {
                 if (sync) return;
@@ -1213,6 +1290,9 @@
                 var t = parseFloat(taxa.value), u = parseFloat(usd.value);
                 if (t > 0 && u > 0) { sync = true; brl.value = (u * t).toFixed(2); sync = false; }
                 updateDesc();
+            }
+            if (paymentMethod) {
+                paymentMethod.addEventListener('change', updateDesc);
             }
             if (brl) brl.addEventListener('input', recalcUsd);
             if (usd) usd.addEventListener('input', recalcBrl);
