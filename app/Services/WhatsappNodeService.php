@@ -14,7 +14,7 @@ class WhatsappNodeService
                 'x-api-key' => (string) config('services.whatsapp_node.api_key'),
                 'Accept' => 'application/json',
             ])
-            ->timeout((int) config('services.whatsapp_node.timeout', 10));
+            ->timeout((int) config('services.whatsapp_node.timeout', 60));
     }
 
     public function health(): array

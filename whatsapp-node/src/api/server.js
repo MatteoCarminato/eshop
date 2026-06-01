@@ -15,6 +15,35 @@ const createServer = (client, botState) => {
   const app = express();
   app.use(express.json({ limit: '20mb' }));
 
+  const ensureConnected = async () => {
+    try {
+      const state = typeof client.getState === 'function' ? await client.getState() : null;
+      const connected = !!client.info && state !== 'UNPAIRED' && state !== 'UNPAIRED_IDLE';
+
+      if (!connected) {
+        return {
+          ok: false,
+          state: state || 'unknown',
+          error: 'WhatsApp não está conectado.',
+        };
+      }
+
+      return { ok: true, state: state || 'CONNECTED' };
+    } catch (error) {
+      logger.warn('Erro ao consultar estado do WhatsApp antes do envio', { error: error.message });
+
+      if (!client.info) {
+        return {
+          ok: false,
+          state: 'unknown',
+          error: 'WhatsApp não está conectado.',
+        };
+      }
+
+      return { ok: true, state: 'unknown' };
+    }
+  };
+
   // Middleware de autenticação por API Key
   const authMiddleware = (req, res, next) => {
     const apiKey = req.headers['x-api-key'];
@@ -214,6 +243,11 @@ const createServer = (client, botState) => {
         return res.status(400).json({ error: 'phone e message são obrigatórios' });
       }
 
+      const connection = await ensureConnected();
+      if (!connection.ok) {
+        return res.status(503).json({ success: false, error: connection.error, state: connection.state });
+      }
+
       const { chatId, registered } = await resolveChatId(client, phone, null);
       if (!registered || !chatId) {
         return res.status(422).json({ success: false, error: 'Número não registrado no WhatsApp' });
@@ -243,6 +277,11 @@ const createServer = (client, botState) => {
       const { phone, mediaUrl, mediaType, message } = req.body;
       if (!phone || !mediaUrl) {
         return res.status(400).json({ error: 'phone e mediaUrl são obrigatórios' });
+      }
+
+      const connection = await ensureConnected();
+      if (!connection.ok) {
+        return res.status(503).json({ success: false, error: connection.error, state: connection.state });
       }
 
       const { chatId, registered } = await resolveChatId(client, phone, null);
