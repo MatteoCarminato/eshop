@@ -37,6 +37,11 @@ class SendWhatsappBroadcastJob implements ShouldQueue
         $sent = 0;
         $failed = 0;
         $errors = [];
+        $mediaDataUri = null;
+
+        if ($this->attachmentPath) {
+            $mediaDataUri = $this->buildMediaDataUri();
+        }
 
         try {
             foreach ($this->recipients as $recipient) {
@@ -49,8 +54,8 @@ class SendWhatsappBroadcastJob implements ShouldQueue
                     continue;
                 }
 
-                $result = $this->attachmentPath
-                    ? $this->sendMedia($whatsappNodeService, $phone)
+                $result = $mediaDataUri
+                    ? $this->sendMedia($whatsappNodeService, $phone, $mediaDataUri)
                     : $whatsappNodeService->sendText($phone, $this->message);
 
                 if ($result['success'] ?? false) {
@@ -87,12 +92,21 @@ class SendWhatsappBroadcastJob implements ShouldQueue
         }
     }
 
-    private function sendMedia(WhatsappNodeService $whatsappNodeService, string $phone): array
+    private function sendMedia(WhatsappNodeService $whatsappNodeService, string $phone, string $mediaDataUri): array
+    {
+        return $whatsappNodeService->sendMedia(
+            $phone,
+            $mediaDataUri,
+            (string) ($this->attachmentMime ?: 'application/octet-stream'),
+            $this->message !== '' ? $this->message : null
+        );
+    }
+
+    private function buildMediaDataUri(): string
     {
         $content = Storage::disk('local')->get($this->attachmentPath);
         $attachmentBase64 = base64_encode($content);
-        $attachmentDataUri = 'data:' . ($this->attachmentMime ?: 'application/octet-stream') . ';base64,' . $attachmentBase64;
 
-        return $whatsappNodeService->sendMedia($phone, $attachmentDataUri, (string) ($this->attachmentMime ?: 'application/octet-stream'), $this->message !== '' ? $this->message : null);
+        return 'data:' . ($this->attachmentMime ?: 'application/octet-stream') . ';base64,' . $attachmentBase64;
     }
 }
