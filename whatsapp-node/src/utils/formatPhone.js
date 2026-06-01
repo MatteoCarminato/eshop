@@ -6,16 +6,23 @@
 const cleanPhone = (phone) => phone.replace(/\D/g, '');
 
 /**
- * Formata um número de telefone brasileiro para o formato do WhatsApp.
- * Formato esperado: 5511999998888 (país + DDD + número)
+ * Formata um número para o formato do WhatsApp.
+ * Regras:
+ * - Se vier no formato local BR (10/11 dígitos), prefixa 55.
+ * - Se já vier internacional (12-15 dígitos), mantém como está.
  * @param {string} phone - Número de telefone (pode ter formatação).
  * @returns {string} Número formatado para WhatsApp (com @c.us).
  */
 const formatPhoneForWhatsApp = (phone) => {
   let cleaned = cleanPhone(phone);
 
-  // Se não começa com 55, adiciona código do Brasil
-  if (!cleaned.startsWith('55')) {
+  // Remove prefixo internacional 00, caso exista
+  if (cleaned.startsWith('00')) {
+    cleaned = cleaned.slice(2);
+  }
+
+  // Número local BR (DDD + número): adiciona 55
+  if (cleaned.length === 10 || cleaned.length === 11) {
     cleaned = `55${cleaned}`;
   }
 
