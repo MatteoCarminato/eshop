@@ -146,4 +146,66 @@ class WhatsappNodeService
             ];
         }
     }
+
+    public function sendText(string $phone, string $message): array
+    {
+        try {
+            $res = $this->client()->post('/api/send-text', [
+                'phone' => $phone,
+                'message' => $message,
+            ]);
+
+            if (!$res->successful()) {
+                return [
+                    'success' => false,
+                    'status' => $res->status(),
+                    'error' => 'Falha ao enviar mensagem de texto.',
+                    'body' => $res->json(),
+                ];
+            }
+
+            return [
+                'success' => true,
+                'data' => $res->json(),
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('WhatsappNodeService.sendText error', ['error' => $e->getMessage()]);
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    public function sendMedia(string $phone, string $mediaDataUri, string $mediaType, ?string $message = null): array
+    {
+        try {
+            $res = $this->client()->post('/api/send-media', [
+                'phone' => $phone,
+                'mediaUrl' => $mediaDataUri,
+                'mediaType' => $mediaType,
+                'message' => $message,
+            ]);
+
+            if (!$res->successful()) {
+                return [
+                    'success' => false,
+                    'status' => $res->status(),
+                    'error' => 'Falha ao enviar mídia.',
+                    'body' => $res->json(),
+                ];
+            }
+
+            return [
+                'success' => true,
+                'data' => $res->json(),
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('WhatsappNodeService.sendMedia error', ['error' => $e->getMessage()]);
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
 }

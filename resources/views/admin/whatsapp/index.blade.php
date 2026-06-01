@@ -44,6 +44,7 @@
                             <div class="d-flex gap-2 flex-wrap">
                                 <button class="btn btn-success" id="btn-connect">Conectar / Atualizar QR</button>
                                 <button class="btn btn-outline-primary" id="btn-refresh">Atualizar Status</button>
+                                <a class="btn btn-primary" href="{{ route('admin.whatsapp.envio') }}">Ir para Envio</a>
                             </div>
 
                             <small class="text-muted d-block mt-3">
@@ -71,6 +72,7 @@
                     </div>
                 </div>
             </div>
+
         </div>
     </div>
 @endsection
