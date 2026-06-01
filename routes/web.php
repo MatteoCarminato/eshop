@@ -104,6 +104,7 @@ Route::middleware('auth')->group(function () {
 
         Route::middleware('module:whatsapp.manage,wallet.manage')->group(function () {
             Route::post('/connect', [\App\Http\Controllers\WhatsappController::class, 'connect'])->name('connect');
+            Route::post('/disconnect', [\App\Http\Controllers\WhatsappController::class, 'disconnect'])->name('disconnect');
             Route::post('/send', [\App\Http\Controllers\WhatsappController::class, 'send'])->name('send');
         });
     });

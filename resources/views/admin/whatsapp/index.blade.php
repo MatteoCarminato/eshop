@@ -43,6 +43,7 @@
 
                             <div class="d-flex gap-2 flex-wrap">
                                 <button class="btn btn-success" id="btn-connect">Conectar / Atualizar QR</button>
+                                <button class="btn btn-danger" id="btn-disconnect">Desconectar</button>
                                 <button class="btn btn-outline-primary" id="btn-refresh">Atualizar Status</button>
                                 <a class="btn btn-primary" href="{{ route('admin.whatsapp.envio') }}">Ir para Envio</a>
                             </div>
@@ -85,6 +86,7 @@
                 qr: '{{ route('admin.whatsapp.qr') }}',
                 qrImage: '{{ route('admin.whatsapp.qr-image') }}',
                 connect: '{{ route('admin.whatsapp.connect') }}',
+                disconnect: '{{ route('admin.whatsapp.disconnect') }}',
             };
 
             const els = {
@@ -96,6 +98,7 @@
                 qrTime: document.getElementById('wpp-qr-time'),
                 qrHint: document.getElementById('qr-hint'),
                 btnConnect: document.getElementById('btn-connect'),
+                btnDisconnect: document.getElementById('btn-disconnect'),
                 btnRefresh: document.getElementById('btn-refresh'),
             };
 
@@ -205,6 +208,20 @@
             });
 
             els.btnConnect.addEventListener('click', connectAndRefresh);
+
+            els.btnDisconnect.addEventListener('click', async function () {
+                if (!confirm('Tem certeza que deseja desconectar o WhatsApp?')) return;
+                els.btnDisconnect.disabled = true;
+                els.btnDisconnect.textContent = 'Desconectando...';
+                try {
+                    await fetchJson(routes.disconnect, { method: 'POST' });
+                    await loadStatus();
+                    await loadQr();
+                } finally {
+                    els.btnDisconnect.disabled = false;
+                    els.btnDisconnect.textContent = 'Desconectar';
+                }
+            });
 
             // Carga inicial + polling periódico
             (async function init() {

@@ -77,6 +77,24 @@ class WhatsappNodeService
         }
     }
 
+    public function disconnect(): array
+    {
+        try {
+            $res = $this->client()->post('/api/disconnect');
+
+            return [
+                'success' => $res->successful(),
+                'data' => $res->json(),
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('WhatsappNodeService.disconnect error', ['error' => $e->getMessage()]);
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
     public function qr(): array
     {
         try {

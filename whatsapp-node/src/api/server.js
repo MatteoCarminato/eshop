@@ -156,6 +156,18 @@ const createServer = (client, botState) => {
     }
   });
 
+  // Desconectar WhatsApp (logout da sessão)
+  app.post('/api/disconnect', authMiddleware, async (req, res) => {
+    try {
+      logger.info('🔌 Solicitação de desconexão recebida');
+      await client.logout();
+      res.json({ success: true, message: 'WhatsApp desconectado com sucesso.' });
+    } catch (error) {
+      logger.error('Erro ao desconectar WhatsApp:', { error: error.message });
+      res.status(500).json({ success: false, error: 'Erro ao desconectar: ' + error.message });
+    }
+  });
+
   // Remover imagem temporária
   app.post('/api/delete-image', authMiddleware, async (req, res) => {
     try {

@@ -89,6 +89,18 @@ class WhatsappController extends Controller
         ]);
     }
 
+    public function disconnect(): JsonResponse
+    {
+        $result = $this->whatsappNodeService->disconnect();
+
+        return response()->json([
+            'success' => $result['success'] ?? false,
+            'message' => $result['success']
+                ? 'WhatsApp desconectado com sucesso.'
+                : ($result['error'] ?? 'Erro ao desconectar.'),
+        ], $result['success'] ? 200 : 502);
+    }
+
     public function connect(): JsonResponse
     {
         $status = $this->whatsappNodeService->status();
