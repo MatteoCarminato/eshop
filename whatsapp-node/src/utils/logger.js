@@ -18,6 +18,11 @@ const logger = winston.createLogger({
   defaultMeta: { service: 'whatsapp-bot-terrenos' },
   transports: [
     new winston.transports.File({
+      filename: path.join(logDir, 'whatsapp-connection.log'),
+      maxsize: 5242880,
+      maxFiles: 5,
+    }),
+    new winston.transports.File({
       filename: path.join(logDir, 'error.log'),
       level: 'error',
       maxsize: 5242880, // 5MB

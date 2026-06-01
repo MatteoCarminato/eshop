@@ -23,6 +23,7 @@ const registerScreenRoutes = (app, client, authMiddleware) => {
   client.on('authenticated', () => {
     lastQrCode = null;
     qrTimestamp = null;
+    logger.info('🧹 QR limpo após autenticação');
   });
 
   /**
@@ -31,11 +32,14 @@ const registerScreenRoutes = (app, client, authMiddleware) => {
    */
   app.get('/api/qr', authMiddleware, (_req, res) => {
     if (!lastQrCode) {
+      logger.info('ℹ️ Consulta de QR sem código disponível no momento');
       return res.json({
         available: false,
         message: 'Nenhum QR code disponível. Já autenticado ou aguardando.',
       });
     }
+
+    logger.info('📤 QR entregue pela API', { timestamp: qrTimestamp });
 
     res.json({
       available: true,
@@ -51,6 +55,7 @@ const registerScreenRoutes = (app, client, authMiddleware) => {
   app.get('/api/qr-image', authMiddleware, async (_req, res) => {
     try {
       if (!lastQrCode) {
+        logger.info('ℹ️ QR SVG solicitado, mas não há QR disponível');
         return res.status(404).json({
           available: false,
           message: 'Nenhum QR code disponível. Já autenticado ou aguardando.',

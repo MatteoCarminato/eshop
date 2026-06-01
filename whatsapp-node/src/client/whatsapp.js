@@ -5,6 +5,15 @@ const logger = require('../utils/logger');
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 5000;
 
+const logConnectionSnapshot = (client, label, extra = {}) => {
+  logger.info(`📡 WhatsApp snapshot: ${label}`, {
+    hasInfo: !!client.info,
+    hasPupPage: !!client.pupPage,
+    hasPupBrowser: !!client.pupBrowser,
+    ...extra,
+  });
+};
+
 /**
  * Cria e configura o client do WhatsApp Web.
  * Salva a sessão localmente para reconexão automática.
@@ -35,15 +44,26 @@ const createClient = () => {
 
   client.on('qr', (qr) => {
     logger.info('QR Code recebido. Escaneie com seu WhatsApp:');
+    logger.info('📱 QR gerado e pronto para leitura.', { qrLength: qr ? qr.length : 0 });
     qrcode.generate(qr, { small: true });
+  });
+
+  client.on('loading_screen', (percent, message) => {
+    logger.info('⏳ WhatsApp carregando', { percent, message });
+  });
+
+  client.on('change_state', (state) => {
+    logger.info('🔄 Estado do WhatsApp alterado', { state });
   });
 
   client.on('ready', () => {
     logger.info('✅ WhatsApp client conectado e pronto!');
+    logConnectionSnapshot(client, 'ready');
   });
 
   client.on('authenticated', () => {
     logger.info('🔐 Autenticado com sucesso!');
+    logConnectionSnapshot(client, 'authenticated');
   });
 
   client.on('auth_failure', (msg) => {
@@ -52,6 +72,15 @@ const createClient = () => {
 
   client.on('disconnected', (reason) => {
     logger.warn('🔌 Desconectado:', { reason });
+  });
+
+  client.on('message_create', (message) => {
+    if (message && message.fromMe) {
+      logger.info('✉️ Mensagem criada pelo bot', {
+        id: message.id ? message.id._serialized : null,
+        to: message.to || null,
+      });
+    }
   });
 
   return client;
@@ -66,7 +95,9 @@ const createClient = () => {
 const initializeClient = async (client, retries = 0) => {
   try {
     logger.info(`Inicializando WhatsApp client... (tentativa ${retries + 1}/${MAX_RETRIES})`);
+    logConnectionSnapshot(client, 'before-initialize', { retries });
     await client.initialize();
+    logConnectionSnapshot(client, 'after-initialize-call', { retries });
   } catch (error) {
     logger.error('Erro ao inicializar WhatsApp client:', { error: error.message });
 
