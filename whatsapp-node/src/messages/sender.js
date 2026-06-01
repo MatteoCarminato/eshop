@@ -149,4 +149,4 @@ const sendBulkMessages = async (client, contacts, templateFn, options = {}) => {
   return report;
 };
 
-module.exports = { sendMessageToContact, sendBulkMessages };
+module.exports = { resolveChatId, sendMessageToContact, sendBulkMessages };

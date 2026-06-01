@@ -156,6 +156,12 @@ class WhatsappNodeService
             ]);
 
             if (!$res->successful()) {
+                Log::warning('WhatsappNodeService.sendText failed response', [
+                    'phone' => $phone,
+                    'status' => $res->status(),
+                    'body' => $res->json(),
+                ]);
+
                 return [
                     'success' => false,
                     'status' => $res->status(),
@@ -169,7 +175,10 @@ class WhatsappNodeService
                 'data' => $res->json(),
             ];
         } catch (\Throwable $e) {
-            Log::warning('WhatsappNodeService.sendText error', ['error' => $e->getMessage()]);
+            Log::warning('WhatsappNodeService.sendText error', [
+                'phone' => $phone,
+                'error' => $e->getMessage(),
+            ]);
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
@@ -188,6 +197,12 @@ class WhatsappNodeService
             ]);
 
             if (!$res->successful()) {
+                Log::warning('WhatsappNodeService.sendMedia failed response', [
+                    'phone' => $phone,
+                    'status' => $res->status(),
+                    'body' => $res->json(),
+                ]);
+
                 return [
                     'success' => false,
                     'status' => $res->status(),
@@ -201,7 +216,10 @@ class WhatsappNodeService
                 'data' => $res->json(),
             ];
         } catch (\Throwable $e) {
-            Log::warning('WhatsappNodeService.sendMedia error', ['error' => $e->getMessage()]);
+            Log::warning('WhatsappNodeService.sendMedia error', [
+                'phone' => $phone,
+                'error' => $e->getMessage(),
+            ]);
             return [
                 'success' => false,
                 'error' => $e->getMessage(),

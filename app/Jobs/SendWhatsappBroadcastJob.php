@@ -58,6 +58,13 @@ class SendWhatsappBroadcastJob implements ShouldQueue
                 } else {
                     $failed++;
                     $errors[] = $name . ': ' . ($result['error'] ?? 'falha no envio');
+                    Log::warning('❌ Broadcast WhatsApp falhou', [
+                        'name' => $name,
+                        'phone' => $phone,
+                        'status' => $result['status'] ?? null,
+                        'error' => $result['error'] ?? null,
+                        'body' => $result['body'] ?? null,
+                    ]);
                 }
 
                 Log::info('📨 Broadcast WhatsApp processado', [

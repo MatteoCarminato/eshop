@@ -3,7 +3,7 @@ const express = require('express');
 const config = require('../config/env');
 const logger = require('../utils/logger');
 const { loadFilteredContacts, getLabels, loadContactsByLabelId } = require('../contacts/whatsappLoader');
-const { sendMessageToContact } = require('../messages/sender');
+const { sendMessageToContact, resolveChatId } = require('../messages/sender');
 
 /**
  * Cria o servidor Express para controle do bot via API REST.
@@ -214,11 +214,14 @@ const createServer = (client, botState) => {
         return res.status(400).json({ error: 'phone e message são obrigatórios' });
       }
 
-      const chatId = phone.includes('@') ? phone : `${phone}@c.us`;
+      const { chatId, registered } = await resolveChatId(client, phone, null);
+      if (!registered || !chatId) {
+        return res.status(422).json({ success: false, error: 'Número não registrado no WhatsApp' });
+      }
 
       const sentMsg = await client.sendMessage(chatId, message);
 
-      logger.info(`📤 Texto enviado para ${phone}`, { messageId: sentMsg.id._serialized });
+      logger.info(`📤 Texto enviado para ${phone}`, { chatId, messageId: sentMsg.id._serialized });
       res.json({
         success: true,
         messageId: sentMsg.id._serialized,
@@ -242,7 +245,11 @@ const createServer = (client, botState) => {
         return res.status(400).json({ error: 'phone e mediaUrl são obrigatórios' });
       }
 
-      const chatId = phone.includes('@') ? phone : `${phone}@c.us`;
+      const { chatId, registered } = await resolveChatId(client, phone, null);
+      if (!registered || !chatId) {
+        return res.status(422).json({ success: false, error: 'Número não registrado no WhatsApp' });
+      }
+
       const { MessageMedia } = require('whatsapp-web.js');
       let media;
 
@@ -266,6 +273,7 @@ const createServer = (client, botState) => {
       });
 
       logger.info(`📤 Mídia enviada para ${phone}`, {
+        chatId,
         mediaType: mediaType || 'auto',
         messageId: sentMsg.id._serialized,
       });
