@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendWhatsappBroadcastJob;
 use App\Services\WhatsappNodeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class WhatsappController extends Controller
 {
@@ -130,6 +133,41 @@ class WhatsappController extends Controller
         $clientIds = collect($validated['client_ids'] ?? [])->map(fn ($id) => (int) $id)->all();
         $groupIds = collect($validated['group_ids'] ?? [])->map(fn ($id) => (int) $id)->all();
 
+        $recipients = $this->resolveRecipients($clientIds, $groupIds);
+
+        if ($recipients->isEmpty()) {
+            return back()->withInput()->with('error', 'Nenhum destinatário válido com telefone foi encontrado.');
+        }
+
+        $message = trim((string) ($validated['message'] ?? ''));
+        $attachment = $request->file('attachment');
+        $attachmentMime = null;
+        $attachmentPath = null;
+
+        if ($attachment) {
+            $attachmentMime = (string) ($attachment->getMimeType() ?: 'application/octet-stream');
+            $attachmentPath = $attachment->storeAs(
+                'whatsapp-attachments',
+                Str::uuid()->toString() . '.' . $attachment->getClientOriginalExtension(),
+                'local'
+            );
+        }
+
+        SendWhatsappBroadcastJob::dispatch(
+            $recipients->all(),
+            $message,
+            $attachmentPath,
+            $attachmentMime
+        );
+
+        return back()->with('success', 'Disparo enfileirado com sucesso. O envio será processado em segundo plano.');
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, array{name:string, phone:string}>
+     */
+    private function resolveRecipients(array $clientIds, array $groupIds)
+    {
         $selectedClients = collect();
 
         if (!empty($clientIds)) {
@@ -152,60 +190,18 @@ class WhatsappController extends Controller
             $selectedClients = $selectedClients->merge($groupClients);
         }
 
-        $recipients = $selectedClients
+        return $selectedClients
             ->unique('id')
-            ->filter(fn ($client) => !empty($client->phone))
+            ->map(function ($client) {
+                $phone = $this->normalizePhone((string) ($client->phone ?? ''));
+
+                return [
+                    'name' => (string) ($client->name ?? 'Contato'),
+                    'phone' => $phone,
+                ];
+            })
+            ->filter(fn ($client) => !empty($client['phone']))
             ->values();
-
-        if ($recipients->isEmpty()) {
-            return back()->withInput()->with('error', 'Nenhum destinatário válido com telefone foi encontrado.');
-        }
-
-        $message = trim((string) ($validated['message'] ?? ''));
-        $attachment = $request->file('attachment');
-        $attachmentDataUri = null;
-        $attachmentMime = null;
-
-        if ($attachment) {
-            $attachmentMime = (string) ($attachment->getMimeType() ?: 'application/octet-stream');
-            $attachmentBase64 = base64_encode((string) file_get_contents($attachment->getRealPath()));
-            $attachmentDataUri = 'data:' . $attachmentMime . ';base64,' . $attachmentBase64;
-        }
-
-        $sent = 0;
-        $failed = 0;
-        $errors = [];
-
-        foreach ($recipients as $recipient) {
-            $phone = $this->normalizePhone((string) $recipient->phone);
-
-            if (!$phone) {
-                $failed++;
-                $errors[] = $recipient->name . ': telefone inválido';
-                continue;
-            }
-
-            $result = $attachmentDataUri
-                ? $this->whatsappNodeService->sendMedia($phone, $attachmentDataUri, (string) $attachmentMime, $message !== '' ? $message : null)
-                : $this->whatsappNodeService->sendText($phone, $message);
-
-            if ($result['success'] ?? false) {
-                $sent++;
-            } else {
-                $failed++;
-                $errors[] = $recipient->name . ': ' . ($result['error'] ?? 'falha no envio');
-            }
-        }
-
-        if ($sent > 0 && $failed === 0) {
-            return back()->with('success', "Disparo concluído com sucesso. Enviadas: {$sent}.");
-        }
-
-        if ($sent > 0 && $failed > 0) {
-            return back()->with('warning', "Disparo parcial. Enviadas: {$sent}. Falhas: {$failed}. Detalhes: " . implode(' | ', array_slice($errors, 0, 5)));
-        }
-
-        return back()->withInput()->with('error', 'Não foi possível enviar as mensagens. ' . implode(' | ', array_slice($errors, 0, 5)));
     }
 
     private function normalizePhone(string $phone): ?string
