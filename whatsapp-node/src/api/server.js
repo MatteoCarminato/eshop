@@ -161,7 +161,28 @@ const createServer = (client, botState) => {
     try {
       logger.info('🔌 Solicitação de desconexão recebida');
       await client.logout();
-      res.json({ success: true, message: 'WhatsApp desconectado com sucesso.' });
+
+      await new Promise((resolve) => {
+        setTimeout(resolve, 1500);
+      });
+
+      try {
+        await client.initialize();
+        return res.json({
+          success: true,
+          message: 'WhatsApp desconectado e reinicializado. Novo QR será gerado em instantes.',
+        });
+      } catch (reinitializeError) {
+        logger.error('Erro ao reinicializar WhatsApp após desconexão:', {
+          error: reinitializeError.message,
+        });
+        return res.status(500).json({
+          success: false,
+          error:
+            'Desconectou, mas falhou ao reinicializar a sessão para novo QR: ' +
+            reinitializeError.message,
+        });
+      }
     } catch (error) {
       logger.error('Erro ao desconectar WhatsApp:', { error: error.message });
       res.status(500).json({ success: false, error: 'Erro ao desconectar: ' + error.message });
