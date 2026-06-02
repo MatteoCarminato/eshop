@@ -23,10 +23,12 @@ const createClient = () => {
   const client = new Client({
     authStrategy: new LocalAuth(),
     webVersionCache: {
-      type: 'remote',
-      remotePath:
-        'https://raw.githubusercontent.com/nicoolasaraujo/nicoolasaraujo/main/nicoolasaraujo.json',
+      type: 'local',
     },
+    takeoverOnConflict: true,
+    takeoverTimeoutMs: 10000,
+    authTimeoutMs: 120000,
+    qrMaxRetries: 0,
     puppeteer: {
       headless: true,
       args: [
