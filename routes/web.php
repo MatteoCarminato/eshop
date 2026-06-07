@@ -98,6 +98,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware('module:whatsapp.view')->group(function () {
             Route::get('/', [\App\Http\Controllers\WhatsappController::class, 'index'])->name('index');
             Route::get('/envio', [\App\Http\Controllers\WhatsappController::class, 'envio'])->name('envio');
+            Route::get('/agendamentos', [\App\Http\Controllers\WhatsappController::class, 'schedules'])->name('schedules');
             Route::get('/status', [\App\Http\Controllers\WhatsappController::class, 'status'])->name('status');
             Route::get('/qr', [\App\Http\Controllers\WhatsappController::class, 'qr'])->name('qr');
             Route::get('/qr-image', [\App\Http\Controllers\WhatsappController::class, 'qrImage'])->name('qr-image');
@@ -107,6 +108,12 @@ Route::middleware('auth')->group(function () {
             Route::post('/connect', [\App\Http\Controllers\WhatsappController::class, 'connect'])->name('connect');
             Route::post('/disconnect', [\App\Http\Controllers\WhatsappController::class, 'disconnect'])->name('disconnect');
             Route::post('/send', [\App\Http\Controllers\WhatsappController::class, 'send'])->name('send');
+            Route::post('/schedules', [\App\Http\Controllers\WhatsappController::class, 'storeSchedule'])->name('schedules.store');
+            Route::patch('/schedules/{scheduledMessage}', [\App\Http\Controllers\WhatsappController::class, 'updateSchedule'])->name('schedules.update');
+            Route::post('/schedules/{scheduledMessage}/toggle', [\App\Http\Controllers\WhatsappController::class, 'toggleSchedule'])
+                ->name('schedules.toggle');
+            Route::delete('/schedules/{scheduledMessage}', [\App\Http\Controllers\WhatsappController::class, 'destroySchedule'])
+                ->name('schedules.destroy');
         });
     });
 });

@@ -22,6 +22,14 @@
                 </div>
             </div>
 
+            <div class="row mb-2">
+                <div class="col-12 d-flex justify-content-end">
+                    <a href="{{ route('admin.whatsapp.schedules') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="ri-calendar-check-line me-1"></i> Ir para agendamentos
+                    </a>
+                </div>
+            </div>
+
             <div class="row">
                 <div class="col-12">
                     @if (session('success'))
@@ -143,10 +151,16 @@
                                             </div>
 
                                             <div class="mt-auto d-flex justify-content-end">
+                                                @if($canManageWhatsapp)
                                                     <button type="submit" class="btn btn-primary">
                                                         <i class="ri-send-plane-2-line me-1"></i>
                                                         Disparar Mensagens
                                                     </button>
+                                                @else
+                                                    <div class="alert alert-warning py-2 mb-0">
+                                                        Você não possui permissão para disparar mensagens.
+                                                    </div>
+                                                @endif
                                             </div>
                                         </div>
                                     </div>

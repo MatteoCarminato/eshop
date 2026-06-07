@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\SendWhatsappBroadcastJob;
+use App\Models\WhatsappScheduledMessage;
 use App\Services\WhatsappNodeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -30,34 +32,28 @@ class WhatsappController extends Controller
 
     public function envio()
     {
-        $clients = DB::table('clients')
-            ->select(['id', 'name', 'phone'])
-            ->where('deleted_at', null)
-            ->orderBy('name')
-            ->get();
-
-        $groups = DB::table('groups')
-            ->leftJoin('group_client', 'groups.id', '=', 'group_client.group_id')
-            ->select([
-                'groups.id',
-                'groups.name',
-                'groups.description',
-                DB::raw('COUNT(group_client.client_id) as clients_count'),
-            ])
-            ->groupBy('groups.id', 'groups.name', 'groups.description')
-            ->orderBy('groups.name')
-            ->get();
-
-        $groupClients = DB::table('group_client')
-            ->select(['group_id', 'client_id'])
-            ->get()
-            ->groupBy('group_id')
-            ->map(fn($items) => $items->pluck('client_id')->values()->all());
+        $data = $this->loadTargetData();
 
         return view('admin.whatsapp.envio', [
-            'clients' => $clients,
-            'groups' => $groups,
-            'groupClients' => $groupClients,
+            'clients' => $data['clients'],
+            'groups' => $data['groups'],
+            'groupClients' => $data['groupClients'],
+        ]);
+    }
+
+    public function schedules()
+    {
+        $data = $this->loadTargetData();
+
+        $schedules = WhatsappScheduledMessage::query()
+            ->orderByDesc('id')
+            ->get();
+
+        return view('admin.whatsapp.schedules', [
+            'clients' => $data['clients'],
+            'groups' => $data['groups'],
+            'groupClients' => $data['groupClients'],
+            'schedules' => $schedules,
         ]);
     }
 
@@ -152,6 +148,7 @@ class WhatsappController extends Controller
 
         $clientIds = collect($validated['client_ids'] ?? [])->map(fn ($id) => (int) $id)->all();
         $groupIds = collect($validated['group_ids'] ?? [])->map(fn ($id) => (int) $id)->all();
+        $message = trim((string) ($validated['message'] ?? ''));
 
         $recipients = $this->resolveRecipients($clientIds, $groupIds);
 
@@ -159,7 +156,6 @@ class WhatsappController extends Controller
             return back()->withInput()->with('error', 'Nenhum destinatário válido com telefone foi encontrado.');
         }
 
-        $message = trim((string) ($validated['message'] ?? ''));
         $attachment = $request->file('attachment');
         $attachmentMime = null;
         $attachmentPath = null;
@@ -181,6 +177,121 @@ class WhatsappController extends Controller
         );
 
         return back()->with('success', 'Disparo enfileirado com sucesso. O envio será processado em segundo plano.');
+    }
+
+    public function storeSchedule(Request $request): RedirectResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'client_ids' => ['nullable', 'array'],
+            'client_ids.*' => ['integer', 'exists:clients,id'],
+            'group_ids' => ['nullable', 'array'],
+            'group_ids.*' => ['integer', 'exists:groups,id'],
+            'schedule_name' => ['nullable', 'string', 'max:120'],
+            'weekdays' => ['nullable', 'array'],
+            'weekdays.*' => ['integer', 'between:0,6'],
+            'message' => ['required', 'string', 'max:4000'],
+        ]);
+
+        $validator->after(function ($validator) use ($request) {
+            $clientIds = (array) $request->input('client_ids', []);
+            $groupIds = (array) $request->input('group_ids', []);
+            $weekdays = (array) $request->input('weekdays', []);
+
+            if (empty($clientIds) && empty($groupIds)) {
+                $validator->errors()->add('targets', 'Selecione ao menos um cliente ou grupo.');
+            }
+
+            if (empty($weekdays)) {
+                $validator->errors()->add('weekdays', 'Selecione ao menos um dia da semana para o envio.');
+            }
+        });
+
+        $validated = $validator->validate();
+
+        $clientIds = collect($validated['client_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all();
+        $groupIds = collect($validated['group_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all();
+        $weekdays = collect($validated['weekdays'] ?? [])->map(fn ($day) => (int) $day)->unique()->values()->all();
+
+        WhatsappScheduledMessage::query()->create([
+            'name' => trim((string) ($validated['schedule_name'] ?? '')) ?: null,
+            'message' => trim((string) $validated['message']),
+            'client_ids' => $clientIds,
+            'group_ids' => $groupIds,
+            'weekdays' => $weekdays,
+            'is_active' => true,
+            'created_by_user_id' => Auth::id(),
+        ]);
+
+        return back()->with('success', 'Configuração de disparo agendado salva com sucesso. O sistema processa diariamente às 07:30 (Brasil).');
+    }
+
+    public function toggleSchedule(WhatsappScheduledMessage $scheduledMessage): RedirectResponse
+    {
+        $newState = !$scheduledMessage->is_active;
+
+        DB::table('whatsapp_scheduled_messages')
+            ->where('id', $scheduledMessage->id)
+            ->update(['is_active' => $newState]);
+
+        return back()->with('success', $newState
+            ? 'Disparo agendado ativado.'
+            : 'Disparo agendado pausado.');
+    }
+
+    public function destroySchedule(WhatsappScheduledMessage $scheduledMessage): RedirectResponse
+    {
+        DB::table('whatsapp_scheduled_messages')
+            ->where('id', $scheduledMessage->id)
+            ->delete();
+
+        return back()->with('success', 'Disparo agendado removido com sucesso.');
+    }
+
+    public function updateSchedule(Request $request, WhatsappScheduledMessage $scheduledMessage): RedirectResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'schedule_name' => ['nullable', 'string', 'max:120'],
+            'message' => ['required', 'string', 'max:4000'],
+            'client_ids' => ['nullable', 'array'],
+            'client_ids.*' => ['integer', 'exists:clients,id'],
+            'group_ids' => ['nullable', 'array'],
+            'group_ids.*' => ['integer', 'exists:groups,id'],
+            'weekdays' => ['nullable', 'array'],
+            'weekdays.*' => ['integer', 'between:0,6'],
+        ]);
+
+        $validator->after(function ($validator) use ($request) {
+            $clientIds = (array) $request->input('client_ids', []);
+            $groupIds = (array) $request->input('group_ids', []);
+            $weekdays = (array) $request->input('weekdays', []);
+
+            if (empty($clientIds) && empty($groupIds)) {
+                $validator->errors()->add('targets', 'Selecione ao menos um cliente ou grupo.');
+            }
+
+            if (empty($weekdays)) {
+                $validator->errors()->add('weekdays', 'Selecione ao menos um dia da semana para o envio.');
+            }
+        });
+
+        $validated = $validator->validate();
+
+        $clientIds = collect($validated['client_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all();
+        $groupIds = collect($validated['group_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all();
+        $weekdays = collect($validated['weekdays'] ?? [])->map(fn ($day) => (int) $day)->unique()->values()->all();
+
+        DB::table('whatsapp_scheduled_messages')
+            ->where('id', $scheduledMessage->id)
+            ->update([
+                'name' => trim((string) ($validated['schedule_name'] ?? '')) ?: null,
+                'message' => trim((string) $validated['message']),
+                'client_ids' => json_encode($clientIds),
+                'group_ids' => json_encode($groupIds),
+                'weekdays' => json_encode($weekdays),
+                'updated_at' => now(),
+            ]);
+
+        return back()->with('success', 'Disparo agendado atualizado com sucesso.');
     }
 
     /**
@@ -245,5 +356,41 @@ class WhatsappController extends Controller
         }
 
         return $digits;
+    }
+
+    /**
+     * @return array{clients:\Illuminate\Support\Collection,groups:\Illuminate\Support\Collection,groupClients:\Illuminate\Support\Collection}
+     */
+    private function loadTargetData(): array
+    {
+        $clients = DB::table('clients')
+            ->select(['id', 'name', 'phone'])
+            ->whereNull('deleted_at')
+            ->orderBy('name')
+            ->get();
+
+        $groups = DB::table('groups')
+            ->leftJoin('group_client', 'groups.id', '=', 'group_client.group_id')
+            ->select([
+                'groups.id',
+                'groups.name',
+                'groups.description',
+                DB::raw('COUNT(group_client.client_id) as clients_count'),
+            ])
+            ->groupBy('groups.id', 'groups.name', 'groups.description')
+            ->orderBy('groups.name')
+            ->get();
+
+        $groupClients = DB::table('group_client')
+            ->select(['group_id', 'client_id'])
+            ->get()
+            ->groupBy('group_id')
+            ->map(fn ($items) => $items->pluck('client_id')->values()->all());
+
+        return [
+            'clients' => $clients,
+            'groups' => $groups,
+            'groupClients' => $groupClients,
+        ];
     }
 }

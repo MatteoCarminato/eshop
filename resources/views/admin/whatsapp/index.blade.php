@@ -51,6 +51,8 @@
                                 @endif
                                 <button class="btn btn-outline-primary" id="btn-refresh">Atualizar Status</button>
                                 <a class="btn btn-primary" href="{{ route('admin.whatsapp.envio') }}">Ir para Envio</a>
+                                <a class="btn btn-outline-primary"
+                                    href="{{ route('admin.whatsapp.schedules') }}">Agendamentos</a>
                             </div>
 
                             <small class="text-muted d-block mt-3">

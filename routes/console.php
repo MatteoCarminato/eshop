@@ -1,9 +1,11 @@
 <?php
 
+use App\Jobs\ProcessWhatsappScheduledMessagesJob;
 use App\Services\TreasuryService;
 use App\Services\WalletService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -56,3 +58,8 @@ Artisan::command('wallet:recalculate-brl {clientId} {--dry-run}', function (stri
         $result['mode']
     ));
 })->purpose('Recalculate a client BRL wallet balance from transactions');
+
+Schedule::job(new ProcessWhatsappScheduledMessagesJob())
+    ->dailyAt('07:30')
+    ->timezone('America/Sao_Paulo')
+    ->name('whatsapp-scheduled-messages');

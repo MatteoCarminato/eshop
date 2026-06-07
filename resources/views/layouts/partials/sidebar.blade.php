@@ -209,6 +209,10 @@
                                             <a href="{{ route('admin.whatsapp.envio') }}" class="nav-link menu-link">Enviar
                                                 Mensagens</a>
                                         </li>
+                                        <li class="nav-item">
+                                            <a href="{{ route('admin.whatsapp.schedules') }}"
+                                                class="nav-link menu-link">Agendamentos</a>
+                                        </li>
                                     @endif
                                     @if (auth()->user()->hasModule('whatsapp.manage'))
                                         <li class="nav-item">
