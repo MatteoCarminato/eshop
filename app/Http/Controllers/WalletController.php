@@ -313,6 +313,106 @@ class WalletController extends Controller
         }, $filename, ['Content-Type' => 'application/pdf']);
     }
 
+    public function exportDailyPixPdf(Request $request)
+    {
+        $validated = $request->validate([
+            'pix_date' => 'required|date',
+        ]);
+
+        [$utcStart, $utcEnd, $localDate] = $this->parsePixDailyDateRange($validated['pix_date']);
+
+        $transactions = Transaction::query()
+            ->with(['client:id,name'])
+            ->where('type', 'deposit')
+            ->where('currency', 'BRL')
+            ->where('payment_method', 'pix')
+            ->where('amount', '>', 0)
+            ->whereBetween('created_at', [$utcStart, $utcEnd])
+            ->orderBy('created_at')
+            ->get();
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Pix do dia');
+
+        $sheet->mergeCells('A1:C1');
+        $sheet->setCellValue('A1', 'PIX do dia ' . $localDate->format('d/m/Y'));
+        $sheet->mergeCells('A2:C2');
+        $sheet->setCellValue(
+            'A2',
+            sprintf(
+                'Total: %d registro(s) | Soma: R$ %s | Horario exibido em UTC-3',
+                $transactions->count(),
+                number_format((float) $transactions->sum('amount'), 2, ',', '.')
+            )
+        );
+
+        $sheet->fromArray(['Valor', 'Cliente', 'Horario (-3)'], null, 'A4');
+
+        $row = 5;
+        foreach ($transactions as $transaction) {
+            $localTime = optional($transaction->created_at)
+                ? $transaction->created_at->copy()->subHours(3)->format('H:i')
+                : '';
+
+            $sheet->setCellValueExplicit('A' . $row, number_format((float) $transaction->amount, 2, ',', '.'), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $sheet->setCellValue('B' . $row, (string) optional($transaction->client)->name);
+            $sheet->setCellValueExplicit('C' . $row, $localTime, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $row++;
+        }
+
+        if ($transactions->isEmpty()) {
+            $sheet->mergeCells('A5:C5');
+            $sheet->setCellValue('A5', 'Nenhum PIX encontrado para a data selecionada.');
+            $row = 6;
+        }
+
+        $lastDataRow = max(4, $row - 1);
+
+        $sheet->getStyle('A1:C1')->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A2:C2')->getFont()->setSize(10);
+        $sheet->getStyle('A4:C4')->getFont()->setBold(true);
+        $sheet->getStyle('A4:C' . $lastDataRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $sheet->getStyle('A4:C4')->getFill()
+            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFE9ECEF');
+
+        for ($dataRow = 5; $dataRow <= $lastDataRow; $dataRow++) {
+            $sheet->getStyle('A' . $dataRow . ':C' . $dataRow)->getAlignment()->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+            if (($dataRow % 2) === 1) {
+                $sheet->getStyle('A' . $dataRow . ':C' . $dataRow)->getFill()
+                    ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                    ->getStartColor()->setARGB('FFF8F9FA');
+            }
+        }
+
+        $sheet->getStyle('A5:A' . $lastDataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle('C5:C' . $lastDataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+
+        $sheet->getColumnDimension('A')->setWidth(18);
+        $sheet->getColumnDimension('B')->setWidth(42);
+        $sheet->getColumnDimension('C')->setWidth(16);
+
+        $sheet->getPageSetup()
+            ->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_PORTRAIT)
+            ->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4)
+            ->setFitToWidth(1)
+            ->setFitToHeight(0);
+        $sheet->getPageMargins()->setTop(0.35)->setRight(0.25)->setLeft(0.25)->setBottom(0.35);
+
+        \PhpOffice\PhpSpreadsheet\IOFactory::registerWriter(
+            'Pdf', \PhpOffice\PhpSpreadsheet\Writer\Pdf\Mpdf::class
+        );
+
+        $filename = sprintf('pix_%s.pdf', $localDate->format('Ymd'));
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Pdf');
+            $writer->save('php://output');
+        }, $filename, ['Content-Type' => 'application/pdf']);
+    }
+
     /**
      * Localiza o binário do LibreOffice (`soffice`) em paths conhecidos.
      */
@@ -340,6 +440,15 @@ class WalletController extends Controller
             if ($which && is_executable($which)) return $which;
         }
         return null;
+    }
+
+    protected function parsePixDailyDateRange(string $date): array
+    {
+        $localDate = \Illuminate\Support\Carbon::parse($date, 'UTC')->startOfDay();
+        $utcStart = $localDate->copy()->addHours(3);
+        $utcEnd = $localDate->copy()->endOfDay()->addHours(3);
+
+        return [$utcStart, $utcEnd, $localDate];
     }
 
     /**
@@ -387,8 +496,8 @@ class WalletController extends Controller
         $sheet       = $spreadsheet->getActiveSheet();
 
         // ---- Linha 1: saldos
-        $sheet->setCellValue('A1', 'Saldo ' . $client->name . ' R$ ' . $br($brl));
-        $sheet->setCellValue('K1', 'U$ ' . $br($usd));
+        $sheet->setCellValue('F1', 'Saldo ' . $client->name . ' R$ ' . $br($brl));
+        $sheet->setCellValue('I1', 'U$ ' . $br($usd));
 
         // ---- Ajustar quantidade de linhas de dados.
         // Template original: linhas 4..9 = 6 linhas com numeração 1..6,
@@ -515,7 +624,7 @@ class WalletController extends Controller
                 ->setIndent(1);
 
             // Datas centralizadas
-            foreach (['B', 'F', 'I'] as $col) {
+            foreach (['A', 'B', 'F', 'I'] as $col) {
                 $sheet->getStyle($col . $row)->getAlignment()
                     ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
                     ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
@@ -602,7 +711,7 @@ class WalletController extends Controller
             ->setFitToHeight(0)
             ->setHorizontalCentered(true);
         $sheet->getPageMargins()
-            ->setTop(0.4)->setBottom(0.4)->setLeft(0.3)->setRight(0.3);
+            ->setTop(0.4)->setBottom(0.4)->setLeft(0.3)->setRight(0.0);
         $sheet->setPrintGridlines(false);
         
         // Zoom out de ~15% para melhor alinhamento com valores altos
@@ -946,16 +1055,19 @@ class WalletController extends Controller
         return DB::transaction(function () use ($request) {
             $data = $request->validated();
             $client = \App\Models\Client::findOrFail($data['client_id']);
-
             $exchangeRate = null;
             $convertedAmount = null;
+            $description = null;
 
             if ($data['currency'] === 'BRL') {
                 // O front (modal Depositar) envia o campo `fee` já com o spread aplicado
                 // ("Base + spread do cliente"). Usar direto para não somar spread em dobro.
                 $exchangeRate = (float) $data['fee'];
                 $convertedAmount = round($data['amount'] / $exchangeRate, 2);
+            }else{
+                $description = 'Depósito em ' . $data['currency'] . ' via ' . $data['payment_method'];
             }
+
 
             $this->walletService->updateBalance($data['client_id'], $data['currency'], $data['amount']);
             $this->transactionService->create([
@@ -968,6 +1080,7 @@ class WalletController extends Controller
                 'converted_currency' => $data['currency'] === 'BRL' ? 'USD' : null,
                 'converted_amount' => $convertedAmount,
                 'status' => $data['currency'] === 'BRL' ? 'ambos_abertos' : null,
+                'description' => $description,
             ]);
             return response()->json(['message' => 'Depósito realizado com sucesso.']);
         });

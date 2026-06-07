@@ -57,6 +57,11 @@ return [
             'group' => 'Câmbio',
             'description' => 'Acesso ao painel de carteiras e listagem de clientes.',
         ],
+        'wallet.pnl.view' => [
+            'label' => 'Visualizar lucro/PNL da carteira',
+            'group' => 'Câmbio',
+            'description' => 'Permite ver Lucro Realizado e PnL no painel e na carteira do cliente.',
+        ],
         'wallet.manage' => [
             'label' => 'Operar carteiras (depósito/saque/conversão/fechamento)',
             'group' => 'Câmbio',

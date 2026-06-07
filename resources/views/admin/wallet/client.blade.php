@@ -1,6 +1,9 @@
 @extends('layouts.app')
 @section('title', 'Carteira do Cliente')
 @section('content')
+    @php
+        $canViewPnl = auth()->user()->hasModule('wallet.pnl.view');
+    @endphp
     <div class="page-content wallet-compact">
         <div class="container-fluid">
             <div class="row">
@@ -136,24 +139,26 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col">
-                                    <div class="py-4 px-3">
-                                        <h5 class="text-muted text-uppercase fs-13">PnL Realizado</h5>
-                                        <div class="d-flex align-items-center">
-                                            <div class="flex-shrink-0">
-                                                <i class="ri-line-chart-line display-6 text-muted cfs-22"></i>
-                                            </div>
-                                            <div class="flex-grow-1 ms-3">
-                                                @php $pnlUsdCard = (float) ($prePurchaseSummary['pnl_realizado_usd'] ?? 0); @endphp
-                                                <h2
-                                                    class="mb-0 cfs-22 {{ $pnlUsdCard >= 0 ? 'text-success' : 'text-danger' }}">
-                                                    {{ $pnlUsdCard >= 0 ? '+' : '' }}US$
-                                                    {{ number_format($pnlUsdCard, 4, ',', '.') }}
-                                                </h2>
+                                @if($canViewPnl)
+                                    <div class="col">
+                                        <div class="py-4 px-3">
+                                            <h5 class="text-muted text-uppercase fs-13">PnL Realizado</h5>
+                                            <div class="d-flex align-items-center">
+                                                <div class="flex-shrink-0">
+                                                    <i class="ri-line-chart-line display-6 text-muted cfs-22"></i>
+                                                </div>
+                                                <div class="flex-grow-1 ms-3">
+                                                    @php $pnlUsdCard = (float) ($prePurchaseSummary['pnl_realizado_usd'] ?? 0); @endphp
+                                                    <h2
+                                                        class="mb-0 cfs-22 {{ $pnlUsdCard >= 0 ? 'text-success' : 'text-danger' }}">
+                                                        {{ $pnlUsdCard >= 0 ? '+' : '' }}US$
+                                                        {{ number_format($pnlUsdCard, 4, ',', '.') }}
+                                                    </h2>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                @endif
                             </div>
                         </div>
                     </div><!-- end card body -->
@@ -840,11 +845,11 @@
                                                 @if(!$isLocked && Auth::user()->hasModule('wallet.delete'))
                                                     <form method="POST" action="{{ route('admin.wallet.rollback-deposit', $tx) }}"
                                                         onsubmit="
-                                                                                                                                                                                                                                                                                                                                                                                                const motivo = prompt('Motivo do rollback (opcional):', '');
-                                                                                                                                                                                                                                                                                                                                                                                                if (motivo === null) return false;
-                                                                                                                                                                                                                                                                                                                                                                                                this.querySelector('input[name=reason]').value = motivo;
-                                                                                                                                                                                                                                                                                                                                                                                                return confirm('Confirmar rollback completo do depósito #{{ $tx->id }}?');
-                                                                                                                                                                                                                                                                                                                                                                                            ">
+                                                                                                                                                                                                                                                                                                                                                                                                            const motivo = prompt('Motivo do rollback (opcional):', '');
+                                                                                                                                                                                                                                                                                                                                                                                                            if (motivo === null) return false;
+                                                                                                                                                                                                                                                                                                                                                                                                            this.querySelector('input[name=reason]').value = motivo;
+                                                                                                                                                                                                                                                                                                                                                                                                            return confirm('Confirmar rollback completo do depósito #{{ $tx->id }}?');
+                                                                                                                                                                                                                                                                                                                                                                                                        ">
                                                         @csrf
                                                         <input type="hidden" name="reason" value="">
                                                         <button type="submit" class="btn btn-sm btn-outline-danger"
@@ -1011,10 +1016,12 @@
                                         <th>Valor U$</th>
                                         <th>Taxa venda</th>
                                         <th>Descrição</th>
-                                        <th class="text-center" style="width: 36px">
-                                            <i class="ri-information-line"
-                                                title="PnL deste fechamento (apenas para o admin)"></i>
-                                        </th>
+                                        @if($canViewPnl)
+                                            <th class="text-center" style="width: 36px">
+                                                <i class="ri-information-line"
+                                                    title="PnL deste fechamento (apenas para o admin)"></i>
+                                            </th>
+                                        @endif
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1032,30 +1039,32 @@
                                                 @endif
                                             </td>
                                             <td>{{ $tx->description ?? '-' }}</td>
-                                            <td class="text-center">
-                                                @php
-                                                    $pnlBrl = $tx->realized_pnl_brl;
-                                                    $pnlUsd = $tx->realized_pnl_usd;
-                                                @endphp
-                                                @if($pnlBrl !== null || $pnlUsd !== null)
+                                            @if($canViewPnl)
+                                                <td class="text-center">
                                                     @php
-                                                        $vBrl = (float) ($pnlBrl ?? 0);
-                                                        $vUsd = (float) ($pnlUsd ?? 0);
-                                                        $color = $vBrl > 0 ? 'text-success' : ($vBrl < 0 ? 'text-danger' : 'text-muted');
-                                                        $sign = $vBrl > 0 ? '+' : '';
-                                                        $tip = 'PnL: ' . $sign . 'R$ ' . number_format($vBrl, 2, ',', '.') .
-                                                            ' (' . $sign . 'US$ ' . number_format($vUsd, 4, ',', '.') . ')';
+                                                        $pnlBrl = $tx->realized_pnl_brl;
+                                                        $pnlUsd = $tx->realized_pnl_usd;
                                                     @endphp
-                                                    <i class="ri-information-line {{ $color }}" data-bs-toggle="tooltip"
-                                                        data-bs-placement="left" title="{{ $tip }}"></i>
-                                                @else
-                                                    <span class="text-muted">—</span>
-                                                @endif
-                                            </td>
+                                                    @if($pnlBrl !== null || $pnlUsd !== null)
+                                                        @php
+                                                            $vBrl = (float) ($pnlBrl ?? 0);
+                                                            $vUsd = (float) ($pnlUsd ?? 0);
+                                                            $color = $vBrl > 0 ? 'text-success' : ($vBrl < 0 ? 'text-danger' : 'text-muted');
+                                                            $sign = $vBrl > 0 ? '+' : '';
+                                                            $tip = 'PnL: ' . $sign . 'R$ ' . number_format($vBrl, 2, ',', '.') .
+                                                                ' (' . $sign . 'US$ ' . number_format($vUsd, 4, ',', '.') . ')';
+                                                        @endphp
+                                                        <i class="ri-information-line {{ $color }}" data-bs-toggle="tooltip"
+                                                            data-bs-placement="left" title="{{ $tip }}"></i>
+                                                    @else
+                                                        <span class="text-muted">—</span>
+                                                    @endif
+                                                </td>
+                                            @endif
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="5" class="text-center">Sem registros.</td>
+                                            <td colspan="{{ $canViewPnl ? 5 : 4 }}" class="text-center">Sem registros.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>
@@ -1588,41 +1597,43 @@
                             </div>
                         </div>
 
-                        {{-- Preview de PnL: visão do admin separando lucro da compra e da venda --}}
-                        <div class="alert alert-secondary mt-3 mb-2 py-2 small" id="fechar_pnl_preview">
-                            <div class="fw-bold mb-1"><i class="ri-eye-line me-1"></i>Resumo da operação (admin):</div>
-                            <div class="row g-1">
-                                <div class="col-6">
-                                    <div class="d-flex justify-content-between">
-                                        <span class="text-muted"><i class="ri-arrow-down-circle-line text-success"></i>
-                                            Comprou:</span>
-                                        <span><strong id="prev_compra_usd">—</strong> @ <span
-                                                id="prev_compra_taxa">—</span></span>
+                        @if($canViewPnl)
+                            {{-- Preview de PnL: visão do admin separando lucro da compra e da venda --}}
+                            <div class="alert alert-secondary mt-3 mb-2 py-2 small" id="fechar_pnl_preview">
+                                <div class="fw-bold mb-1"><i class="ri-eye-line me-1"></i>Resumo da operação (admin):</div>
+                                <div class="row g-1">
+                                    <div class="col-6">
+                                        <div class="d-flex justify-content-between">
+                                            <span class="text-muted"><i class="ri-arrow-down-circle-line text-success"></i>
+                                                Comprou:</span>
+                                            <span><strong id="prev_compra_usd">—</strong> @ <span
+                                                    id="prev_compra_taxa">—</span></span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span class="text-muted">Custo R$:</span>
+                                            <span id="prev_compra_brl">—</span>
+                                        </div>
                                     </div>
-                                    <div class="d-flex justify-content-between">
-                                        <span class="text-muted">Custo R$:</span>
-                                        <span id="prev_compra_brl">—</span>
+                                    <div class="col-6">
+                                        <div class="d-flex justify-content-between">
+                                            <span class="text-muted"><i class="ri-arrow-up-circle-line text-danger"></i>
+                                                Venderá:</span>
+                                            <span><strong id="prev_venda_usd">—</strong> @ <span
+                                                    id="prev_venda_taxa">—</span></span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span class="text-muted">Receita R$:</span>
+                                            <span id="prev_venda_brl">—</span>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-6">
-                                    <div class="d-flex justify-content-between">
-                                        <span class="text-muted"><i class="ri-arrow-up-circle-line text-danger"></i>
-                                            Venderá:</span>
-                                        <span><strong id="prev_venda_usd">—</strong> @ <span
-                                                id="prev_venda_taxa">—</span></span>
-                                    </div>
-                                    <div class="d-flex justify-content-between">
-                                        <span class="text-muted">Receita R$:</span>
-                                        <span id="prev_venda_brl">—</span>
-                                    </div>
+                                <hr class="my-1">
+                                <div class="d-flex justify-content-between fw-bold">
+                                    <span>Lucro estimado:</span>
+                                    <span id="prev_pnl">—</span>
                                 </div>
                             </div>
-                            <hr class="my-1">
-                            <div class="d-flex justify-content-between fw-bold">
-                                <span>Lucro estimado:</span>
-                                <span id="prev_pnl">—</span>
-                            </div>
-                        </div>
+                        @endif
 
                         <div class="mb-3 mt-3">
                             <label for="fechar_descricao" class="form-label">Descrição (vista pelo cliente)</label>
@@ -1783,7 +1794,9 @@
                     };
 
                     recalcFromBrl();
-                    updatePnlPreview();
+                    if ({{ $canViewPnl ? 'true' : 'false' }}) {
+                        updatePnlPreview();
+                    }
 
                     fecharTransactionIds.value = checked.map(function (cb) { return cb.value; }).join(',');
 
@@ -1854,9 +1867,11 @@
             }
 
             // Recalcula preview quando muda valor/taxa.
-            fecharBrl.addEventListener('input', updatePnlPreview);
-            fecharUsd.addEventListener('input', updatePnlPreview);
-            fecharTaxa.addEventListener('input', updatePnlPreview);
+            if ({{ $canViewPnl ? 'true' : 'false' }}) {
+                fecharBrl.addEventListener('input', updatePnlPreview);
+                fecharUsd.addEventListener('input', updatePnlPreview);
+                fecharTaxa.addEventListener('input', updatePnlPreview);
+            }
 
             fecharForm.addEventListener('submit', function (e) {
                 var taxa = parseFloat(fecharTaxa.value);

@@ -2,6 +2,9 @@
 @section('title', 'WhatsApp Envio')
 
 @section('content')
+    @php
+        $canManageWhatsapp = auth()->user()->hasModule('whatsapp.manage');
+    @endphp
     <div class="page-content">
         <div class="container-fluid">
             <div class="row">
@@ -59,73 +62,95 @@
                                 @csrf
 
                                 <div class="row g-3">
-                                    <div class="col-lg-6">
-                                        <label class="form-label">Selecionar clientes</label>
-                                        <select name="client_ids[]" class="form-select" multiple size="12">
+
+                                    {{-- Coluna 1: Grupos --}}
+                                    <div class="col-lg-3">
+                                        <label class="form-label fw-semibold">Grupos</label>
+                                        <div class="border rounded p-2" style="height: 480px; overflow-y: auto;" id="groups_container">
+                                            @forelse ($groups as $group)
+                                                <div class="form-check py-1">
+                                                    <input class="form-check-input group-check" type="checkbox"
+                                                        name="group_ids[]"
+                                                        value="{{ $group->id }}"
+                                                        id="group_{{ $group->id }}"
+                                                        data-client-ids="{{ json_encode($groupClients->get($group->id, [])) }}"
+                                                        @checked(in_array((int) $group->id, $oldGroupIds, true))>
+                                                    <label class="form-check-label" for="group_{{ $group->id }}">
+                                                        {{ $group->name }}
+                                                        <span class="badge bg-secondary ms-1">{{ (int) ($group->clients_count ?? 0) }}</span>
+                                                    </label>
+                                                </div>
+                                            @empty
+                                                <p class="text-muted small mb-0">Nenhum grupo cadastrado.</p>
+                                            @endforelse
+                                        </div>
+                                        <small class="text-muted">Selecione um grupo para marcar seus clientes automaticamente.</small>
+                                    </div>
+
+                                    {{-- Coluna 2: Clientes --}}
+                                    <div class="col-lg-3">
+                                        <label class="form-label fw-semibold">
+                                            Clientes
+                                            <span class="text-muted fw-normal small ms-1" id="clients_counter"></span>
+                                        </label>
+                                        <div class="border rounded p-2" style="height: 480px; overflow-y: auto;" id="clients_container">
                                             @foreach ($clients as $client)
-                                                <option value="{{ $client->id }}" @selected(in_array((int) $client->id, $oldClientIds, true))>
-                                                    {{ $client->name }}
-                                                    @if (!empty($client->phone))
-                                                        — {{ $client->phone }}
-                                                    @else
-                                                        — sem telefone
-                                                    @endif
-                                                </option>
+                                                <div class="form-check py-1 client-item" data-client-id="{{ $client->id }}">
+                                                    <input class="form-check-input client-check" type="checkbox"
+                                                        name="client_ids[]"
+                                                        value="{{ $client->id }}"
+                                                        id="client_{{ $client->id }}"
+                                                        @checked(in_array((int) $client->id, $oldClientIds, true))>
+                                                    <label class="form-check-label" for="client_{{ $client->id }}">
+                                                        {{ $client->name }}
+                                                    </label>
+                                                </div>
                                             @endforeach
-                                        </select>
-                                        <small class="text-muted">Use Ctrl/Cmd para selecionar múltiplos clientes.</small>
+                                        </div>
+                                        <small class="text-muted">Clientes dos grupos selecionados são marcados automaticamente. Você também pode marcar individualmente.</small>
                                     </div>
 
+                                    {{-- Coluna 3: Mensagem e Anexo --}}
                                     <div class="col-lg-6">
-                                        <label class="form-label">Selecionar grupos</label>
-                                        <select name="group_ids[]" class="form-select" multiple size="12">
-                                            @foreach ($groups as $group)
-                                                <option value="{{ $group->id }}" @selected(in_array((int) $group->id, $oldGroupIds, true))>
-                                                    {{ $group->name }} ({{ (int) ($group->clients_count ?? 0) }} clientes)
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        <small class="text-muted">Clientes selecionados e clientes dos grupos serão
-                                            unificados sem duplicar.</small>
-                                    </div>
+                                        <div class="d-flex flex-column" style="height: 100%;">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-semibold">Mensagem (texto)</label>
+                                                <textarea id="wpp_message" name="message" class="form-control" rows="10"
+                                                    maxlength="4000"
+                                                    placeholder="Digite a mensagem que será enviada...">{{ old('message') }}</textarea>
+                                                <small class="text-muted">Se anexar imagem/arquivo, o texto será usado como legenda.</small>
+                                            </div>
 
-                                    <div class="col-12">
-                                        <label class="form-label">Mensagem (texto)</label>
-                                        <textarea id="wpp_message" name="message" class="form-control" rows="5"
-                                            maxlength="4000"
-                                            placeholder="Digite a mensagem que será enviada...">{{ old('message') }}</textarea>
-                                        <small class="text-muted">Se anexar imagem/arquivo, o texto será usado como
-                                            legenda.</small>
-                                    </div>
+                                            <div class="mb-3">
+                                                <label class="form-label fw-semibold">Anexo (imagem ou arquivo)</label>
+                                                <input id="wpp_attachment" type="file" name="attachment" class="form-control"
+                                                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv">
+                                                <div class="mt-2 d-flex gap-2 flex-wrap">
+                                                    <button type="button" id="btn_paste_image"
+                                                        class="btn btn-outline-secondary btn-sm">
+                                                        <i class="ri-clipboard-line me-1"></i> Colar print/Imagem
+                                                    </button>
+                                                </div>
+                                                <small class="text-muted d-block mt-2">Opcional. Máximo: 15MB.</small>
+                                                <small class="text-muted d-block mt-1">
+                                                    Dica: use <kbd>Ctrl+V</kbd> (ou <kbd>⌘+V</kbd> no Mac) para colar uma imagem.
+                                                </small>
+                                                <div id="paste_feedback" class="small mt-2 text-success d-none"></div>
+                                                <div id="paste_preview_wrapper" class="mt-2 d-none">
+                                                    <img id="paste_preview" alt="Prévia da imagem colada" class="img-thumbnail"
+                                                        style="max-height: 220px;">
+                                                </div>
+                                            </div>
 
-                                    <div class="col-12">
-                                        <label class="form-label">Anexo (imagem ou arquivo)</label>
-                                        <input id="wpp_attachment" type="file" name="attachment" class="form-control"
-                                            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv">
-                                        <div class="mt-2 d-flex gap-2 flex-wrap">
-                                            <button type="button" id="btn_paste_image"
-                                                class="btn btn-outline-secondary btn-sm">
-                                                <i class="ri-clipboard-line me-1"></i> Colar print/Imagem
-                                            </button>
-                                        </div>
-                                        <small class="text-muted d-block mt-2">Opcional. Máximo: 15MB.</small>
-                                        <small class="text-muted d-block mt-1">
-                                            Dica: você pode usar <kbd>Ctrl+V</kbd> (ou <kbd>⌘+V</kbd> no Mac) para colar uma
-                                            imagem (incluindo print da tela copiado).
-                                        </small>
-                                        <div id="paste_feedback" class="small mt-2 text-success d-none"></div>
-                                        <div id="paste_preview_wrapper" class="mt-2 d-none">
-                                            <img id="paste_preview" alt="Prévia da imagem colada" class="img-thumbnail"
-                                                style="max-height: 220px;">
+                                            <div class="mt-auto d-flex justify-content-end">
+                                                    <button type="submit" class="btn btn-primary">
+                                                        <i class="ri-send-plane-2-line me-1"></i>
+                                                        Disparar Mensagens
+                                                    </button>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div class="col-12 d-flex justify-content-end">
-                                        <button type="submit" class="btn btn-primary">
-                                            <i class="ri-send-plane-2-line me-1"></i>
-                                            Disparar Mensagens
-                                        </button>
-                                    </div>
                                 </div>
                             </form>
                         </div>
@@ -138,6 +163,59 @@
 
 @push('scripts')
     <script>
+        // ── Lógica grupos → clientes ──────────────────────────────────────────────
+        (function () {
+            const groupChecks  = document.querySelectorAll('.group-check');
+            const clientChecks = document.querySelectorAll('.client-check');
+            const counter      = document.getElementById('clients_counter');
+
+            // IDs atualmente marcados por causa de grupos
+            let groupDrivenIds = new Set();
+
+            function updateCounter() {
+                if (!counter) return;
+                const total    = clientChecks.length;
+                const selected = Array.from(clientChecks).filter(cb => cb.checked).length;
+                counter.textContent = selected > 0 ? `(${selected}/${total} selecionados)` : `(${total} no total)`;
+            }
+
+            function recalcGroupDriven() {
+                const newGroupDrivenIds = new Set();
+                groupChecks.forEach(cb => {
+                    if (cb.checked) {
+                        const ids = JSON.parse(cb.dataset.clientIds || '[]');
+                        ids.forEach(id => newGroupDrivenIds.add(Number(id)));
+                    }
+                });
+
+                clientChecks.forEach(clientCb => {
+                    const id           = Number(clientCb.value);
+                    const wasGroupDriven = groupDrivenIds.has(id);
+                    const isGroupDriven  = newGroupDrivenIds.has(id);
+
+                    if (isGroupDriven) {
+                        clientCb.checked = true;
+                    } else if (wasGroupDriven) {
+                        // Estava marcado por grupo mas não está mais — desmarcar
+                        clientCb.checked = false;
+                    }
+                    // Se era manual e não muda de grupo: deixa como está
+                });
+
+                groupDrivenIds = newGroupDrivenIds;
+                updateCounter();
+            }
+
+            groupChecks.forEach(cb => cb.addEventListener('change', recalcGroupDriven));
+            clientChecks.forEach(cb => cb.addEventListener('change', updateCounter));
+
+            // Inicializa contagem e grupos já marcados (ex: validação falhou e recarregou)
+            recalcGroupDriven();
+        })();
+    </script>
+
+    <script>
+        // ── Lógica de paste / anexo ───────────────────────────────────────────────
         (function () {
             const messageInput = document.getElementById('wpp_message');
             const attachmentInput = document.getElementById('wpp_attachment');

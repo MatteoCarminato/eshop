@@ -79,45 +79,57 @@
             </div>
             <ul class="navbar-nav" id="navbar-nav">
                 <li class="menu-title"><span data-key="t-menu">Menu</span></li>
-                <li class="nav-item">
-                    <a class="nav-link menu-link" href="#sidebarDashboards" data-bs-toggle="collapse" role="button"
-                        aria-expanded="false" aria-controls="sidebarDashboards">
-                        <i data-feather="users"></i> <span data-key="t-dashboards">Clientes</span>
-                    </a>
-                    <div class="collapse menu-dropdown" id="sidebarDashboards">
-                        <ul class="nav nav-sm flex-column">
-                            <li class="nav-item">
-                                <a href="{{ route('clients.index') }}" class="nav-link">
-                                    Listar </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ route('clients.create') }}" class="nav-link">
-                                    Cadastrar </a>
-                            </li>
-                        </ul>
-                    </div>
-                </li> <!-- end Dashboard Menu -->
+                @if (auth()->user()->hasModule('clients.view') || auth()->user()->hasModule('clients.manage'))
+                    <li class="nav-item">
+                        <a class="nav-link menu-link" href="#sidebarDashboards" data-bs-toggle="collapse" role="button"
+                            aria-expanded="false" aria-controls="sidebarDashboards">
+                            <i data-feather="users"></i> <span data-key="t-dashboards">Clientes</span>
+                        </a>
+                        <div class="collapse menu-dropdown" id="sidebarDashboards">
+                            <ul class="nav nav-sm flex-column">
+                                @if (auth()->user()->hasModule('clients.view'))
+                                    <li class="nav-item">
+                                        <a href="{{ route('clients.index') }}" class="nav-link">
+                                            Listar </a>
+                                    </li>
+                                @endif
+                                @if (auth()->user()->hasModule('clients.manage'))
+                                    <li class="nav-item">
+                                        <a href="{{ route('clients.create') }}" class="nav-link">
+                                            Cadastrar </a>
+                                    </li>
+                                @endif
+                            </ul>
+                        </div>
+                    </li> <!-- end Dashboard Menu -->
+                @endif
 
-                <li class="nav-item">
-                    <a class="nav-link menu-link" href="#sidebarGroups" data-bs-toggle="collapse" role="button"
-                        aria-expanded="false" aria-controls="sidebarGroups">
-                        <i data-feather="radio"></i> <span>Grupos</span>
-                    </a>
-                    <div class="collapse menu-dropdown" id="sidebarGroups">
-                        <ul class="nav nav-sm flex-column">
-                            <li class="nav-item">
-                                <a href="{{ route('groups.index') }}" class="nav-link">
-                                    Listar
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ route('groups.create') }}" class="nav-link">
-                                    Cadastrar
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
-                </li>
+                @if (auth()->user()->hasModule('groups.view') || auth()->user()->hasModule('groups.manage'))
+                    <li class="nav-item">
+                        <a class="nav-link menu-link" href="#sidebarGroups" data-bs-toggle="collapse" role="button"
+                            aria-expanded="false" aria-controls="sidebarGroups">
+                            <i data-feather="radio"></i> <span>Grupos</span>
+                        </a>
+                        <div class="collapse menu-dropdown" id="sidebarGroups">
+                            <ul class="nav nav-sm flex-column">
+                                @if (auth()->user()->hasModule('groups.view'))
+                                    <li class="nav-item">
+                                        <a href="{{ route('groups.index') }}" class="nav-link">
+                                            Listar
+                                        </a>
+                                    </li>
+                                @endif
+                                @if (auth()->user()->hasModule('groups.manage'))
+                                    <li class="nav-item">
+                                        <a href="{{ route('groups.create') }}" class="nav-link">
+                                            Cadastrar
+                                        </a>
+                                    </li>
+                                @endif
+                            </ul>
+                        </div>
+                    </li>
+                @endif
 
                 @auth
                     @if (auth()->user()->hasModule('roles.manage'))
@@ -165,22 +177,26 @@
                     @endif
                 @endauth
 
-                <li class="nav-item">
-                    <a class="nav-link menu-link" href="#sidebarWallet" data-bs-toggle="collapse" role="button"
-                        aria-expanded="false" aria-controls="sidebarWallet">
-                        <i class="mdi mdi-cash-multiple"></i> <span>Carteira/Câmbio</span>
-                    </a>
-                    <div class="collapse menu-dropdown" id="sidebarWallet">
-                        <ul class="nav nav-sm flex-column">
-                            <li class="nav-item">
-                                <a href="{{ route('admin.wallet.index') }}" class="nav-link">Saldo</a>
-                            </li>
-                        </ul>
-                    </div>
-                </li>
+                @if (auth()->user()->hasModule('wallet.view') || auth()->user()->hasModule('wallet.manage'))
+                    <li class="nav-item">
+                        <a class="nav-link menu-link" href="#sidebarWallet" data-bs-toggle="collapse" role="button"
+                            aria-expanded="false" aria-controls="sidebarWallet">
+                            <i class="mdi mdi-cash-multiple"></i> <span>Carteira/Câmbio</span>
+                        </a>
+                        <div class="collapse menu-dropdown" id="sidebarWallet">
+                            <ul class="nav nav-sm flex-column">
+                                @if (auth()->user()->hasModule('wallet.view'))
+                                    <li class="nav-item">
+                                        <a href="{{ route('admin.wallet.index') }}" class="nav-link">Saldo</a>
+                                    </li>
+                                @endif
+                            </ul>
+                        </div>
+                    </li>
+                @endif
 
                 @auth
-                    @if (auth()->user()->isAdmin() || auth()->user()->hasModule('whatsapp.view') || auth()->user()->hasModule('wallet.view'))
+                    @if (auth()->user()->hasModule('whatsapp.view') || auth()->user()->hasModule('whatsapp.manage'))
                         <li class="nav-item">
                             <a class="nav-link menu-link" href="#sidebarWhatsApp" data-bs-toggle="collapse" role="button"
                                 aria-expanded="false" aria-controls="sidebarWhatsApp">
@@ -188,36 +204,25 @@
                             </a>
                             <div class="collapse menu-dropdown" id="sidebarWhatsApp">
                                 <ul class="nav nav-sm flex-column">
-                                    <li class="nav-item">
-                                        <a href="{{ route('admin.whatsapp.envio') }}" class="nav-link menu-link">Enviar
-                                            Mensagens</a>
-                                    </li>
-                                    <li class="nav-item">
-                                        <a class="nav-link menu-link" href="{{ route('admin.whatsapp.index') }}">
-                                            Configurar WPP
-                                        </a>
-                                    </li>
+                                    @if (auth()->user()->hasModule('whatsapp.view'))
+                                        <li class="nav-item">
+                                            <a href="{{ route('admin.whatsapp.envio') }}" class="nav-link menu-link">Enviar
+                                                Mensagens</a>
+                                        </li>
+                                    @endif
+                                    @if (auth()->user()->hasModule('whatsapp.manage'))
+                                        <li class="nav-item">
+                                            <a class="nav-link menu-link" href="{{ route('admin.whatsapp.index') }}">
+                                                Configurar WPP
+                                            </a>
+                                        </li>
+                                    @endif
                                 </ul>
                             </div>
                         </li>
 
                     @endif
                 @endauth
-
-                <li class="nav-item">
-                    <a class="nav-link menu-link" href="#sidebarApps" data-bs-toggle="collapse" role="button"
-                        aria-expanded="false" aria-controls="sidebarApps">
-                        <i class="ri-apps-2-line"></i> <span data-key="t-apps">Produtos</span>
-                    </a>
-                    <div class="collapse menu-dropdown" id="sidebarApps">
-                        <ul class="nav nav-sm flex-column">
-                            <li class="nav-item">
-                                <a href="apps-chat.html" class="nav-link" data-key="t-chat"> Chat </a>
-                            </li>
-                        </ul>
-                    </div>
-                </li>
-
             </ul>
         </div>
         <!-- Sidebar -->

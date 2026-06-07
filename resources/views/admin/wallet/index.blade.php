@@ -1,6 +1,9 @@
 @extends('layouts.app')
 @section('title', 'Carteira')
 @section('content')
+    @php
+        $canViewPnl = auth()->user()->hasModule('wallet.pnl.view');
+    @endphp
     <div class="page-content">
         <div class="container-fluid">
             <div class="row">
@@ -51,45 +54,78 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6 col-xl-3">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body">
-                            <h6 class="text-muted text-uppercase mb-2">Lucro realizado</h6>
-                            <h3 class="mb-0 {{ ($totals['PNL_USD'] ?? 0) >= 0 ? 'text-success' : 'text-danger' }}">
-                                {{ ($totals['PNL_USD'] ?? 0) >= 0 ? '+' : '' }}US$ {{ number_format($totals['PNL_USD'] ?? 0, 4, ',', '.') }}
-                            </h3>
-                            <small class="text-muted">
-                                @if($dateFrom || $dateTo)
-                                    Período: {{ $dateFrom ? $dateFrom->format('d/m/Y') : 'início' }} — {{ $dateTo ? $dateTo->format('d/m/Y') : 'hoje' }}
-                                @else
-                                    Acumulado de todos os fechamentos.
-                                @endif
-                            </small>
+                @if($canViewPnl)
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <h6 class="text-muted text-uppercase mb-2">Lucro realizado</h6>
+                                <h3 class="mb-0 {{ ($totals['PNL_USD'] ?? 0) >= 0 ? 'text-success' : 'text-danger' }}">
+                                    {{ ($totals['PNL_USD'] ?? 0) >= 0 ? '+' : '' }}US$ {{ number_format($totals['PNL_USD'] ?? 0, 4, ',', '.') }}
+                                </h3>
+                                <small class="text-muted">
+                                    @if($dateFrom || $dateTo)
+                                        Período: {{ $dateFrom ? $dateFrom->format('d/m/Y') : 'início' }} — {{ $dateTo ? $dateTo->format('d/m/Y') : 'hoje' }}
+                                    @else
+                                        Acumulado de todos os fechamentos.
+                                    @endif
+                                </small>
+                            </div>
                         </div>
                     </div>
+                @endif
+            </div>
+            <div class="d-flex flex-wrap mt-2 mb-2">
+                <div class="col-md-9">
+                <form method="GET" class="row g-2 align-items-end">
+                    <div class="col-auto">
+                        <label class="form-label mb-1">De</label>
+                        <input type="date" name="date_from" class="form-control"
+                            value="{{ request('date_from') }}">
+                    </div>
+
+                    <div class="col-auto">
+                        <label class="form-label mb-1">Até</label>
+                        <input type="date" name="date_to" class="form-control"
+                            value="{{ request('date_to') }}">
+                    </div>
+
+                    <div class="col-auto d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-filter-2-line me-1"></i>{{ $canViewPnl ? 'Filtrar lucro' : 'Filtrar período' }}
+                        </button>
+
+                        @if($dateFrom || $dateTo)
+                            <a href="{{ route('admin.wallet.index') }}"
+                                class="btn btn-outline-secondary">
+                                Limpar
+                            </a>
+                        @endif
+                    </div>
+                </form>
+</div>
+ <div class="col-md-3">
+                <form method="GET"
+                    action="{{ route('admin.wallet.pix-daily-pdf') }}"
+                    class="row g-2 align-items-end">
+
+                    <div class="col-auto">
+                        <label class="form-label mb-1">Data do PIX</label>
+                        <input type="date"
+                            name="pix_date"
+                            class="form-control"
+                            value="{{ request('pix_date', now()->subHours(3)->format('Y-m-d')) }}"
+                            required>
+                    </div>
+
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="ri-printer-line me-1"></i>Imprimir PDF
+                        </button>
+                    </div>
+
+                </form>
                 </div>
             </div>
-
-            <form method="GET" class="row g-2 align-items-end mb-3">
-                <div class="col-md-3">
-                    <label class="form-label mb-1">De</label>
-                    <input type="date" name="date_from" class="form-control"
-                        value="{{ request('date_from') }}">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label mb-1">Até</label>
-                    <input type="date" name="date_to" class="form-control"
-                        value="{{ request('date_to') }}">
-                </div>
-                <div class="col-md-3 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="ri-filter-2-line me-1"></i>Filtrar lucro
-                    </button>
-                    @if($dateFrom || $dateTo)
-                        <a href="{{ route('admin.wallet.index') }}" class="btn btn-outline-secondary">Limpar</a>
-                    @endif
-                </div>
-            </form>
 
             <div class="row">
                 <div class="col-lg-12">
@@ -115,7 +151,9 @@
                                             <th class="text-end" title="USD comprado pelo dono ainda não entregue">
                                                 USD pré-comprado
                                             </th>
-                                            <th class="text-end" title="Lucro/prejuízo já realizado nos fechamentos">PnL (US$)</th>
+                                            @if($canViewPnl)
+                                                <th class="text-end" title="Lucro/prejuízo já realizado nos fechamentos">PnL (US$)</th>
+                                            @endif
                                             <th style="width: 160px">Ações</th>
                                         </tr>
                                     </thead>
@@ -165,10 +203,12 @@
                                                 <td class="text-end {{ $pp['usd_pre_comprado'] > 0 ? 'fw-semibold' : 'text-muted' }}">
                                                     US$ {{ number_format($pp['usd_pre_comprado'], 2, ',', '.') }}
                                                 </td>
-                                                <td class="text-end {{ $ppPnlUsd >= 0 ? 'text-success' : 'text-danger' }}">
-                                                    {{ $ppPnlUsd >= 0 ? '+' : '' }}US$
-                                                    {{ number_format($ppPnlUsd, 4, ',', '.') }}
-                                                </td>
+                                                @if($canViewPnl)
+                                                    <td class="text-end {{ $ppPnlUsd >= 0 ? 'text-success' : 'text-danger' }}">
+                                                        {{ $ppPnlUsd >= 0 ? '+' : '' }}US$
+                                                        {{ number_format($ppPnlUsd, 4, ',', '.') }}
+                                                    </td>
+                                                @endif
                                                 <td>
                                                     <a href="{{ route('admin.wallet.client', $client) }}"
                                                         class="btn btn-sm btn-primary">
@@ -178,7 +218,7 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="7" class="text-center text-muted py-4">
+                                                <td colspan="{{ $canViewPnl ? 7 : 6 }}" class="text-center text-muted py-4">
                                                     Nenhum cliente com módulo de câmbio ativo.
                                                 </td>
                                             </tr>
@@ -190,6 +230,7 @@
                     </div>
                 </div>
             </div>
+
         </div>
     </div>
 

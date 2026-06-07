@@ -32,6 +32,7 @@ class WhatsappController extends Controller
     {
         $clients = DB::table('clients')
             ->select(['id', 'name', 'phone'])
+            ->where('deleted_at', null)
             ->orderBy('name')
             ->get();
 
@@ -47,9 +48,16 @@ class WhatsappController extends Controller
             ->orderBy('groups.name')
             ->get();
 
+        $groupClients = DB::table('group_client')
+            ->select(['group_id', 'client_id'])
+            ->get()
+            ->groupBy('group_id')
+            ->map(fn($items) => $items->pluck('client_id')->values()->all());
+
         return view('admin.whatsapp.envio', [
             'clients' => $clients,
             'groups' => $groups,
+            'groupClients' => $groupClients,
         ]);
     }
 

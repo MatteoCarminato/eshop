@@ -49,6 +49,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('admin/wallet')->name('admin.wallet.')->group(function () {
         Route::middleware('module:wallet.view')->group(function () {
             Route::get('/', [\App\Http\Controllers\WalletController::class, 'index'])->name('index');
+            Route::get('/pix-daily-pdf', [\App\Http\Controllers\WalletController::class, 'exportDailyPixPdf'])->name('pix-daily-pdf');
             Route::get('/client/{client}', [\App\Http\Controllers\WalletController::class, 'clientWallet'])->name('client');
             Route::get('/client/{client}/export', [\App\Http\Controllers\WalletController::class, 'exportClientCsv'])->name('client.export');
             Route::get('/client/{client}/export-xlsx', [\App\Http\Controllers\WalletController::class, 'exportClientXlsx'])->name('client.export-xlsx');
@@ -94,7 +95,7 @@ Route::middleware('auth')->group(function () {
 
     // WhatsApp (conexão com serviço Node já existente)
     Route::prefix('admin/whatsapp')->name('admin.whatsapp.')->group(function () {
-        Route::middleware('module:whatsapp.view,wallet.view')->group(function () {
+        Route::middleware('module:whatsapp.view')->group(function () {
             Route::get('/', [\App\Http\Controllers\WhatsappController::class, 'index'])->name('index');
             Route::get('/envio', [\App\Http\Controllers\WhatsappController::class, 'envio'])->name('envio');
             Route::get('/status', [\App\Http\Controllers\WhatsappController::class, 'status'])->name('status');
@@ -102,7 +103,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/qr-image', [\App\Http\Controllers\WhatsappController::class, 'qrImage'])->name('qr-image');
         });
 
-        Route::middleware('module:whatsapp.manage,wallet.manage')->group(function () {
+        Route::middleware('module:whatsapp.manage')->group(function () {
             Route::post('/connect', [\App\Http\Controllers\WhatsappController::class, 'connect'])->name('connect');
             Route::post('/disconnect', [\App\Http\Controllers\WhatsappController::class, 'disconnect'])->name('disconnect');
             Route::post('/send', [\App\Http\Controllers\WhatsappController::class, 'send'])->name('send');
