@@ -9,6 +9,8 @@ use App\Services\WalletService;
 use App\Services\TransactionService;
 use App\Services\CurrencyService;
 use App\Services\TreasuryService;
+use App\Services\OperationReversalService;
+use App\Models\OperationSnapshot;
 use App\Models\Transaction;
 use App\Models\TransactionRateChangeLog;
 use Illuminate\Support\Facades\DB;
@@ -24,13 +26,15 @@ class WalletController extends Controller
     protected $transactionService;
     protected $currencyService;
     protected $treasuryService;
+    protected $reversalService;
 
-    public function __construct(WalletService $walletService, TransactionService $transactionService, CurrencyService $currencyService, TreasuryService $treasuryService)
+    public function __construct(WalletService $walletService, TransactionService $transactionService, CurrencyService $currencyService, TreasuryService $treasuryService, OperationReversalService $reversalService)
     {
         $this->walletService = $walletService;
         $this->transactionService = $transactionService;
         $this->currencyService = $currencyService;
         $this->treasuryService = $treasuryService;
+        $this->reversalService = $reversalService;
     }
 
     protected function calculateDisplayedBalances(\App\Models\Client $client): array
@@ -198,6 +202,20 @@ class WalletController extends Controller
             ->whereIn('status', ['open', 'partial'])
             ->get()->groupBy('source_transaction_id');
 
+        // Operações reversíveis (snapshots) ainda não revertidas deste cliente,
+        // indexadas pela transação-âncora (id do depósito) para exibir os botões.
+        $reversalSnapshots = OperationSnapshot::where('client_id', $client->id)
+            ->whereNull('reversed_at')
+            ->orderByDesc('created_at')
+            ->get();
+
+        $reversalsByAnchor = [];
+        foreach ($reversalSnapshots as $snap) {
+            foreach (($snap->deposit_ids ?? []) as $anchorId) {
+                $reversalsByAnchor[(int) $anchorId][] = $snap;
+            }
+        }
+
         return view('admin.wallet.client', compact(
             'client',
             'balances',
@@ -210,6 +228,7 @@ class WalletController extends Controller
             'preSellsByDeposit',
             'treasuryClientSummary',
             'treasurySummary',
+            'reversalsByAnchor',
             'dateFrom',
             'dateTo'
         ));
@@ -874,37 +893,45 @@ class WalletController extends Controller
             'transaction_ids.*' => 'integer|exists:transactions,id',
         ]);
 
-        try {
-            $lotes = $this->walletService->prePurchaseDollar(
-                (int) $validated['client_id'],
-                (float) $validated['amount'],
-                (float) $validated['exchange_rate'],
-                $validated['description'] ?? null,
-                !empty($validated['transaction_ids'])
-                    ? array_map('intval', $validated['transaction_ids'])
-                    : null
-            );
+        $anchorIds = !empty($validated['transaction_ids'])
+            ? array_map('intval', $validated['transaction_ids'])
+            : [];
+        $label = 'Pré-compra R$ ' . number_format((float) $validated['amount'], 2, ',', '.') .
+            ' @ ' . number_format((float) $validated['exchange_rate'], 4, ',', '.');
 
-            // Finaliza depósitos-fonte cobertos por compra + venda.
-            $depositIds = array_unique(array_map(fn ($l) => (int) $l->source_transaction_id, $lotes));
-            foreach ($depositIds as $depId) {
-                $dep = \App\Models\Transaction::find($depId);
-                if ($dep) {
-                    $this->walletService->finalizeDepositIfCovered($dep);
+        return $this->reversalService->capture('pre_purchase', (int) $validated['client_id'], $anchorIds, $label, function () use ($validated) {
+            try {
+                $lotes = $this->walletService->prePurchaseDollar(
+                    (int) $validated['client_id'],
+                    (float) $validated['amount'],
+                    (float) $validated['exchange_rate'],
+                    $validated['description'] ?? null,
+                    !empty($validated['transaction_ids'])
+                        ? array_map('intval', $validated['transaction_ids'])
+                        : null
+                );
+
+                // Finaliza depósitos-fonte cobertos por compra + venda.
+                $depositIds = array_unique(array_map(fn ($l) => (int) $l->source_transaction_id, $lotes));
+                foreach ($depositIds as $depId) {
+                    $dep = \App\Models\Transaction::find($depId);
+                    if ($dep) {
+                        $this->walletService->finalizeDepositIfCovered($dep);
+                    }
                 }
+            } catch (\Throwable $e) {
+                return back()->with('error', $e->getMessage());
             }
-        } catch (\Throwable $e) {
-            return back()->with('error', $e->getMessage());
-        }
 
-        $totalUsd = array_sum(array_map(fn ($l) => (float) $l->usd_amount, $lotes));
-        $totalBrl = array_sum(array_map(fn ($l) => (float) $l->brl_amount, $lotes));
+            $totalUsd = array_sum(array_map(fn ($l) => (float) $l->usd_amount, $lotes));
+            $totalBrl = array_sum(array_map(fn ($l) => (float) $l->brl_amount, $lotes));
 
-        return back()->with('success',
-            'Pré-compra registrada: R$ ' . number_format($totalBrl, 2, ',', '.') .
-            ' → US$ ' . number_format($totalUsd, 2, ',', '.') .
-            ' (taxa ' . number_format((float) $validated['exchange_rate'], 4, ',', '.') . ').'
-        );
+            return back()->with('success',
+                'Pré-compra registrada: R$ ' . number_format($totalBrl, 2, ',', '.') .
+                ' → US$ ' . number_format($totalUsd, 2, ',', '.') .
+                ' (taxa ' . number_format((float) $validated['exchange_rate'], 4, ',', '.') . ').'
+            );
+        });
     }
 
     /**
@@ -922,7 +949,14 @@ class WalletController extends Controller
             'transaction_ids.*' => 'integer|exists:transactions,id',
         ]);
 
-        try {
+        $anchorIds = !empty($validated['transaction_ids'])
+            ? array_map('intval', $validated['transaction_ids'])
+            : [];
+        $label = 'Pré-venda R$ ' . number_format((float) $validated['amount'], 2, ',', '.') .
+            ' @ ' . number_format((float) $validated['sell_rate'], 4, ',', '.');
+
+        return $this->reversalService->capture('pre_sell', (int) $validated['client_id'], $anchorIds, $label, function () use ($validated) {
+            try {
             return DB::transaction(function () use ($validated) {
                 $clientId  = (int) $validated['client_id'];
                 $sellRate  = round((float) $validated['sell_rate'], 4);
@@ -1018,9 +1052,10 @@ class WalletController extends Controller
                 }
                 return $redirect;
             });
-        } catch (\Throwable $e) {
-            return back()->with('error', $e->getMessage());
-        }
+            } catch (\Throwable $e) {
+                return back()->with('error', $e->getMessage());
+            }
+        });
     }
 
     public function rollbackDeposit(Request $request, Transaction $transaction)
@@ -1048,13 +1083,80 @@ class WalletController extends Controller
     }
 
     /**
+     * Reverte uma operação registrada (depósito, pré-compra, pré-venda ou fechamento)
+     * restaurando exatamente o estado anterior capturado no snapshot.
+     */
+    public function reverseSnapshot(Request $request, OperationSnapshot $snapshot)
+    {
+        $validated = $request->validate([
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        try {
+            $summary = $this->reversalService->reverse(
+                $snapshot,
+                (int) Auth::id(),
+                $validated['reason'] ?? null
+            );
+
+            return back()->with('success',
+                'Operação revertida: ' . ($snapshot->label ?: $snapshot->type) . '.'
+            );
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Reverte várias operações de uma vez (ex.: cancelar compra + venda do mesmo
+     * depósito). As reversões são aplicadas da mais recente para a mais antiga.
+     */
+    public function reverseManySnapshots(Request $request)
+    {
+        $validated = $request->validate([
+            'snapshot_ids'   => 'required|array|min:1',
+            'snapshot_ids.*' => 'integer|exists:operation_snapshots,id',
+            'reason'         => 'nullable|string|max:500',
+        ]);
+
+        $snapshots = OperationSnapshot::whereIn('id', $validated['snapshot_ids'])
+            ->whereNull('reversed_at')
+            ->get();
+
+        if ($snapshots->isEmpty()) {
+            return back()->with('error', 'Nenhuma operação reversível encontrada.');
+        }
+
+        try {
+            $this->reversalService->reverseMany(
+                $snapshots,
+                (int) Auth::id(),
+                $validated['reason'] ?? null
+            );
+
+            return back()->with('success',
+                $snapshots->count() . ' operação(ões) revertida(s) com sucesso.'
+            );
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
      * Depósito
      */
     public function deposit(DepositRequest $request)
     {
-        return DB::transaction(function () use ($request) {
-            $data = $request->validated();
-            $client = \App\Models\Client::findOrFail($data['client_id']);
+        $data = $request->validated();
+        $type = $data['currency'] === 'BRL' ? 'deposit_brl' : 'deposit_usd';
+        $label = 'Depósito ' . $data['currency'] . ' ' .
+            number_format((float) $data['amount'], 2, ',', '.') .
+            ' via ' . ($data['payment_method'] ?? '-');
+
+        return $this->reversalService->capture($type, (int) $data['client_id'], [], $label, function () use ($request) {
+            return DB::transaction(function () use ($request) {
+                $data = $request->validated();
+                $client = \App\Models\Client::findOrFail($data['client_id']);
             $exchangeRate = null;
             $convertedAmount = null;
             $description = null;
@@ -1083,6 +1185,7 @@ class WalletController extends Controller
                 'description' => $description,
             ]);
             return response()->json(['message' => 'Depósito realizado com sucesso.']);
+            });
         });
     }
 
@@ -1315,7 +1418,11 @@ class WalletController extends Controller
         $newRate   = (float) $validated['exchange_rate'];
         $remaining = round((float) $validated['amount'], 2);
 
-        return DB::transaction(function () use ($validated, $ids, $newRate, $remaining) {
+        $label = 'Fechamento R$ ' . number_format($remaining, 2, ',', '.') .
+            ' @ ' . number_format($newRate, 4, ',', '.');
+
+        return $this->reversalService->capture('fechamento', (int) $validated['client_id'], $ids, $label, function () use ($validated, $ids, $newRate, $remaining) {
+            return DB::transaction(function () use ($validated, $ids, $newRate, $remaining) {
             // Pool elegível: BRL, depósitos positivos, ainda abertos, do cliente, ordenados FIFO.
             $candidates = Transaction::query()
                 ->whereIn('id', $ids)
@@ -1534,6 +1641,7 @@ class WalletController extends Controller
             }
 
             return $redirect;
+        });
         });
     }
 }
