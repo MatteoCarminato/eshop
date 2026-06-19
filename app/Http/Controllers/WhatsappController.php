@@ -347,14 +347,6 @@ class WhatsappController extends Controller
             $digits = substr($digits, 2);
         }
 
-        if (!str_starts_with($digits, '55') && in_array(strlen($digits), [10, 11], true)) {
-            $digits = '55' . $digits;
-        }
-
-        if (strlen($digits) < 12 || strlen($digits) > 13) {
-            return null;
-        }
-
         return $digits;
     }
 

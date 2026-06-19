@@ -20,17 +20,26 @@ const resolveChatId = async (client, phone, directChatId) => {
   const formattedPhone = formatPhoneForWhatsApp(phone);
   const sanitizedNumber = formattedPhone.replace('@c.us', '');
 
-  try {
-    // getNumberId verifica se o número está registrado e retorna o ID correto
-    const numberId = await client.getNumberId(sanitizedNumber);
+  // Candidatos: número original e, para celulares brasileiros com 13 dígitos (55+DDD+9+8),
+  // tenta também sem o nono dígito (55+DDD+8) pois o WhatsApp às vezes só registra sem ele.
+  const candidates = [sanitizedNumber];
+  if (/^55\d{11}$/.test(sanitizedNumber)) {
+    // Remove o 9 que vem após o DDD (posição 4)
+    candidates.push(sanitizedNumber.slice(0, 4) + sanitizedNumber.slice(5));
+  }
 
-    if (!numberId) {
-      logger.warn(`⚠️ Número ${sanitizedNumber} não está registrado no WhatsApp`);
-      return { chatId: null, registered: false };
+  try {
+    for (const candidate of candidates) {
+      // getNumberId verifica se o número está registrado e retorna o ID correto
+      const numberId = await client.getNumberId(candidate);
+      if (numberId) {
+        // Usa o _serialized que tem o formato correto com LID
+        return { chatId: numberId._serialized, registered: true };
+      }
     }
 
-    // Usa o _serialized que tem o formato correto com LID
-    return { chatId: numberId._serialized, registered: true };
+    logger.warn(`⚠️ Número ${sanitizedNumber} não está registrado no WhatsApp`);
+    return { chatId: null, registered: false };
   } catch (error) {
     logger.error(`Erro ao resolver número ${sanitizedNumber}:`, { error: error.message });
     return { chatId: null, registered: false };
