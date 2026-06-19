@@ -33,8 +33,7 @@ const resolveChatId = async (client, phone, directChatId) => {
     return { chatId: numberId._serialized, registered: true };
   } catch (error) {
     logger.error(`Erro ao resolver número ${sanitizedNumber}:`, { error: error.message });
-    // Fallback: tenta com o formato padrão
-    return { chatId: formattedPhone, registered: true };
+    return { chatId: null, registered: false };
   }
 };
 
