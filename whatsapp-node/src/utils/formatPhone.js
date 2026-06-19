@@ -14,14 +14,7 @@ const cleanPhone = (phone) => phone.replace(/\D/g, '');
  * @returns {string} Número formatado para WhatsApp (com @c.us).
  */
 const formatPhoneForWhatsApp = (phone) => {
-  let cleaned = cleanPhone(phone);
-
-  // Remove prefixo internacional 00, caso exista
-  if (cleaned.startsWith('00')) {
-    cleaned = cleaned.slice(2);
-  }
-
-  return `${cleaned}@c.us`;
+  return `${phone}@c.us`;
 };
 
 
