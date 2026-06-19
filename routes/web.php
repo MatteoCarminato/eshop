@@ -78,6 +78,7 @@ Route::middleware('auth')->group(function () {
 
         Route::middleware('module:wallet.delete')->group(function () {
             Route::post('/deposits/{transaction}/rollback', [\App\Http\Controllers\WalletController::class, 'rollbackDeposit'])->name('rollback-deposit');
+            Route::post('/withdraws/{transaction}/rollback', [\App\Http\Controllers\WalletController::class, 'rollbackWithdraw'])->name('rollback-withdraw');
             Route::post('/operations/{snapshot}/reverse', [\App\Http\Controllers\WalletController::class, 'reverseSnapshot'])->name('operations.reverse');
             Route::post('/operations/reverse-many', [\App\Http\Controllers\WalletController::class, 'reverseManySnapshots'])->name('operations.reverse-many');
         });

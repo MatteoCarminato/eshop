@@ -1083,6 +1083,43 @@ class WalletController extends Controller
     }
 
     /**
+     * Reverte (apaga) um saque USD e recompõe o saldo da carteira do cliente.
+     */
+    public function rollbackWithdraw(Request $request, Transaction $transaction)
+    {
+        $validated = $request->validate([
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        try {
+            return DB::transaction(function () use ($transaction, $validated) {
+                $tx = Transaction::query()
+                    ->whereKey($transaction->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if (!($tx->type === 'withdraw' && $tx->currency === 'USD')) {
+                    throw new \RuntimeException('Apenas saques em USD podem ser revertidos por esta ação.');
+                }
+
+                $amountUsd = abs((float) $tx->amount);
+                $clientId = (int) $tx->client_id;
+
+                // Soft-delete do saque e recálculo do saldo para manter consistência com o ledger.
+                $tx->delete();
+                $this->walletService->recalculateUsdBalance($clientId, false);
+
+                return back()->with('success',
+                    'Saque removido com sucesso: US$ ' . number_format($amountUsd, 2, ',', '.') .
+                    (!empty($validated['reason']) ? ' | Motivo: ' . $validated['reason'] : '')
+                );
+            });
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
      * Reverte uma operação registrada (depósito, pré-compra, pré-venda ou fechamento)
      * restaurando exatamente o estado anterior capturado no snapshot.
      */
