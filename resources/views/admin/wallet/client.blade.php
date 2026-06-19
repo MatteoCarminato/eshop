@@ -855,11 +855,11 @@
                                                         <form method="POST"
                                                             action="{{ route('admin.wallet.rollback-deposit', $tx) }}"
                                                             onsubmit="
-                                                                                                                                                                                                                                                                                                                                                                                                                                                const motivo = prompt('Motivo do rollback (opcional):', '');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                if (motivo === null) return false;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                this.querySelector('input[name=reason]').value = motivo;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                return confirm('Confirmar rollback completo do depósito #{{ $tx->id }}?');
-                                                                                                                                                                                                                                                                                                                                                                                                                                            ">
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            const motivo = prompt('Motivo do rollback (opcional):', '');
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            if (motivo === null) return false;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            this.querySelector('input[name=reason]').value = motivo;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            return confirm('Confirmar rollback completo do depósito #{{ $tx->id }}?');
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ">
                                                             @csrf
                                                             <input type="hidden" name="reason" value="">
                                                             <button type="submit" class="btn btn-sm btn-outline-danger"
@@ -870,12 +870,13 @@
                                                     @endif
                                                     @if($canDelete && $buySnaps->isNotEmpty())
                                                         <form method="POST"
-                                                            action="{{ route('admin.wallet.operations.reverse-many') }}" onsubmit="
-                                                                                                const motivo = prompt('Motivo do cancelamento da COMPRA (opcional):', '');
-                                                                                                if (motivo === null) return false;
-                                                                                                this.querySelector('input[name=reason]').value = motivo;
-                                                                                                return confirm('Cancelar a pré-compra deste depósito? Todos os lotes da compra serão revertidos.');
-                                                                                            ">
+                                                            action="{{ route('admin.wallet.operations.reverse-many') }}"
+                                                            onsubmit="
+                                                                                                                                                                                                                                                            const motivo = prompt('Motivo do cancelamento da COMPRA (opcional):', '');
+                                                                                                                                                                                                                                                            if (motivo === null) return false;
+                                                                                                                                                                                                                                                            this.querySelector('input[name=reason]').value = motivo;
+                                                                                                                                                                                                                                                            return confirm('Cancelar a pré-compra deste depósito? Todos os lotes da compra serão revertidos.');
+                                                                                                                                                                                                                                                        ">
                                                             @csrf
                                                             <input type="hidden" name="reason" value="">
                                                             @foreach($buySnaps as $s)
@@ -889,12 +890,13 @@
                                                     @endif
                                                     @if($canDelete && $sellSnaps->isNotEmpty())
                                                         <form method="POST"
-                                                            action="{{ route('admin.wallet.operations.reverse-many') }}" onsubmit="
-                                                                                                const motivo = prompt('Motivo do cancelamento da VENDA (opcional):', '');
-                                                                                                if (motivo === null) return false;
-                                                                                                this.querySelector('input[name=reason]').value = motivo;
-                                                                                                return confirm('Cancelar a pré-venda deste depósito? Todos os lotes da venda serão revertidos.');
-                                                                                            ">
+                                                            action="{{ route('admin.wallet.operations.reverse-many') }}"
+                                                            onsubmit="
+                                                                                                                                                                                                                                                            const motivo = prompt('Motivo do cancelamento da VENDA (opcional):', '');
+                                                                                                                                                                                                                                                            if (motivo === null) return false;
+                                                                                                                                                                                                                                                            this.querySelector('input[name=reason]').value = motivo;
+                                                                                                                                                                                                                                                            return confirm('Cancelar a pré-venda deste depósito? Todos os lotes da venda serão revertidos.');
+                                                                                                                                                                                                                                                        ">
                                                             @csrf
                                                             <input type="hidden" name="reason" value="">
                                                             @foreach($sellSnaps as $s)
@@ -908,12 +910,13 @@
                                                     @endif
                                                     @if($canDelete && $buySnaps->isNotEmpty() && $sellSnaps->isNotEmpty())
                                                         <form method="POST"
-                                                            action="{{ route('admin.wallet.operations.reverse-many') }}" onsubmit="
-                                                                                                const motivo = prompt('Motivo do cancelamento (compra + venda) (opcional):', '');
-                                                                                                if (motivo === null) return false;
-                                                                                                this.querySelector('input[name=reason]').value = motivo;
-                                                                                                return confirm('Cancelar a COMPRA e a VENDA deste depósito? Todos os lotes serão revertidos.');
-                                                                                            ">
+                                                            action="{{ route('admin.wallet.operations.reverse-many') }}"
+                                                            onsubmit="
+                                                                                                                                                                                                                                                            const motivo = prompt('Motivo do cancelamento (compra + venda) (opcional):', '');
+                                                                                                                                                                                                                                                            if (motivo === null) return false;
+                                                                                                                                                                                                                                                            this.querySelector('input[name=reason]').value = motivo;
+                                                                                                                                                                                                                                                            return confirm('Cancelar a COMPRA e a VENDA deste depósito? Todos os lotes serão revertidos.');
+                                                                                                                                                                                                                                                        ">
                                                             @csrf
                                                             <input type="hidden" name="reason" value="">
                                                             @foreach($buySnaps->merge($sellSnaps) as $s)
@@ -927,12 +930,13 @@
                                                     @endif
                                                     @if($canDelete && $closeSnaps->isNotEmpty())
                                                         <form method="POST"
-                                                            action="{{ route('admin.wallet.operations.reverse-many') }}" onsubmit="
-                                                                                                const motivo = prompt('Motivo da reversão do FECHAMENTO (opcional):', '');
-                                                                                                if (motivo === null) return false;
-                                                                                                this.querySelector('input[name=reason]').value = motivo;
-                                                                                                return confirm('Reverter o fechamento deste depósito? O caixa (lotes/lucro) será desfeito.');
-                                                                                            ">
+                                                            action="{{ route('admin.wallet.operations.reverse-many') }}"
+                                                            onsubmit="
+                                                                                                                                                                                                                                                            const motivo = prompt('Motivo da reversão do FECHAMENTO (opcional):', '');
+                                                                                                                                                                                                                                                            if (motivo === null) return false;
+                                                                                                                                                                                                                                                            this.querySelector('input[name=reason]').value = motivo;
+                                                                                                                                                                                                                                                            return confirm('Reverter o fechamento deste depósito? O caixa (lotes/lucro) será desfeito.');
+                                                                                                                                                                                                                                                        ">
                                                             @csrf
                                                             <input type="hidden" name="reason" value="">
                                                             @foreach($closeSnaps as $s)
@@ -1084,11 +1088,11 @@
                                                     @if($tx->type === 'withdraw' && $tx->currency === 'USD')
                                                         <form method="POST" action="{{ route('admin.wallet.rollback-withdraw', $tx) }}"
                                                             onsubmit="
-                                                                                const motivo = prompt('Motivo da reversão do saque (opcional):', '');
-                                                                                if (motivo === null) return false;
-                                                                                this.querySelector('input[name=reason]').value = motivo;
-                                                                                return confirm('Reverter este saque em USD? O registro será removido e o saldo será recomposto.');
-                                                                            ">
+                                                                                                                                                                                                                                                                                                const motivo = prompt('Motivo da reversão do saque (opcional):', '');
+                                                                                                                                                                                                                                                                                                if (motivo === null) return false;
+                                                                                                                                                                                                                                                                                                this.querySelector('input[name=reason]').value = motivo;
+                                                                                                                                                                                                                                                                                                return confirm('Reverter este saque em USD? O registro será removido e o saldo será recomposto.');
+                                                                                                                                                                                                                                                                                            ">
                                                             @csrf
                                                             <input type="hidden" name="reason" value="">
                                                             <button type="submit" class="btn btn-sm btn-outline-danger"
@@ -1181,17 +1185,20 @@
                                             @if(Auth::user()->hasModule('wallet.delete'))
                                                 <td>
                                                     @php
+                                                        $isUsdDepositReversible = $tx->type === 'deposit'
+                                                            && $tx->currency === 'USD'
+                                                            && in_array((string) ($tx->payment_method ?? ''), ['efetivo', 'usdt'], true);
                                                         $usdSnaps = collect($reversalsByAnchor[$tx->id] ?? [])
-                                                            ->filter(fn($snap) => in_array($snap->type, ['deposit_usd', 'pre_sell', 'fechamento'], true));
+                                                            ->filter(fn($snap) => in_array($snap->type, ['deposit_usd'], true));
                                                     @endphp
-                                                    @if($usdSnaps->isNotEmpty())
+                                                    @if($isUsdDepositReversible && $usdSnaps->isNotEmpty())
                                                         <form method="POST" action="{{ route('admin.wallet.operations.reverse-many') }}"
                                                             onsubmit="
-                                                                                                                const motivo = prompt('Motivo da reversão da entrada USD (opcional):', '');
-                                                                                                                if (motivo === null) return false;
-                                                                                                                this.querySelector('input[name=reason]').value = motivo;
-                                                                                                                return confirm('Reverter esta entrada USD?');
-                                                                                                            ">
+                                                                                                                                                                                                                                                                                                                                const motivo = prompt('Motivo da reversão da entrada USD (opcional):', '');
+                                                                                                                                                                                                                                                                                                                                if (motivo === null) return false;
+                                                                                                                                                                                                                                                                                                                                this.querySelector('input[name=reason]').value = motivo;
+                                                                                                                                                                                                                                                                                                                                return confirm('Reverter esta entrada USD?');
+                                                                                                                                                                                                                                                                                                                            ">
                                                             @csrf
                                                             <input type="hidden" name="reason" value="">
                                                             @foreach($usdSnaps as $s)
