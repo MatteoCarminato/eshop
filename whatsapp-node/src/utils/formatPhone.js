@@ -24,6 +24,7 @@ const formatPhoneForWhatsApp = (phone) => {
   return `${cleaned}@c.us`;
 };
 
+
 /**
  * Valida se um número de telefone brasileiro está no formato correto.
  * @param {string} phone - Número de telefone (apenas dígitos).
