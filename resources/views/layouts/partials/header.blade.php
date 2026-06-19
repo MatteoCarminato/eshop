@@ -1,4 +1,7 @@
 <header id="page-topbar">
+    @php
+        $canViewWhatsappStatus = auth()->check() && auth()->user()->hasModule('whatsapp.view');
+    @endphp
     <div class="layout-width">
         <div class="navbar-header">
             <div class="d-flex">
@@ -64,5 +67,79 @@
                 </div>
             </div>
         </div>
+
+        @if ($canViewWhatsappStatus)
+            <div id="wpp-header-alert" class="alert alert-warning py-2 px-3 mb-0 rounded-0 d-none" role="alert">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="ri-whatsapp-line fs-18"></i>
+                        <span id="wpp-header-alert-text" class="fw-medium">WhatsApp desconectado. Reconecte para voltar a
+                            enviar mensagens.</span>
+                    </div>
+                    <a href="{{ route('admin.whatsapp.index') }}" class="btn btn-sm btn-warning">Abrir conexão</a>
+                </div>
+            </div>
+        @endif
     </div>
 </header>
+
+@if ($canViewWhatsappStatus)
+    <script>
+        (function () {
+            const statusUrl = '{{ route('admin.whatsapp.status') }}';
+            const alertEl = document.getElementById('wpp-header-alert');
+            const textEl = document.getElementById('wpp-header-alert-text');
+
+            if (!alertEl || !textEl) {
+                return;
+            }
+
+            const updateAlert = (state, hasError = false) => {
+                const normalized = String(state || '').toLowerCase();
+
+                if (hasError) {
+                    textEl.textContent = 'Nao foi possivel verificar o WhatsApp agora. Confira a conexao para relogar se necessario.';
+                    alertEl.classList.remove('d-none');
+                    return;
+                }
+
+                if (normalized === 'connected') {
+                    alertEl.classList.add('d-none');
+                    return;
+                }
+
+                if (normalized === 'disconnected') {
+                    textEl.textContent = 'WhatsApp desconectado. Reconecte para voltar a enviar mensagens.';
+                } else {
+                    textEl.textContent = 'WhatsApp aguardando autenticacao. Abra a conexao para escanear o QR novamente.';
+                }
+
+                alertEl.classList.remove('d-none');
+            };
+
+            const checkWhatsappStatus = async () => {
+                try {
+                    const response = await fetch(statusUrl, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+
+                    if (!response.ok) {
+                        updateAlert(null, true);
+                        return;
+                    }
+
+                    const payload = await response.json();
+                    const state = payload?.data?.state || 'unknown';
+                    updateAlert(state, false);
+                } catch (error) {
+                    updateAlert(null, true);
+                }
+            };
+
+            checkWhatsappStatus();
+            setInterval(checkWhatsappStatus, 15000);
+        })();
+    </script>
+@endif
