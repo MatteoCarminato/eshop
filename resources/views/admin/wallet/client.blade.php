@@ -526,6 +526,62 @@
                     if (el) el.addEventListener('shown.bs.modal', fetchGlobalRate);
                 });
 
+                // ===== Export PDF assíncrono =====
+                var pdfBtn = document.getElementById('btn-export-pdf');
+                if (pdfBtn) {
+                    pdfBtn.addEventListener('click', function () {
+                        var btn = this;
+                        var startUrl   = btn.dataset.url;
+                        var pollUrl    = btn.dataset.pollUrl;
+                        var downloadUrl = btn.dataset.downloadUrl;
+                        var params     = JSON.parse(btn.dataset.params || '{}');
+
+                        btn.disabled = true;
+                        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>PDF...';
+
+                        var body = new URLSearchParams(Object.assign({ _token: '{{ csrf_token() }}' }, params));
+
+                        fetch(startUrl, { method: 'POST', body: body })
+                            .then(function (r) { return r.json(); })
+                            .then(function (data) {
+                                if (!data.key) throw new Error('Erro ao iniciar exportação.');
+                                pollForPdf(data.key, pollUrl, downloadUrl, btn);
+                            })
+                            .catch(function (err) {
+                                alert('Erro ao iniciar exportação: ' + err.message);
+                                btn.disabled = false;
+                                btn.innerHTML = '<i class="ri-file-pdf-2-line"></i>';
+                            });
+                    });
+                }
+
+                function pollForPdf(key, pollUrl, downloadUrl, btn) {
+                    var url = pollUrl.replace(':key', key);
+                    fetch(url)
+                        .then(function (r) { return r.json(); })
+                        .then(function (data) {
+                            if (data.status === 'done') {
+                                var link = document.createElement('a');
+                                link.href = downloadUrl.replace(':key', key);
+                                link.download = '';
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                btn.disabled = false;
+                                btn.innerHTML = '<i class="ri-file-pdf-2-line"></i>';
+                            } else if (data.status === 'failed') {
+                                alert('Falha ao gerar PDF: ' + (data.error || 'erro desconhecido'));
+                                btn.disabled = false;
+                                btn.innerHTML = '<i class="ri-file-pdf-2-line"></i>';
+                            } else {
+                                setTimeout(function () { pollForPdf(key, pollUrl, downloadUrl, btn); }, 2000);
+                            }
+                        })
+                        .catch(function () {
+                            setTimeout(function () { pollForPdf(key, pollUrl, downloadUrl, btn); }, 3000);
+                        });
+                }
+
                 // Atualiza a página ao submeter os formulários dos modais
                 document.querySelectorAll('#depositModal form, #withdrawModal form').forEach(function (form) {
                     form.addEventListener('submit', function (e) {
@@ -587,10 +643,14 @@
                         href="{{ route('admin.wallet.client.export-xlsx', array_merge(['client' => $client->id], request()->only(['date_from', 'date_to', 'currency', 'payment_method', 'type']))) }}">
                         <i class="ri-file-excel-2-line"></i>
                     </a>
-                    <a class="btn btn-outline-danger" title="Exportar para PDF (mesmo layout)"
-                        href="{{ route('admin.wallet.client.export-pdf', array_merge(['client' => $client->id], request()->only(['date_from', 'date_to', 'currency', 'payment_method', 'type']))) }}">
+                    <button type="button" id="btn-export-pdf" class="btn btn-outline-danger"
+                        title="Exportar para PDF (processado em background)"
+                        data-url="{{ route('admin.wallet.client.export-pdf-async', $client) }}"
+                        data-poll-url="{{ route('admin.wallet.export-pdf-poll', ':key') }}"
+                        data-download-url="{{ route('admin.wallet.export-pdf-download', ':key') }}"
+                        data-params="{{ json_encode(request()->only(['date_from', 'date_to', 'currency', 'payment_method', 'type'])) }}">
                         <i class="ri-file-pdf-2-line"></i>
-                    </a>
+                    </button>
                 </div>
                 <div class="col-6 d-flex flex-wrap justify-content-md-end align-items-center gap-2">
                     <button type="button" class="btn btn-success" data-bs-toggle="modal"
@@ -725,10 +785,10 @@
                                             <input type="checkbox" id="entrada_select_all">
                                         </th>
                                         <th>Data</th>
-                                        <th>Valor R$</th>
-                                        <th>Taxa</th>
+                                        <th style="width: 80px">Valor R$</th>
+                                        <th style="width: 80px">Taxa</th>
                                         <th>Valor U$</th>
-                                        <th style="width: 90px">Ações</th>
+                                        <th style="width: 50px">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -835,8 +895,8 @@
                                                         class="form-control form-control-sm js-rate-input"
                                                         data-url="{{ route('admin.wallet.update-rate', $tx) }}"
                                                         data-original-value="{{ $taxa ? number_format($taxa, 4, '.', '') : '' }}"
-                                                        style="min-width: 110px" required @if($isLocked || $hasSold) disabled
-                                                        readonly @endif>
+                                                        style="min-width: 70px; width: 100%" required @if($isLocked || $hasSold)
+                                                        disabled readonly @endif>
                                                 </div>
                                             </td>
                                             <td>{{ $valorConvertido !== null ? number_format($valorConvertido, 2, ',', '.') : '-' }}
@@ -850,108 +910,131 @@
                                                     $canDelete = Auth::user()->hasModule('wallet.delete');
                                                     $hasAnyAction = (!$isLocked && $canDelete) || ($canDelete && $snaps->isNotEmpty());
                                                 @endphp
-                                                <div class="d-flex flex-wrap align-items-center gap-1">
-                                                    @if(!$isLocked && $canDelete)
-                                                        <form method="POST"
-                                                            action="{{ route('admin.wallet.rollback-deposit', $tx) }}"
-                                                            onsubmit="
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            const motivo = prompt('Motivo do rollback (opcional):', '');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            if (motivo === null) return false;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            this.querySelector('input[name=reason]').value = motivo;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            return confirm('Confirmar rollback completo do depósito #{{ $tx->id }}?');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ">
-                                                            @csrf
-                                                            <input type="hidden" name="reason" value="">
-                                                            <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                                title="Apaga o depósito com rollback (soft-delete e reconciliação)">
-                                                                <i class="ri-delete-bin-line"></i>
-                                                            </button>
-                                                        </form>
-                                                    @endif
-                                                    @if($canDelete && $buySnaps->isNotEmpty())
-                                                        <form method="POST"
-                                                            action="{{ route('admin.wallet.operations.reverse-many') }}"
-                                                            onsubmit="
-                                                                                                                                                                                                                                                            const motivo = prompt('Motivo do cancelamento da COMPRA (opcional):', '');
-                                                                                                                                                                                                                                                            if (motivo === null) return false;
-                                                                                                                                                                                                                                                            this.querySelector('input[name=reason]').value = motivo;
-                                                                                                                                                                                                                                                            return confirm('Cancelar a pré-compra deste depósito? Todos os lotes da compra serão revertidos.');
-                                                                                                                                                                                                                                                        ">
-                                                            @csrf
-                                                            <input type="hidden" name="reason" value="">
-                                                            @foreach($buySnaps as $s)
-                                                                <input type="hidden" name="snapshot_ids[]" value="{{ $s->id }}">
-                                                            @endforeach
-                                                            <button type="submit" class="btn btn-sm btn-outline-warning"
-                                                                title="Cancela a pré-compra (todos os lotes) deste depósito">
-                                                                <i class="ri-arrow-go-back-line"></i> compra
-                                                            </button>
-                                                        </form>
-                                                    @endif
-                                                    @if($canDelete && $sellSnaps->isNotEmpty())
-                                                        <form method="POST"
-                                                            action="{{ route('admin.wallet.operations.reverse-many') }}"
-                                                            onsubmit="
-                                                                                                                                                                                                                                                            const motivo = prompt('Motivo do cancelamento da VENDA (opcional):', '');
-                                                                                                                                                                                                                                                            if (motivo === null) return false;
-                                                                                                                                                                                                                                                            this.querySelector('input[name=reason]').value = motivo;
-                                                                                                                                                                                                                                                            return confirm('Cancelar a pré-venda deste depósito? Todos os lotes da venda serão revertidos.');
-                                                                                                                                                                                                                                                        ">
-                                                            @csrf
-                                                            <input type="hidden" name="reason" value="">
-                                                            @foreach($sellSnaps as $s)
-                                                                <input type="hidden" name="snapshot_ids[]" value="{{ $s->id }}">
-                                                            @endforeach
-                                                            <button type="submit" class="btn btn-sm btn-outline-warning"
-                                                                title="Cancela a pré-venda (todos os lotes) deste depósito">
-                                                                <i class="ri-arrow-go-back-line"></i> venda
-                                                            </button>
-                                                        </form>
-                                                    @endif
-                                                    @if($canDelete && $buySnaps->isNotEmpty() && $sellSnaps->isNotEmpty())
-                                                        <form method="POST"
-                                                            action="{{ route('admin.wallet.operations.reverse-many') }}"
-                                                            onsubmit="
-                                                                                                                                                                                                                                                            const motivo = prompt('Motivo do cancelamento (compra + venda) (opcional):', '');
-                                                                                                                                                                                                                                                            if (motivo === null) return false;
-                                                                                                                                                                                                                                                            this.querySelector('input[name=reason]').value = motivo;
-                                                                                                                                                                                                                                                            return confirm('Cancelar a COMPRA e a VENDA deste depósito? Todos os lotes serão revertidos.');
-                                                                                                                                                                                                                                                        ">
-                                                            @csrf
-                                                            <input type="hidden" name="reason" value="">
-                                                            @foreach($buySnaps->merge($sellSnaps) as $s)
-                                                                <input type="hidden" name="snapshot_ids[]" value="{{ $s->id }}">
-                                                            @endforeach
-                                                            <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                                title="Cancela compra e venda deste depósito de uma vez">
-                                                                <i class="ri-arrow-go-back-line"></i> ambos
-                                                            </button>
-                                                        </form>
-                                                    @endif
-                                                    @if($canDelete && $closeSnaps->isNotEmpty())
-                                                        <form method="POST"
-                                                            action="{{ route('admin.wallet.operations.reverse-many') }}"
-                                                            onsubmit="
-                                                                                                                                                                                                                                                            const motivo = prompt('Motivo da reversão do FECHAMENTO (opcional):', '');
-                                                                                                                                                                                                                                                            if (motivo === null) return false;
-                                                                                                                                                                                                                                                            this.querySelector('input[name=reason]').value = motivo;
-                                                                                                                                                                                                                                                            return confirm('Reverter o fechamento deste depósito? O caixa (lotes/lucro) será desfeito.');
-                                                                                                                                                                                                                                                        ">
-                                                            @csrf
-                                                            <input type="hidden" name="reason" value="">
-                                                            @foreach($closeSnaps as $s)
-                                                                <input type="hidden" name="snapshot_ids[]" value="{{ $s->id }}">
-                                                            @endforeach
-                                                            <button type="submit" class="btn btn-sm btn-outline-secondary"
-                                                                title="Reverte o fechamento (desfaz caixa, lotes e lucro)">
-                                                                <i class="ri-arrow-go-back-line"></i> fechamento
-                                                            </button>
-                                                        </form>
-                                                    @endif
-                                                    @unless($hasAnyAction)
-                                                        <span class="text-muted">-</span>
-                                                    @endunless
-                                                </div>
+
+                                                {{-- Forms ocultos referenciados pelo dropdown via atributo form="id" --}}
+                                                @if(!$isLocked && $canDelete)
+                                                    <form id="form-del-{{ $tx->id }}" method="POST"
+                                                        action="{{ route('admin.wallet.rollback-deposit', $tx) }}"
+                                                        onsubmit="const m=prompt('Motivo do rollback (opcional):','');if(m===null)return false;this.querySelector('input[name=reason]').value=m;return confirm('Confirmar rollback completo do depósito #{{ $tx->id }}?');">
+                                                        @csrf
+                                                        <input type="hidden" name="reason" value="">
+                                                    </form>
+                                                @endif
+                                                @if($canDelete && $buySnaps->isNotEmpty())
+                                                    <form id="form-buy-{{ $tx->id }}" method="POST"
+                                                        action="{{ route('admin.wallet.operations.reverse-many') }}"
+                                                        onsubmit="const m=prompt('Motivo do cancelamento da COMPRA (opcional):','');if(m===null)return false;this.querySelector('input[name=reason]').value=m;return confirm('Cancelar a pré-compra deste depósito? Todos os lotes da compra serão revertidos.');">
+                                                        @csrf
+                                                        <input type="hidden" name="reason" value="">
+                                                        @foreach($buySnaps as $s)
+                                                            <input type="hidden" name="snapshot_ids[]" value="{{ $s->id }}">
+                                                        @endforeach
+                                                    </form>
+                                                @endif
+                                                @if($canDelete && $sellSnaps->isNotEmpty())
+                                                    <form id="form-sell-{{ $tx->id }}" method="POST"
+                                                        action="{{ route('admin.wallet.operations.reverse-many') }}"
+                                                        onsubmit="const m=prompt('Motivo do cancelamento da VENDA (opcional):','');if(m===null)return false;this.querySelector('input[name=reason]').value=m;return confirm('Cancelar a pré-venda deste depósito? Todos os lotes da venda serão revertidos.');">
+                                                        @csrf
+                                                        <input type="hidden" name="reason" value="">
+                                                        @foreach($sellSnaps as $s)
+                                                            <input type="hidden" name="snapshot_ids[]" value="{{ $s->id }}">
+                                                        @endforeach
+                                                    </form>
+                                                @endif
+                                                @if($canDelete && $buySnaps->isNotEmpty() && $sellSnaps->isNotEmpty())
+                                                    <form id="form-both-{{ $tx->id }}" method="POST"
+                                                        action="{{ route('admin.wallet.operations.reverse-many') }}"
+                                                        onsubmit="const m=prompt('Motivo do cancelamento (compra + venda) (opcional):','');if(m===null)return false;this.querySelector('input[name=reason]').value=m;return confirm('Cancelar a COMPRA e a VENDA deste depósito? Todos os lotes serão revertidos.');">
+                                                        @csrf
+                                                        <input type="hidden" name="reason" value="">
+                                                        @foreach($buySnaps->merge($sellSnaps) as $s)
+                                                            <input type="hidden" name="snapshot_ids[]" value="{{ $s->id }}">
+                                                        @endforeach
+                                                    </form>
+                                                @endif
+                                                @if($canDelete && $closeSnaps->isNotEmpty())
+                                                    <form id="form-close-{{ $tx->id }}" method="POST"
+                                                        action="{{ route('admin.wallet.operations.reverse-many') }}"
+                                                        onsubmit="const m=prompt('Motivo da reversão do FECHAMENTO (opcional):','');if(m===null)return false;this.querySelector('input[name=reason]').value=m;return confirm('Reverter o fechamento deste depósito? O caixa (lotes/lucro) será desfeito.');">
+                                                        @csrf
+                                                        <input type="hidden" name="reason" value="">
+                                                        @foreach($closeSnaps as $s)
+                                                            <input type="hidden" name="snapshot_ids[]" value="{{ $s->id }}">
+                                                        @endforeach
+                                                    </form>
+                                                @endif
+
+                                                @if($hasAnyAction)
+                                                    <div class="dropdown">
+                                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                                                            type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                            <i class="ri-more-2-fill"></i>
+                                                        </button>
+                                                        <ul class="dropdown-menu dropdown-menu-end">
+                                                            @if(!$isLocked && $canDelete)
+                                                                <li>
+                                                                    <button class="dropdown-item text-danger" type="submit"
+                                                                        form="form-del-{{ $tx->id }}"
+                                                                        title="Apaga o depósito com rollback (soft-delete e reconciliação)">
+                                                                        <i class="ri-delete-bin-line me-1"></i>Apagar depósito
+                                                                    </button>
+                                                                </li>
+                                                            @endif
+                                                            @if($canDelete && ($buySnaps->isNotEmpty() || $sellSnaps->isNotEmpty() || $closeSnaps->isNotEmpty()))
+                                                                @if(!$isLocked && $canDelete)
+                                                                    <li>
+                                                                        <hr class="dropdown-divider">
+                                                                    </li>
+                                                                @endif
+                                                                @if($buySnaps->isNotEmpty())
+                                                                    <li>
+                                                                        <button class="dropdown-item" type="submit"
+                                                                            form="form-buy-{{ $tx->id }}"
+                                                                            title="Cancela a pré-compra (todos os lotes) deste depósito">
+                                                                            <i class="ri-arrow-go-back-line me-1 text-success"></i>Cancelar
+                                                                            compra
+                                                                        </button>
+                                                                    </li>
+                                                                @endif
+                                                                @if($sellSnaps->isNotEmpty())
+                                                                    <li>
+                                                                        <button class="dropdown-item" type="submit"
+                                                                            form="form-sell-{{ $tx->id }}"
+                                                                            title="Cancela a pré-venda (todos os lotes) deste depósito">
+                                                                            <i class="ri-arrow-go-back-line me-1 text-danger"></i>Cancelar
+                                                                            venda
+                                                                        </button>
+                                                                    </li>
+                                                                @endif
+                                                                @if($buySnaps->isNotEmpty() && $sellSnaps->isNotEmpty())
+                                                                    <li>
+                                                                        <button class="dropdown-item" type="submit"
+                                                                            form="form-both-{{ $tx->id }}"
+                                                                            title="Cancela compra e venda deste depósito de uma vez">
+                                                                            <i class="ri-arrow-go-back-line text-success"></i><i
+                                                                                class="ri-arrow-go-back-line me-1 text-danger"></i>Cancelar
+                                                                            ambos
+                                                                        </button>
+                                                                    </li>
+                                                                @endif
+                                                                @if($closeSnaps->isNotEmpty())
+                                                                    <li>
+                                                                        <button class="dropdown-item" type="submit"
+                                                                            form="form-close-{{ $tx->id }}"
+                                                                            title="Reverte o fechamento (desfaz caixa, lotes e lucro)">
+                                                                            <i
+                                                                                class="ri-arrow-go-back-line me-1 text-secondary"></i>Reverter
+                                                                            fechamento
+                                                                        </button>
+                                                                    </li>
+                                                                @endif
+                                                            @endif
+                                                        </ul>
+                                                    </div>
+                                                @else
+                                                    <span class="text-muted">-</span>
+                                                @endif
                                             </td>
                                         </tr>
                                     @empty
@@ -1086,20 +1169,27 @@
                                             @if(Auth::user()->hasModule('wallet.delete'))
                                                 <td>
                                                     @if($tx->type === 'withdraw' && $tx->currency === 'USD')
-                                                        <form method="POST" action="{{ route('admin.wallet.rollback-withdraw', $tx) }}"
-                                                            onsubmit="
-                                                                                                                                                                                                                                                                                                const motivo = prompt('Motivo da reversão do saque (opcional):', '');
-                                                                                                                                                                                                                                                                                                if (motivo === null) return false;
-                                                                                                                                                                                                                                                                                                this.querySelector('input[name=reason]').value = motivo;
-                                                                                                                                                                                                                                                                                                return confirm('Reverter este saque em USD? O registro será removido e o saldo será recomposto.');
-                                                                                                                                                                                                                                                                                            ">
+                                                        <form id="form-saque-{{ $tx->id }}" method="POST"
+                                                            action="{{ route('admin.wallet.rollback-withdraw', $tx) }}"
+                                                            onsubmit="const m=prompt('Motivo da reversão do saque (opcional):','');if(m===null)return false;this.querySelector('input[name=reason]').value=m;return confirm('Reverter este saque em USD? O registro será removido e o saldo será recomposto.');">
                                                             @csrf
                                                             <input type="hidden" name="reason" value="">
-                                                            <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                                title="Reverte este saque (remove o registro e recompõe o saldo)">
-                                                                <i class="ri-arrow-go-back-line"></i> reverter
-                                                            </button>
                                                         </form>
+                                                        <div class="dropdown">
+                                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                                                                data-bs-toggle="dropdown" aria-expanded="false">
+                                                                <i class="ri-more-2-fill"></i>
+                                                            </button>
+                                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                                <li>
+                                                                    <button class="dropdown-item" type="submit"
+                                                                        form="form-saque-{{ $tx->id }}"
+                                                                        title="Reverte este saque (remove o registro e recompõe o saldo)">
+                                                                        <i class="ri-arrow-go-back-line me-1 text-danger"></i>Reverter saque
+                                                                    </button>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
                                                     @else
                                                         <span class="text-muted">-</span>
                                                     @endif
@@ -1192,23 +1282,30 @@
                                                             ->filter(fn($snap) => in_array($snap->type, ['deposit_usd'], true));
                                                     @endphp
                                                     @if($isUsdDepositReversible && $usdSnaps->isNotEmpty())
-                                                        <form method="POST" action="{{ route('admin.wallet.operations.reverse-many') }}"
-                                                            onsubmit="
-                                                                                                                                                                                                                                                                                                                                const motivo = prompt('Motivo da reversão da entrada USD (opcional):', '');
-                                                                                                                                                                                                                                                                                                                                if (motivo === null) return false;
-                                                                                                                                                                                                                                                                                                                                this.querySelector('input[name=reason]').value = motivo;
-                                                                                                                                                                                                                                                                                                                                return confirm('Reverter esta entrada USD?');
-                                                                                                                                                                                                                                                                                                                            ">
+                                                        <form id="form-usd-{{ $tx->id }}" method="POST"
+                                                            action="{{ route('admin.wallet.operations.reverse-many') }}"
+                                                            onsubmit="const m=prompt('Motivo da reversão da entrada USD (opcional):','');if(m===null)return false;this.querySelector('input[name=reason]').value=m;return confirm('Reverter esta entrada USD?');">
                                                             @csrf
                                                             <input type="hidden" name="reason" value="">
                                                             @foreach($usdSnaps as $s)
                                                                 <input type="hidden" name="snapshot_ids[]" value="{{ $s->id }}">
                                                             @endforeach
-                                                            <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                                title="Reverte esta entrada (depósito) em USD">
-                                                                <i class="ri-arrow-go-back-line"></i> reverter
-                                                            </button>
                                                         </form>
+                                                        <div class="dropdown">
+                                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                                                                data-bs-toggle="dropdown" aria-expanded="false">
+                                                                <i class="ri-more-2-fill"></i>
+                                                            </button>
+                                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                                <li>
+                                                                    <button class="dropdown-item" type="submit"
+                                                                        form="form-usd-{{ $tx->id }}"
+                                                                        title="Reverte esta entrada (depósito) em USD">
+                                                                        <i class="ri-arrow-go-back-line me-1 text-danger"></i>Reverter entrada
+                                                                    </button>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
                                                     @else
                                                         <span class="text-muted">-</span>
                                                     @endif
@@ -1232,6 +1329,10 @@
     </div>
 
     <style>
+        .wallet-compact {
+            zoom: 0.9;
+        }
+
         .wallet-compact .table th,
         .wallet-compact .table td {
             font-size: 0.85rem !important;
@@ -1272,7 +1373,7 @@
 
         .table-light {
             background-color: #f8f9fa !important;
-            opacity: 0.7;
+            /* opacity: 0.7; */
         }
 
         /* Input desabilitado em linha finalizada */

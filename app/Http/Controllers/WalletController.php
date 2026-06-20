@@ -282,6 +282,60 @@ class WalletController extends Controller
      *   macOS: `brew install --cask libreoffice`
      *   Ubuntu: `sudo apt install libreoffice`
      */
+    public function startPdfExport(\App\Models\Client $client, Request $request)
+    {
+        $exportKey = \Illuminate\Support\Str::uuid()->toString();
+        $cacheKey  = 'pdf_export_' . $exportKey;
+
+        Cache::put($cacheKey, ['status' => 'pending'], now()->addHour());
+
+        \App\Jobs\GenerateClientPdfJob::dispatch(
+            $client->id,
+            $request->input('date_from'),
+            $request->input('date_to'),
+            $exportKey,
+        );
+
+        return response()->json(['key' => $exportKey]);
+    }
+
+    public function pollPdfExport(string $key)
+    {
+        $state = Cache::get('pdf_export_' . $key);
+
+        if (!$state) {
+            return response()->json(['status' => 'not_found'], 404);
+        }
+
+        return response()->json($state);
+    }
+
+    public function downloadPdfExport(string $key)
+    {
+        $state = Cache::get('pdf_export_' . $key);
+
+        if (!$state || ($state['status'] ?? '') !== 'done') {
+            abort(404);
+        }
+
+        $exportDir    = storage_path('app/exports');
+        $pdfPath      = $exportDir . DIRECTORY_SEPARATOR . $key . '.pdf';
+        $filenamePath = $exportDir . DIRECTORY_SEPARATOR . $key . '.name';
+
+        if (!is_file($pdfPath)) {
+            abort(404);
+        }
+
+        $filename = is_file($filenamePath) ? trim(file_get_contents($filenamePath)) : $key . '.pdf';
+
+        return response()->streamDownload(function () use ($pdfPath, $filenamePath, $key) {
+            readfile($pdfPath);
+            @unlink($pdfPath);
+            @unlink($filenamePath);
+            Cache::forget('pdf_export_' . $key);
+        }, $filename, ['Content-Type' => 'application/pdf']);
+    }
+
     public function exportClientPdf(\App\Models\Client $client, Request $request)
     {
         $spreadsheet = $this->buildClientStatementSpreadsheet($client, $request, true);
