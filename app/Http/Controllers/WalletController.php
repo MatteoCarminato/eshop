@@ -513,8 +513,6 @@ class WalletController extends Controller
         $reader      = \PhpOffice\PhpSpreadsheet\IOFactory::createReader('Xlsx');
         $spreadsheet = $reader->load($templatePath);
         $sheet       = $spreadsheet->getActiveSheet();
-
-            dd('a');
         // ---- Linha 1: saldos
         $sheet->setCellValue('F1', 'Saldo ' . $client->name . ' R$ ' . $br($brl));
         $sheet->setCellValue('I1', 'U$ ' . $br($usd));
