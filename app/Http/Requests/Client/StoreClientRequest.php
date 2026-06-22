@@ -21,6 +21,7 @@ class StoreClientRequest extends FormRequest
             'email' => $this->email ?: null,
             'phone' => $this->phone ?: null,
             'is_exchange_client' => filter_var($this->is_exchange_client, FILTER_VALIDATE_BOOLEAN),
+            'type' => $this->type ?: 'cliente',
         ]);
     }
 
@@ -41,6 +42,7 @@ class StoreClientRequest extends FormRequest
             'phone' => 'nullable|string|max:20',
             'spread_points' => 'nullable|integer|min:0|max:9999',
             'is_exchange_client' => 'nullable|boolean',
+            'type' => 'required|in:cliente,fornecedor',
         ];
     }
 

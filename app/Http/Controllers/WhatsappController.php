@@ -11,7 +11,6 @@ use Illuminate\Http\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -131,12 +130,11 @@ class WhatsappController extends Controller
 
         $validator->after(function ($validator) use ($request) {
             $clientIds = (array) $request->input('client_ids', []);
-            $groupIds = (array) $request->input('group_ids', []);
             $message = trim((string) $request->input('message', ''));
             $hasAttachment = $request->hasFile('attachment');
 
-            if (empty($clientIds) && empty($groupIds)) {
-                $validator->errors()->add('targets', 'Selecione ao menos um cliente ou grupo.');
+            if (empty($clientIds)) {
+                $validator->errors()->add('targets', 'Selecione ao menos um cliente.');
             }
 
             if ($message === '' && !$hasAttachment) {
@@ -147,10 +145,11 @@ class WhatsappController extends Controller
         $validated = $validator->validate();
 
         $clientIds = collect($validated['client_ids'] ?? [])->map(fn ($id) => (int) $id)->all();
-        $groupIds = collect($validated['group_ids'] ?? [])->map(fn ($id) => (int) $id)->all();
         $message = trim((string) ($validated['message'] ?? ''));
 
-        $recipients = $this->resolveRecipients($clientIds, $groupIds);
+        // group_ids are expanded into client_ids by the frontend — re-expanding server-side
+        // would include clients the user explicitly unchecked.
+        $recipients = $this->resolveRecipients($clientIds, []);
 
         if ($recipients->isEmpty()) {
             return back()->withInput()->with('error', 'Nenhum destinatário válido com telefone foi encontrado.');
@@ -194,11 +193,10 @@ class WhatsappController extends Controller
 
         $validator->after(function ($validator) use ($request) {
             $clientIds = (array) $request->input('client_ids', []);
-            $groupIds = (array) $request->input('group_ids', []);
             $weekdays = (array) $request->input('weekdays', []);
 
-            if (empty($clientIds) && empty($groupIds)) {
-                $validator->errors()->add('targets', 'Selecione ao menos um cliente ou grupo.');
+            if (empty($clientIds)) {
+                $validator->errors()->add('targets', 'Selecione ao menos um cliente.');
             }
 
             if (empty($weekdays)) {
@@ -208,15 +206,16 @@ class WhatsappController extends Controller
 
         $validated = $validator->validate();
 
+        // group_ids are expanded into client_ids by the frontend — saving group_ids and
+        // re-expanding them at job runtime would re-include clients the user unchecked.
         $clientIds = collect($validated['client_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all();
-        $groupIds = collect($validated['group_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all();
         $weekdays = collect($validated['weekdays'] ?? [])->map(fn ($day) => (int) $day)->unique()->values()->all();
 
         WhatsappScheduledMessage::query()->create([
             'name' => trim((string) ($validated['schedule_name'] ?? '')) ?: null,
             'message' => trim((string) $validated['message']),
             'client_ids' => $clientIds,
-            'group_ids' => $groupIds,
+            'group_ids' => [],
             'weekdays' => $weekdays,
             'is_active' => true,
             'created_by_user_id' => Auth::id(),

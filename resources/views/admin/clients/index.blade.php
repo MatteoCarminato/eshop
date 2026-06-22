@@ -25,10 +25,15 @@
                     <div class="card">
                         <div class="card-header border-0">
                             <div class="row g-4 align-items-center">
-                                <div class="col-sm-4 d-flex align-items-center gap-2">
-                                    <form method="GET" action="{{ route('clients.index') }}" class="w-100 d-flex gap-2">
+                                <div class="col-sm-6 d-flex align-items-center gap-2">
+                                    <form method="GET" action="{{ route('clients.index') }}" class="w-100 d-flex gap-2" id="filterForm">
                                         <input type="text" class="form-control search" name="search" id="searchInput"
-                                            placeholder="Buscar por nome..." value="{{ request('search') }}">
+                                            placeholder="Buscar por nome ou e-mail..." value="{{ request('search') }}">
+                                        <select name="type" id="typeFilter" class="form-select" style="width: auto; min-width: 140px;">
+                                            <option value="">Todos</option>
+                                            <option value="cliente" {{ request('type') === 'cliente' ? 'selected' : '' }}>Só clientes</option>
+                                            <option value="fornecedor" {{ request('type') === 'fornecedor' ? 'selected' : '' }}>Só fornecedores</option>
+                                        </select>
                                         <button type="submit" class="btn btn-primary" title="Buscar">
                                             <i class="ri-search-line"></i>
                                         </button>
@@ -150,7 +155,7 @@
                                                     <div class="text-muted">
                                                         <i class="ri-inbox-line fs-1 d-block mb-2"></i>
                                                         <p class="mb-0">Nenhum cliente encontrado</p>
-                                                        @if (request('search'))
+                                                        @if (request('search') || request('type'))
                                                             <a href="{{ route('clients.index') }}" class="btn btn-sm btn-link">
                                                                 Limpar filtros
                                                             </a>
@@ -259,24 +264,39 @@
             }, 5000);
         });
 
-        // Busca em tempo real
+        // Manter foco no input após busca
         const searchInput = document.getElementById('searchInput');
+        if (searchInput.value) {
+            searchInput.focus();
+            const len = searchInput.value.length;
+            searchInput.setSelectionRange(len, len);
+        }
         let searchTimeout;
 
         searchInput.addEventListener('input', function () {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(function () {
-                const searchValue = searchInput.value;
                 const url = new URL(window.location.href);
 
-                if (searchValue) {
-                    url.searchParams.set('search', searchValue);
+                if (searchInput.value) {
+                    url.searchParams.set('search', searchInput.value);
                 } else {
                     url.searchParams.delete('search');
                 }
 
+                const typeValue = document.getElementById('typeFilter').value;
+                if (typeValue) {
+                    url.searchParams.set('type', typeValue);
+                } else {
+                    url.searchParams.delete('type');
+                }
+
                 window.location.href = url.toString();
-            }, 500);
+            }, 1500);
+        });
+
+        document.getElementById('typeFilter').addEventListener('change', function () {
+            document.getElementById('filterForm').submit();
         });
 
         // Limpar busca

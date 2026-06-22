@@ -182,6 +182,28 @@
                                     </div>
                                     <!--end col-->
 
+                                    <!-- Tipo -->
+                                    <div class="col-xxl-6 col-md-6">
+                                        <div>
+                                            <label for="type" class="form-label">
+                                                Tipo <span class="text-danger">*</span>
+                                            </label>
+                                            <select class="form-select @error('type') is-invalid @enderror"
+                                                id="type" name="type" required>
+                                                <option value="cliente" {{ old('type', $client->type) === 'cliente' ? 'selected' : '' }}>
+                                                    Cliente
+                                                </option>
+                                                <option value="fornecedor" {{ old('type', $client->type) === 'fornecedor' ? 'selected' : '' }}>
+                                                    Fornecedor
+                                                </option>
+                                            </select>
+                                            @error('type')
+                                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                            @enderror
+                                        </div>
+                                    </div>
+                                    <!--end col-->
+
                                     <div class="col-12">
                                         <div class="alert alert-info">
                                             <div class="d-flex">

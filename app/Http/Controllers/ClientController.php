@@ -24,14 +24,11 @@ class ClientController extends Controller
     public function index(Request $request): View
     {
         $search = $request->get('search');
-        
-        if ($search) {
-            $clients = $this->clientService->search($search, 15);
-        } else {
-            $clients = $this->clientService->list(15);
-        }
+        $type   = $request->get('type');
 
-        return view('admin.clients.index', compact('clients', 'search'));
+        $clients = $this->clientService->filter($search, $type, 15);
+
+        return view('admin.clients.index', compact('clients', 'search', 'type'));
     }
 
     /**

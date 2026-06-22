@@ -25,6 +25,25 @@ class ClientService
         return Client::orderBy('created_at', 'desc')->get();
     }
 
+    public function filter(?string $search, ?string $type, ?int $perPage = null): Collection|LengthAwarePaginator
+    {
+        $query = Client::orderBy('created_at', 'desc');
+
+        if ($type === 'cliente' || $type === 'fornecedor') {
+            $query->where('type', $type);
+        }
+
+        if ($search) {
+            $term = strtolower($search);
+            $query->where(function ($q) use ($term) {
+                $q->whereRaw('LOWER(name) LIKE ?', ["%{$term}%"])
+                  ->orWhereRaw('LOWER(email) LIKE ?', ["%{$term}%"]);
+            });
+        }
+
+        return $perPage ? $query->paginate($perPage) : $query->get();
+    }
+
     /**
      * Find a client by ID.
      *
@@ -95,8 +114,9 @@ class ClientService
      */
     public function search(string $search, ?int $perPage = null): Collection|LengthAwarePaginator
     {
-        $query = Client::where('name', 'like', "%{$search}%")
-            ->orWhere('email', 'like', "%{$search}%")
+        $term = strtolower($search);
+        $query = Client::whereRaw('LOWER(name) LIKE ?', ["%{$term}%"])
+            ->orWhereRaw('LOWER(email) LIKE ?', ["%{$term}%"])
             ->orderBy('created_at', 'desc');
 
         if ($perPage) {

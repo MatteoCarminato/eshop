@@ -205,10 +205,13 @@ class GenerateClientPdfJob implements ShouldQueue
                 } elseif ((float) $e->exchange_rate > 0) {
                     $valorUsd = (float) $e->amount / (float) $e->exchange_rate;
                 }
+                $isLocked = \in_array($e->status, ['fechado', 'finalizado'], true);
+                $hasSold  = (float) ($e->brl_pre_sold ?? 0) > 0.005;
+                $showTaxa = $hasSold || $isLocked;
                 $sheet->setCellValueExplicit('B' . $row, $dt($e), DataType::TYPE_STRING);
                 $sheet->setCellValueExplicit('C' . $row, $br((float) $e->amount, 2), DataType::TYPE_STRING);
-                $sheet->setCellValueExplicit('D' . $row, $e->exchange_rate ? $br((float) $e->exchange_rate, 4) : '', DataType::TYPE_STRING);
-                $sheet->setCellValueExplicit('E' . $row, $valorUsd !== null ? $br($valorUsd, 2) : '', DataType::TYPE_STRING);
+                $sheet->setCellValueExplicit('D' . $row, ($showTaxa && $e->exchange_rate) ? $br((float) $e->exchange_rate, 4) : '', DataType::TYPE_STRING);
+                $sheet->setCellValueExplicit('E' . $row, ($showTaxa && $valorUsd !== null) ? $br($valorUsd, 2) : '', DataType::TYPE_STRING);
             } else {
                 foreach (['B', 'C', 'D', 'E'] as $col) {
                     $sheet->setCellValue($col . $row, null);

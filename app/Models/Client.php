@@ -22,6 +22,7 @@ class Client extends Model
         'phone',
         'spread_points',
         'is_exchange_client',
+        'type',
     ];
 
     /**
@@ -35,6 +36,7 @@ class Client extends Model
         'deleted_at' => 'datetime',
         'spread_points' => 'integer',
         'is_exchange_client' => 'boolean',
+        'type' => 'string',
     ];
 
     /**
