@@ -289,10 +289,13 @@ class WalletController extends Controller
 
         Cache::put($cacheKey, ['status' => 'pending'], now()->addHour());
 
+        $dateFrom = $request->filled('date_from') ? $request->input('date_from') : null;
+        $dateTo   = $request->filled('date_to')   ? $request->input('date_to')   : null;
+
         \App\Jobs\GenerateClientPdfJob::dispatch(
             $client->id,
-            $request->input('date_from'),
-            $request->input('date_to'),
+            $dateFrom,
+            $dateTo,
             $exportKey,
         );
 

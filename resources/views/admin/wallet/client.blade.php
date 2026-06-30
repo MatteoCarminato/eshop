@@ -539,7 +539,13 @@
                         btn.disabled = true;
                         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>PDF...';
 
-                        var body = new URLSearchParams(Object.assign({ _token: '{{ csrf_token() }}' }, params));
+                        var cleanParams = {};
+                        Object.keys(params).forEach(function (k) {
+                            if (params[k] !== null && params[k] !== undefined && params[k] !== '') {
+                                cleanParams[k] = params[k];
+                            }
+                        });
+                        var body = new URLSearchParams(Object.assign({ _token: '{{ csrf_token() }}' }, cleanParams));
 
                         fetch(startUrl, { method: 'POST', body: body })
                             .then(function (r) { return r.json(); })
