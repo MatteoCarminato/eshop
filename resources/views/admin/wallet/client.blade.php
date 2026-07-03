@@ -663,6 +663,9 @@
                         data-bs-target="#depositModal">Depositar</button>
                     <button type="button" class="btn btn-danger" data-bs-toggle="modal"
                         data-bs-target="#withdrawModal">Sacar</button>
+                    <button type="button" id="btn-fullscreen" class="btn btn-outline-secondary" title="Tela cheia (Esc para sair)">
+                        <i class="ri-fullscreen-line"></i>
+                    </button>
 
                 </div>
             </div>
@@ -784,16 +787,16 @@
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-bordered table-striped mb-0">
-                                <thead>
+                            <table class="table table-hover mb-0">
+                                <thead class="table-success">
                                     <tr>
                                         <th style="width: 40px">
                                             <input type="checkbox" id="entrada_select_all">
                                         </th>
                                         <th>Data</th>
-                                        <th style="width: 80px">Valor R$</th>
-                                        <th style="width: 80px">Taxa</th>
-                                        <th>Valor U$</th>
+                                        <th style="width: 80px" class="text-end">Valor R$</th>
+                                        <th style="width: 80px" class="text-end">Taxa</th>
+                                        <th class="text-end">Valor U$</th>
                                         <th style="width: 50px">Ações</th>
                                     </tr>
                                 </thead>
@@ -848,6 +851,29 @@
                                                 $rowClass = 'table-pre-sold';
                                             }
                                         @endphp
+                                        @php
+                                            $detalhesData = [
+                                                'id'               => $tx->id,
+                                                'data'             => $tx->created_at->format('d/m/Y H:i'),
+                                                'valor'            => number_format($tx->amount, 2, ',', '.'),
+                                                'brl_pre'          => number_format($brlPre, 2, ',', '.'),
+                                                'brl_sold'         => number_format($brlSold, 2, ',', '.'),
+                                                'brl_livre_compra' => number_format($brlLivreCompra, 2, ',', '.'),
+                                                'brl_livre_venda'  => number_format($brlLivreVenda, 2, ',', '.'),
+                                                'lotes_compra'     => $lotesPre->map(fn($l) => [
+                                                    'brl'    => number_format($l->brl_amount, 2, ',', '.'),
+                                                    'taxa'   => number_format($l->exchange_rate, 4, ',', '.'),
+                                                    'usd'    => number_format($l->usd_amount, 2, ',', '.'),
+                                                    'status' => $l->status,
+                                                ])->values()->toArray(),
+                                                'lotes_venda'      => $lotesSell->map(fn($l) => [
+                                                    'brl'    => number_format($l->brl_amount, 2, ',', '.'),
+                                                    'taxa'   => number_format($l->sell_rate, 4, ',', '.'),
+                                                    'usd'    => number_format($l->usd_amount, 2, ',', '.'),
+                                                    'status' => $l->status,
+                                                ])->values()->toArray(),
+                                            ];
+                                        @endphp
                                         <tr class="{{ $rowClass }}" data-locked="{{ $isLocked ? '1' : '0' }}"
                                             data-pre-purchased="{{ number_format($brlPre, 2, '.', '') }}"
                                             data-pre-sold="{{ number_format($brlSold, 2, '.', '') }}"
@@ -893,7 +919,7 @@
                                                     </span>
                                                 @endif
                                             </td>
-                                            <td class="fw-bold text-success">{{ number_format($tx->amount, 2, ',', '.') }}</td>
+                                            <td class="fw-bold text-success text-end">{{ number_format($tx->amount, 2, ',', '.') }}</td>
                                             <td>
                                                 <div class="d-flex align-items-center gap-1">
                                                     <input type="number" step="0.0001" min="0.0001"
@@ -905,7 +931,7 @@
                                                         disabled readonly @endif>
                                                 </div>
                                             </td>
-                                            <td>{{ $valorConvertido !== null ? number_format($valorConvertido, 2, ',', '.') : '-' }}
+                                            <td class="text-end">{{ $valorConvertido !== null ? number_format($valorConvertido, 2, ',', '.') : '-' }}
                                             </td>
                                             <td>
                                                 @php
@@ -971,13 +997,23 @@
                                                     </form>
                                                 @endif
 
-                                                @if($hasAnyAction)
-                                                    <div class="dropdown">
-                                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
-                                                            type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                                            <i class="ri-more-2-fill"></i>
-                                                        </button>
-                                                        <ul class="dropdown-menu dropdown-menu-end">
+                                                <div class="dropdown">
+                                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                                                        type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                        <i class="ri-more-2-fill"></i>
+                                                    </button>
+                                                    <ul class="dropdown-menu dropdown-menu-end">
+                                                        <li>
+                                                            <button type="button"
+                                                                class="dropdown-item"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#detalhesOperacaoModal"
+                                                                data-detalhes="{{ json_encode($detalhesData) }}">
+                                                                <i class="ri-information-line me-1 text-info"></i>Ver detalhes
+                                                            </button>
+                                                        </li>
+                                                        @if($hasAnyAction)
+                                                            <li><hr class="dropdown-divider"></li>
                                                             @if(!$isLocked && $canDelete)
                                                                 <li>
                                                                     <button class="dropdown-item text-danger" type="submit"
@@ -1036,11 +1072,9 @@
                                                                     </li>
                                                                 @endif
                                                             @endif
-                                                        </ul>
-                                                    </div>
-                                                @else
-                                                    <span class="text-muted">-</span>
-                                                @endif
+                                                        @endif
+                                                    </ul>
+                                                </div>
                                             </td>
                                         </tr>
                                     @empty
@@ -1049,6 +1083,25 @@
                                         </tr>
                                     @endforelse
                                 </tbody>
+                                @php
+                                    $totalEntradaBrlFoot = $entradaBrl->sum('amount');
+                                    $totalEntradaUsdEquivFoot = $entradaBrl->sum(function($t) {
+                                        if ($t->converted_currency === 'USD' && $t->converted_amount !== null) {
+                                            return (float) $t->converted_amount;
+                                        }
+                                        return ((float) $t->exchange_rate > 0) ? (float) $t->amount / (float) $t->exchange_rate : 0.0;
+                                    });
+                                @endphp
+                                <tfoot class="table-group-divider fw-bold small">
+                                    <tr>
+                                        <td></td>
+                                        <td class="text-muted">Total</td>
+                                        <td class="text-end">{{ number_format($totalEntradaBrlFoot, 2, ',', '.') }}</td>
+                                        <td></td>
+                                        <td class="text-end">{{ number_format($totalEntradaUsdEquivFoot, 2, ',', '.') }}</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                     </div>
@@ -1154,11 +1207,11 @@
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-bordered table-striped mb-0">
-                                <thead>
+                            <table class="table table-striped table-hover mb-0">
+                                <thead class="table-danger">
                                     <tr>
                                         <th>Data</th>
-                                        <th>Valor U$</th>
+                                        <th class="text-end">Valor U$</th>
                                         <th>Descrição</th>
                                         @if(Auth::user()->hasModule('wallet.delete'))
                                             <th>Ações</th>
@@ -1169,7 +1222,7 @@
                                     @forelse($saidaUsd as $tx)
                                         <tr>
                                             <td>{{ $tx->created_at->format('d/m/Y H:i') }}</td>
-                                            <td class="fw-bold text-danger">{{ number_format(abs($tx->amount), 2, ',', '.') }}
+                                            <td class="fw-bold text-danger text-end">{{ number_format(abs($tx->amount), 2, ',', '.') }}
                                             </td>
                                             <td>{{ $tx->description ?? '-' }}</td>
                                             @if(Auth::user()->hasModule('wallet.delete'))
@@ -1209,6 +1262,19 @@
                                         </tr>
                                     @endforelse
                                 </tbody>
+                                @php
+                                    $totalSaidaUsdFoot = $saidaUsd->sum(fn($t) => abs((float) $t->amount));
+                                @endphp
+                                <tfoot class="table-group-divider fw-bold small">
+                                    <tr>
+                                        <td class="text-muted">Total</td>
+                                        <td class="text-end">{{ number_format($totalSaidaUsdFoot, 2, ',', '.') }}</td>
+                                        <td></td>
+                                        @if(Auth::user()->hasModule('wallet.delete'))
+                                            <td></td>
+                                        @endif
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                     </div>
@@ -1223,12 +1289,12 @@
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-bordered table-striped mb-0" id="tabela_entrada_usd">
-                                <thead>
+                            <table class="table table-striped table-hover mb-0" id="tabela_entrada_usd">
+                                <thead class="table-primary">
                                     <tr>
                                         <th>Data</th>
-                                        <th>Valor U$</th>
-                                        <th>Taxa venda</th>
+                                        <th class="text-end">Valor U$</th>
+                                        <th class="text-end">Taxa venda</th>
                                         <th>Descrição</th>
                                         @if($canViewPnl)
                                             <th class="text-center" style="width: 36px">
@@ -1245,10 +1311,10 @@
                                     @forelse($entradaUsd as $tx)
                                         <tr>
                                             <td>{{ $tx->created_at->format('d/m/Y H:i') }}</td>
-                                            <td class="fw-bold text-success">
+                                            <td class="fw-bold text-success text-end">
                                                 {{ number_format($tx->amount, 2, ',', '.') }}
                                             </td>
-                                            <td>
+                                            <td class="text-end">
                                                 @if($tx->exchange_rate)
                                                     {{ number_format($tx->exchange_rate, 4, ',', '.') }}
                                                 @else
@@ -1325,6 +1391,23 @@
                                         </tr>
                                     @endforelse
                                 </tbody>
+                                @php
+                                    $totalEntradaUsdFoot = $entradaUsd->sum('amount');
+                                @endphp
+                                <tfoot class="table-group-divider fw-bold small">
+                                    <tr>
+                                        <td class="text-muted">Total</td>
+                                        <td class="text-end">{{ number_format($totalEntradaUsdFoot, 2, ',', '.') }}</td>
+                                        <td></td>
+                                        <td></td>
+                                        @if($canViewPnl)
+                                            <td></td>
+                                        @endif
+                                        @if(Auth::user()->hasModule('wallet.delete'))
+                                            <td></td>
+                                        @endif
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                     </div>
@@ -1439,6 +1522,107 @@
             font-weight: 400;
             opacity: .85;
             margin-left: 2px;
+        }
+
+        /* Separadores horizontais sutis (substitui table-bordered) */
+        .wallet-compact .table tbody tr {
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .wallet-compact .table thead th {
+            border-bottom-width: 2px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        .wallet-compact tfoot td {
+            border-top: 2px solid rgba(0, 0, 0, 0.12) !important;
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+
+        /* Seleção estilo Excel */
+        .wallet-compact .table thead th.xls-th-selectable {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .wallet-compact .table thead th.xls-th-selectable:hover {
+            filter: brightness(0.93);
+        }
+
+        .wallet-compact .table tbody td.xls-selectable {
+            cursor: cell;
+            user-select: none;
+        }
+
+        .xls-selected {
+            background-color: rgba(19, 102, 219, 0.13) !important;
+            box-shadow: inset 0 0 0 1px rgba(19, 102, 219, 0.55);
+            position: relative;
+            z-index: 1;
+        }
+
+        #xls-copy-toast {
+            position: fixed;
+            bottom: 32px;
+            right: 22px;
+            background: #198754;
+            color: #fff;
+            padding: 7px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            z-index: 9999;
+            pointer-events: none;
+            transition: opacity .3s;
+            opacity: 0;
+        }
+
+        #xls-status-bar {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            /* left é definido dinamicamente pelo JS para respeitar o aside */
+            background: #e9ecef;
+            border-top: 1px solid #ced4da;
+            padding: 4px 20px;
+            font-size: 12px;
+            color: #495057;
+            display: none;
+            gap: 0;
+            align-items: center;
+            z-index: 998;
+            user-select: none;
+        }
+
+        #xls-status-bar span {
+            padding: 0 14px;
+            border-right: 1px solid #ced4da;
+            line-height: 1.6;
+        }
+
+        #xls-status-bar span:first-child {
+            padding-left: 0;
+        }
+
+        #xls-status-bar span:last-child {
+            border-right: none;
+        }
+
+        /* Modo tela cheia — esconde tudo exceto o conteúdo da carteira */
+        body.wallet-fullscreen #page-topbar,
+        body.wallet-fullscreen .app-menu.navbar-menu,
+        body.wallet-fullscreen .footer,
+        body.wallet-fullscreen .page-title-box,
+        body.wallet-fullscreen #back-to-top {
+            display: none !important;
+        }
+
+        body.wallet-fullscreen .main-content {
+            margin-left: 0 !important;
+        }
+
+        body.wallet-fullscreen .page-content {
+            padding: 10px 16px 10px !important;
         }
     </style>
     <!-- Modal Vender DÓLAR ANTECIPADO (cria lote de pré-venda — fixa a taxa cobrada do cliente) -->
@@ -2159,5 +2343,375 @@
                 fecharExchangeRate.value = taxa;
             });
         });
+    </script>
+
+    <!-- Modal Detalhes da Operação -->
+    <div class="modal fade" id="detalhesOperacaoModal" tabindex="-1" aria-labelledby="detalhesOperacaoLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title mb-0" id="detalhesOperacaoLabel">Detalhes da Entrada</h5>
+                        <small class="text-muted" id="detalhesOperacaoSub"></small>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body" id="detalhesOperacaoBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="xls-copy-toast">✓ Copiado</div>
+    <div id="xls-status-bar"></div>
+
+    <script>
+    (function () {
+        // ===== Modal Detalhes da Operação =====
+        document.addEventListener('DOMContentLoaded', function () {
+            var modal = document.getElementById('detalhesOperacaoModal');
+            if (!modal) return;
+
+            modal.addEventListener('show.bs.modal', function (e) {
+                var btn = e.relatedTarget;
+                if (!btn) return;
+                var d;
+                try { d = JSON.parse(btn.getAttribute('data-detalhes') || '{}'); } catch (_) { return; }
+
+                var labelEl = document.getElementById('detalhesOperacaoLabel');
+                var subEl   = document.getElementById('detalhesOperacaoSub');
+                var bodyEl  = document.getElementById('detalhesOperacaoBody');
+
+                if (labelEl) labelEl.textContent = 'Entrada #' + d.id + '  —  R$ ' + d.valor;
+                if (subEl)   subEl.textContent   = 'Registrada em ' + d.data;
+                if (bodyEl)  bodyEl.innerHTML    = buildDetalhesHtml(d);
+            });
+
+            function br(v) { return parseFloat((v || '0').replace(/\./g, '').replace(',', '.')) || 0; }
+
+            function badge(status) {
+                var map = { open: 'bg-success', partial: 'bg-warning text-dark', closed: 'bg-secondary' };
+                var labels = { open: 'aberto', partial: 'parcial', closed: 'fechado' };
+                return '<span class="badge ' + (map[status] || 'bg-light text-dark') + '">' + (labels[status] || status) + '</span>';
+            }
+
+            function card(label, value, cls) {
+                return '<div class="col-6 col-md-3">' +
+                    '<div class="border rounded p-2 text-center h-100">' +
+                    '<div class="text-muted small mb-1">' + label + '</div>' +
+                    '<div class="fw-bold ' + (cls || '') + '">' + value + '</div>' +
+                    '</div></div>';
+            }
+
+            function lotesTable(lotes, cols, headCls) {
+                if (!lotes || lotes.length === 0) return '';
+                var html = '<div class="table-responsive mt-2"><table class="table table-sm table-bordered mb-0">';
+                html += '<thead class="' + headCls + '"><tr>' +
+                    cols.map(function (c) { return '<th' + (c.end ? ' class="text-end"' : '') + '>' + c.h + '</th>'; }).join('') +
+                    '</tr></thead><tbody>';
+                lotes.forEach(function (l) {
+                    html += '<tr>' + cols.map(function (c) {
+                        var val = typeof c.fn === 'function' ? c.fn(l) : l[c.key] || '';
+                        return '<td' + (c.end ? ' class="text-end"' : '') + '>' + val + '</td>';
+                    }).join('') + '</tr>';
+                });
+                html += '</tbody></table></div>';
+                return html;
+            }
+
+            function fmt(num) {
+                return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+
+            function buildDetalhesHtml(d) {
+                var html = '';
+                var total    = br(d.valor);
+                var vendido  = br(d.brl_sold);
+                var restante = total - vendido;
+
+                // Cards de resumo
+                html += '<div class="row g-2 mb-4">';
+                html += card('Total depositado', 'R$ ' + d.valor, '');
+                html += card('Vendido ao cliente', 'R$ ' + d.brl_sold, vendido > 0 ? 'text-danger' : 'text-muted');
+                html += card('Restante', 'R$ ' + fmt(restante), restante > 0 ? 'text-warning' : 'text-muted');
+                html += card('Comprado pelo dono', 'R$ ' + d.brl_pre, br(d.brl_pre) > 0 ? 'text-success' : 'text-muted');
+                html += '</div>';
+
+                // Pré-compra
+                html += '<div class="mb-3">';
+                html += '<h6 class="text-success mb-1"><i class="ri-arrow-down-circle-line me-1"></i>Pré-compra — dono comprou USD</h6>';
+                if (d.lotes_compra && d.lotes_compra.length) {
+                    html += lotesTable(d.lotes_compra, [
+                        { h: 'R$ reservado', key: null, fn: function(l) { return 'R$ ' + l.brl; } },
+                        { h: 'Taxa compra',  key: 'taxa', end: true },
+                        { h: 'USD comprado', key: null, fn: function(l) { return '<span class="text-success fw-bold">US$ ' + l.usd + '</span>'; }, end: true },
+                        { h: 'Status',       key: null, fn: function(l) { return badge(l.status); }, end: true },
+                    ], 'table-success');
+                } else {
+                    html += '<p class="text-muted small mb-0 ps-1">Nenhuma pré-compra registrada neste depósito.</p>';
+                }
+                html += '</div>';
+
+                // Pré-venda
+                html += '<div class="mb-1">';
+                html += '<h6 class="text-danger mb-1"><i class="ri-arrow-up-circle-line me-1"></i>Pré-venda — taxa acordada com o cliente</h6>';
+                if (d.lotes_venda && d.lotes_venda.length) {
+                    html += lotesTable(d.lotes_venda, [
+                        { h: 'R$ vendido',     key: null, fn: function(l) { return 'R$ ' + l.brl; } },
+                        { h: 'Taxa venda',     key: 'taxa', end: true },
+                        { h: 'USD a entregar', key: null, fn: function(l) { return '<span class="text-danger fw-bold">US$ ' + l.usd + '</span>'; }, end: true },
+                        { h: 'Status',         key: null, fn: function(l) { return badge(l.status); }, end: true },
+                    ], 'table-danger');
+                } else {
+                    html += '<p class="text-muted small mb-0 ps-1">Nenhuma pré-venda registrada neste depósito.</p>';
+                }
+                html += '</div>';
+
+                return html;
+            }
+        });
+    })();
+
+    (function () {
+        var SEL = 'xls-selected';
+        var anchor = null;
+        var isDragging = false;
+        var dragTable = null;
+
+        function allTables() {
+            return document.querySelectorAll('.wallet-compact .table');
+        }
+
+        function clearSelection() {
+            document.querySelectorAll('.' + SEL).forEach(function (el) {
+                el.classList.remove(SEL);
+            });
+        }
+
+        function tableRows(table) {
+            return Array.from(table.querySelectorAll('tbody tr'));
+        }
+
+        function selectRange(table, r1, c1, r2, c2) {
+            clearSelection();
+            var rows = tableRows(table);
+            var minR = Math.min(r1, r2), maxR = Math.max(r1, r2);
+            var minC = Math.min(c1, c2), maxC = Math.max(c1, c2);
+            for (var r = minR; r <= maxR; r++) {
+                if (!rows[r]) continue;
+                var cells = Array.from(rows[r].children);
+                for (var c = minC; c <= maxC; c++) {
+                    if (cells[c]) cells[c].classList.add(SEL);
+                }
+            }
+        }
+
+        function selectColumn(table, colIdx, add) {
+            if (!add) clearSelection();
+            tableRows(table).forEach(function (row) {
+                var td = row.children[colIdx];
+                if (td) td.classList.add(SEL);
+            });
+        }
+
+        // Converte número no formato pt-BR ("1.234,56") para float
+        function parseBrNumber(text) {
+            // Pega só a primeira linha (ignora texto de badges dentro da célula)
+            var t = (text || '').trim().split('\n')[0].trim();
+            // Remove símbolos de moeda e espaços
+            t = t.replace(/[R$U$\s]/g, '').replace(/^\+/, '');
+            if (!t || t === '-' || t === '—' || t === '') return null;
+            var sign = t.startsWith('-') ? -1 : 1;
+            t = t.replace(/^-/, '');
+            // pt-BR: ponto = milhar, vírgula = decimal
+            t = t.replace(/\./g, '').replace(',', '.');
+            var val = parseFloat(t);
+            return isNaN(val) ? null : val * sign;
+        }
+
+        function formatBr(val, decimals) {
+            return val.toLocaleString('pt-BR', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
+        }
+
+        function updateStatusBar() {
+            var bar = document.getElementById('xls-status-bar');
+            if (!bar) return;
+
+            var selected = document.querySelectorAll('.' + SEL);
+            if (selected.length === 0) {
+                bar.style.display = 'none';
+                return;
+            }
+
+            var brl  = { sum: 0, count: 0 };
+            var usd  = { sum: 0, count: 0 };
+            var taxa = { sum: 0, count: 0 };
+
+            selected.forEach(function (td) {
+                var row    = td.parentElement;
+                var colIdx = Array.from(row.children).indexOf(td);
+                var table  = td.closest('table');
+                var th     = table ? table.querySelectorAll('thead th')[colIdx] : null;
+                var header = (th ? th.innerText : '').trim().toUpperCase();
+                var val    = parseBrNumber(td.innerText);
+                if (val === null) return;
+
+                if (header.includes('R$')) {
+                    brl.sum += val; brl.count++;
+                } else if (header.includes('U$')) {
+                    usd.sum += val; usd.count++;
+                } else if (header.includes('TAXA')) {
+                    taxa.sum += val; taxa.count++;
+                }
+            });
+
+            var parts = [];
+            parts.push('<span><strong>Qtd:</strong> ' + selected.length + '</span>');
+
+            if (brl.count > 0) {
+                parts.push('<span><strong>R$</strong> ' + formatBr(brl.sum, 2) + '</span>');
+            }
+            if (usd.count > 0) {
+                parts.push('<span><strong>U$</strong> ' + formatBr(usd.sum, 2) + '</span>');
+            }
+            if (taxa.count > 0 && brl.count === 0 && usd.count === 0) {
+                parts.push('<span><strong>Taxa média:</strong> ' + formatBr(taxa.sum / taxa.count, 4) + '</span>');
+            }
+
+            bar.innerHTML = parts.join('');
+
+            var contentArea = document.querySelector('.page-content');
+            bar.style.left = contentArea ? contentArea.getBoundingClientRect().left + 'px' : '0';
+            bar.style.display = 'flex';
+        }
+
+        function toggleFullscreen(force) {
+            var active = (force !== undefined) ? force : !document.body.classList.contains('wallet-fullscreen');
+            document.body.classList.toggle('wallet-fullscreen', active);
+            var icon = document.querySelector('#btn-fullscreen i');
+            if (icon) icon.className = active ? 'ri-fullscreen-exit-line' : 'ri-fullscreen-line';
+            // Recalcula left do status bar porque o layout mudou
+            var bar = document.getElementById('xls-status-bar');
+            if (bar && bar.style.display !== 'none') {
+                var contentArea = document.querySelector('.page-content');
+                bar.style.left = contentArea ? contentArea.getBoundingClientRect().left + 'px' : '0';
+            }
+        }
+
+        function showToast() {
+            var el = document.getElementById('xls-copy-toast');
+            if (!el) return;
+            el.style.opacity = '1';
+            clearTimeout(el._t);
+            el._t = setTimeout(function () { el.style.opacity = '0'; }, 1800);
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            allTables().forEach(function (table) {
+                Array.from(table.querySelectorAll('thead th')).forEach(function (th, colIdx) {
+                    th.classList.add('xls-th-selectable');
+                    th.addEventListener('mousedown', function (e) {
+                        if (e.target.closest('input, button, a, label')) return;
+                        selectColumn(table, colIdx, e.ctrlKey || e.metaKey);
+                        updateStatusBar();
+                        e.preventDefault();
+                    });
+                });
+
+                tableRows(table).forEach(function (row, rowIdx) {
+                    Array.from(row.children).forEach(function (td, colIdx) {
+                        td.classList.add('xls-selectable');
+
+                        td.addEventListener('mousedown', function (e) {
+                            if (e.target.closest('input, button, a, label, .dropdown')) return;
+                            if (e.button !== 0) return;
+
+                            if (e.shiftKey && anchor && anchor.table === table) {
+                                selectRange(table, anchor.rowIdx, anchor.colIdx, rowIdx, colIdx);
+                            } else if (e.ctrlKey || e.metaKey) {
+                                td.classList.toggle(SEL);
+                                anchor = { table: table, rowIdx: rowIdx, colIdx: colIdx };
+                            } else {
+                                clearSelection();
+                                td.classList.add(SEL);
+                                anchor = { table: table, rowIdx: rowIdx, colIdx: colIdx };
+                                isDragging = true;
+                                dragTable = table;
+                            }
+                            updateStatusBar();
+                            e.preventDefault();
+                        });
+
+                        td.addEventListener('mouseover', function () {
+                            if (!isDragging || dragTable !== table || !anchor) return;
+                            selectRange(table, anchor.rowIdx, anchor.colIdx, rowIdx, colIdx);
+                            updateStatusBar();
+                        });
+                    });
+                });
+            });
+
+            document.addEventListener('mouseup', function () {
+                isDragging = false;
+                dragTable = null;
+            });
+
+            var fsBtn = document.getElementById('btn-fullscreen');
+            if (fsBtn) {
+                fsBtn.addEventListener('click', function () { toggleFullscreen(); });
+            }
+
+            document.addEventListener('mousedown', function (e) {
+                if (!e.target.closest('.wallet-compact .table')) {
+                    clearSelection();
+                    anchor = null;
+                    updateStatusBar();
+                }
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') {
+                    if (document.body.classList.contains('wallet-fullscreen')) {
+                        toggleFullscreen(false);
+                    }
+                    clearSelection();
+                    anchor = null;
+                    updateStatusBar();
+                    return;
+                }
+
+                if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+                    var selected = document.querySelectorAll('.' + SEL);
+                    if (selected.length === 0) return;
+
+                    var rowMap = new Map();
+                    selected.forEach(function (td) {
+                        var row = td.parentElement;
+                        if (!rowMap.has(row)) rowMap.set(row, []);
+                        rowMap.get(row).push(td);
+                    });
+
+                    var lines = [];
+                    rowMap.forEach(function (cells, row) {
+                        var siblings = Array.from(row.children);
+                        cells.sort(function (a, b) {
+                            return siblings.indexOf(a) - siblings.indexOf(b);
+                        });
+                        lines.push(cells.map(function (td) {
+                            return td.innerText.trim().replace(/\s+/g, ' ');
+                        }).join('\t'));
+                    });
+
+                    navigator.clipboard.writeText(lines.join('\n')).then(showToast);
+                    e.preventDefault();
+                }
+            });
+        });
+    })();
     </script>
 @endsection

@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Razão Contábil — 2025</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ink:       #0D1117;
+  --ink-2:     #24292F;
+  --ink-3:     #57606A;
+  --ink-4:     #8B949E;
+  --canvas:    #FFFFFF;
+  --wash:      #F6F8FA;
+  --border:    #D0D7DE;
+  --border-2:  #E8ECF0;
+  --night:     #0A1628;
+  --night-2:   #112240;
+  --night-3:   #1C3461;
+  --blue:      #4F6EF7;
+  --blue-2:    #3B56D4;
+  --blue-dim:  rgba(79,110,247,.10);
+  --emerald:   #059669;
+  --emerald-bg:#F0FDF9;
+  --rose:      #DC2626;
+  --rose-bg:   #FFF5F5;
+  --amber:     #B45309;
+  --amber-bg:  #FEFCE8;
+  --font: -apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;
+  --mono: ui-monospace,'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;
+  --ease: cubic-bezier(.4,0,.2,1);
+}
+
+html { font-size: 14px; }
+body {
+  font-family: var(--font);
+  background: #EEF1F6;
+  color: var(--ink);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   HERO
+───────────────────────────────────────────────────────────────────────────── */
+.hero {
+  background: var(--night);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(79,110,247,.18) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 80% 110%, rgba(5,150,105,.10) 0%, transparent 60%),
+    repeating-linear-gradient(
+      0deg, transparent, transparent 27px,
+      rgba(255,255,255,.025) 27px, rgba(255,255,255,.025) 28px
+    ),
+    repeating-linear-gradient(
+      90deg, transparent, transparent 27px,
+      rgba(255,255,255,.025) 27px, rgba(255,255,255,.025) 28px
+    );
+  padding: 44px 40px 88px;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(79,110,247,.4), transparent);
+}
+
+.hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.hero-breadcrumb {
+  font-size: 12px;
+  color: rgba(255,255,255,.35);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hero-breadcrumb span { color: rgba(255,255,255,.55); }
+
+.hero-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -.4px;
+  line-height: 1.1;
+}
+
+.hero-sub {
+  font-size: 13px;
+  color: rgba(255,255,255,.45);
+  margin-top: 5px;
+  letter-spacing: .01em;
+}
+
+.hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-top: 14px;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-size: 11.5px;
+  font-weight: 500;
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.1);
+  color: rgba(255,255,255,.6);
+}
+
+.pulse {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 0 0 rgba(16,185,129,.5);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(16,185,129,.5); }
+  70%  { box-shadow: 0 0 0 6px rgba(16,185,129,0); }
+  100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+}
+
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding-top: 28px;
+}
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-size: 13px; font-weight: 500; font-family: var(--font);
+  cursor: pointer; border: none; white-space: nowrap;
+  transition: all .15s var(--ease);
+  letter-spacing: -.01em;
+}
+
+.btn-ghost-dark {
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.12);
+  color: rgba(255,255,255,.75);
+}
+.btn-ghost-dark:hover {
+  background: rgba(255,255,255,.13);
+  color: #fff;
+}
+
+.btn-solid {
+  background: var(--blue);
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(79,110,247,.4), inset 0 1px 0 rgba(255,255,255,.1);
+}
+.btn-solid:hover { background: var(--blue-2); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   KPI CARDS
+───────────────────────────────────────────────────────────────────────────── */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  max-width: 1280px;
+  margin: -56px auto 0;
+  padding: 0 40px;
+  position: relative;
+  z-index: 10;
+}
+@media(max-width:960px)  { .kpi-row { grid-template-columns: repeat(2,1fr); } }
+@media(max-width:580px)  { .kpi-row { grid-template-columns: 1fr; padding: 0 16px; } }
+
+.kpi {
+  background: var(--canvas);
+  border: 1px solid var(--border-2);
+  border-radius: 10px;
+  padding: 18px 20px;
+  box-shadow:
+    0 1px 2px rgba(0,0,0,.04),
+    0 4px 16px rgba(0,0,0,.07),
+    0 0 0 1px rgba(255,255,255,.6) inset;
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-stripe {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  border-radius: 10px 10px 0 0;
+}
+.kpi.k-blue   .kpi-stripe { background: linear-gradient(90deg,#4F6EF7,#7A97FF); }
+.kpi.k-green  .kpi-stripe { background: linear-gradient(90deg,#059669,#34D399); }
+.kpi.k-red    .kpi-stripe { background: linear-gradient(90deg,#DC2626,#F87171); }
+.kpi.k-amber  .kpi-stripe { background: linear-gradient(90deg,#B45309,#FCD34D); }
+
+.kpi-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+.kpi.k-blue  .kpi-icon { background: rgba(79,110,247,.1);  color: var(--blue); }
+.kpi.k-green .kpi-icon { background: rgba(5,150,105,.1);   color: var(--emerald); }
+.kpi.k-red   .kpi-icon { background: rgba(220,38,38,.1);   color: var(--rose); }
+.kpi.k-amber .kpi-icon { background: rgba(180,83,9,.1);    color: var(--amber); }
+
+.kpi-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  margin-bottom: 6px;
+}
+
+.kpi-value {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -.5px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.kpi-sub {
+  font-size: 11.5px;
+  color: var(--ink-4);
+  margin-top: 5px;
+}
+
+.kpi-bar {
+  margin-top: 10px;
+  height: 3px;
+  background: var(--border-2);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.kpi-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width .6s var(--ease);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   MAIN CONTENT AREA
+───────────────────────────────────────────────────────────────────────────── */
+.content {
+  max-width: 1280px;
+  margin: 24px auto 0;
+  padding: 0 40px 40px;
+}
+@media(max-width:700px){ .content { padding: 0 16px 40px; } }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TABLE CARD
+───────────────────────────────────────────────────────────────────────────── */
+.sheet {
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.06);
+  overflow: hidden;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TOOLBAR
+───────────────────────────────────────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-2);
+  flex-wrap: wrap;
+}
+
+.toolbar-left  { display: flex; align-items: center; gap: 8px; flex: 1; flex-wrap: wrap; min-width: 0; }
+.toolbar-right { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
+
+/* Search */
+.search {
+  position: relative;
+  flex: 1;
+  min-width: 180px;
+  max-width: 260px;
+}
+.search-icon {
+  position: absolute;
+  left: 10px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-4);
+  pointer-events: none;
+  display: flex;
+}
+.search input {
+  width: 100%;
+  padding: 7px 10px 7px 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px; font-family: var(--font);
+  color: var(--ink);
+  background: var(--wash);
+  outline: none;
+  transition: border-color .15s, box-shadow .15s, background .15s;
+  height: 32px;
+}
+.search input:focus {
+  background: var(--canvas);
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--blue-dim);
+}
+.search input::placeholder { color: var(--ink-4); }
+
+/* Filter selects */
+.fsel {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px; font-family: var(--font);
+  color: var(--ink-2);
+  background: var(--wash);
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238B949E' stroke-width='2' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 26px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.fsel:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-dim); }
+.fsel.active {
+  border-color: var(--blue);
+  background-color: var(--blue-dim);
+  color: var(--blue);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234F6EF7' stroke-width='2' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+}
+
+.sep { width: 1px; height: 20px; background: var(--border-2); flex-shrink: 0; }
+
+.result-label {
+  font-size: 12.5px;
+  color: var(--ink-4);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.btn-text {
+  font-size: 12.5px; font-family: var(--font);
+  color: var(--blue);
+  background: none; border: none;
+  cursor: pointer;
+  padding: 4px 2px;
+  font-weight: 500;
+  transition: color .12s;
+}
+.btn-text:hover { color: var(--blue-2); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CHIPS
+───────────────────────────────────────────────────────────────────────────── */
+.chips {
+  display: none;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-2);
+  flex-wrap: wrap;
+}
+.chips.has-chips { display: flex; }
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px 2px 10px;
+  border-radius: 5px;
+  font-size: 12px; font-weight: 500;
+  background: #F0F4FE;
+  border: 1px solid #C9D7F8;
+  color: #2D4EBA;
+  line-height: 1.6;
+}
+.chip-rm {
+  width: 15px; height: 15px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 3px;
+  cursor: pointer;
+  color: #5B7BD6;
+  font-size: 10px;
+  transition: background .1s;
+  flex-shrink: 0;
+}
+.chip-rm:hover { background: #C9D7F8; color: #1D3789; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TABLE
+───────────────────────────────────────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* Checkbox */
+input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  width: 15px; height: 15px;
+  border: 1.5px solid var(--border);
+  border-radius: 3px;
+  background: var(--canvas);
+  cursor: pointer;
+  display: block;
+  position: relative;
+  transition: border-color .12s, background .12s, box-shadow .12s;
+  flex-shrink: 0;
+}
+input[type="checkbox"]:hover { border-color: var(--blue); }
+input[type="checkbox"]:checked,
+input[type="checkbox"]:indeterminate {
+  background: var(--blue);
+  border-color: var(--blue);
+  box-shadow: 0 1px 3px rgba(79,110,247,.4);
+}
+input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 3.5px; top: 1px;
+  width: 4.5px; height: 8px;
+  border: 1.5px solid #fff;
+  border-top: none; border-left: none;
+  transform: rotate(44deg);
+}
+input[type="checkbox"]:indeterminate::after {
+  content: '';
+  position: absolute;
+  left: 2px; top: 5px;
+  width: 7px; height: 1.5px;
+  background: #fff;
+  border-radius: 1px;
+}
+
+thead th {
+  padding: 0 14px;
+  height: 36px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  background: var(--wash);
+  border-bottom: 1px solid var(--border-2);
+  white-space: nowrap;
+  text-align: left;
+  position: sticky; top: 0; z-index: 2;
+  user-select: none;
+}
+th.th-chk { width: 42px; text-align: center; }
+th.r { text-align: right; }
+th.sortable { cursor: pointer; }
+th.sortable:hover { color: var(--ink-2); background: #EDEEF1; }
+th.sorted { color: var(--ink-2); }
+
+.th-inner {
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.sort-arrows {
+  display: flex; flex-direction: column; gap: 1px;
+  opacity: .28; transition: opacity .12s;
+}
+th.sorted .sort-arrows { opacity: 1; }
+.sa { display: block; }
+th.sorted.asc  .sa-down { opacity: .2; }
+th.sorted.desc .sa-up   { opacity: .2; }
+
+tbody tr {
+  border-bottom: 1px solid var(--border-2);
+  position: relative;
+  transition: background .08s;
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #F9FAFB; }
+tbody tr.sel { background: #F0F4FE; }
+tbody tr.sel:hover { background: #E8EDFC; }
+
+/* left accent bar on selected rows */
+tbody tr::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2.5px;
+  background: var(--blue);
+  transform: scaleY(0);
+  transition: transform .15s var(--ease);
+  border-radius: 0 2px 2px 0;
+}
+tbody tr.sel::before { transform: scaleY(1); }
+
+td {
+  padding: 0 14px;
+  height: 44px;
+  vertical-align: middle;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+td.td-chk { text-align: center; padding: 0 14px; }
+td.r { text-align: right; }
+td.bold { font-weight: 600; color: var(--ink); }
+td.code {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-3);
+  letter-spacing: .01em;
+}
+td.hist {
+  color: var(--ink);
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Amount cells with background bar */
+.amount-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+.amount-val {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.01em;
+}
+.amount-bar {
+  height: 2px;
+  border-radius: 99px;
+  background: currentColor;
+  opacity: .2;
+  min-width: 4px;
+  transition: width .3s var(--ease);
+}
+
+.val-credit { color: var(--emerald); }
+.val-debit  { color: var(--rose); }
+.val-pos    { color: var(--emerald); }
+.val-neg    { color: var(--rose); }
+
+/* Badges */
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: .01em;
+  line-height: 1.6;
+  border: 1px solid;
+}
+.b-credit { background: var(--emerald-bg); color: var(--emerald); border-color: rgba(5,150,105,.2); }
+.b-debit  { background: var(--rose-bg);    color: var(--rose);    border-color: rgba(220,38,38,.2); }
+.b-ok     { background: var(--emerald-bg); color: var(--emerald); border-color: rgba(5,150,105,.2); }
+.b-pend   { background: var(--amber-bg);   color: var(--amber);   border-color: rgba(180,83,9,.2);  }
+.b-cancel { background: var(--rose-bg);    color: var(--rose);    border-color: rgba(220,38,38,.2); }
+
+/* Status dot */
+.sdot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/* Balance column */
+.bal-cell {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 1px;
+}
+.bal-val {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TABLE FOOTER
+───────────────────────────────────────────────────────────────────────────── */
+tfoot tr {
+  background: #F6F8FA;
+  border-top: 1.5px solid var(--border);
+}
+tfoot td {
+  height: auto;
+  padding: 12px 14px;
+  font-size: 12px;
+}
+.foot-blk {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.foot-line {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.foot-lbl {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  white-space: nowrap;
+}
+.foot-val {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   FLOATING SELECTION BAR
+───────────────────────────────────────────────────────────────────────────── */
+.sel-bar {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: rgba(13,17,23,.93);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.4), 0 2px 8px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.06);
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 8px 0 20px;
+  height: 56px;
+  min-width: min(800px, calc(100vw - 48px));
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .22s var(--ease), transform .22s var(--ease);
+}
+.sel-bar.on {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+.sb-count {
+  display: flex; align-items: center; gap: 8px;
+  padding-right: 20px;
+  border-right: 1px solid rgba(255,255,255,.1);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.sb-stats {
+  display: flex; align-items: stretch;
+  flex: 1;
+  overflow-x: auto;
+  padding: 0 4px;
+  scrollbar-width: none;
+}
+.sb-stats::-webkit-scrollbar { display: none; }
+
+.sb-stat {
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 0 18px;
+  border-right: 1px solid rgba(255,255,255,.07);
+}
+.sb-stat:last-child { border-right: none; }
+
+.sb-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.35);
+  margin-bottom: 2px;
+}
+.sb-value {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+.sb-value.g { color: #34D399; }
+.sb-value.r { color: #F87171; }
+
+.sb-actions {
+  display: flex; gap: 6px;
+  padding-left: 8px;
+  flex-shrink: 0;
+}
+.sb-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12.5px; font-weight: 500; font-family: var(--font);
+  cursor: pointer; border: none; transition: all .12s;
+}
+.sb-btn.sec {
+  background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.7);
+}
+.sb-btn.sec:hover { background: rgba(255,255,255,.14); color: #fff; }
+.sb-btn.pri {
+  background: rgba(255,255,255,.92);
+  color: var(--ink);
+}
+.sb-btn.pri:hover { background: #fff; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   EMPTY
+───────────────────────────────────────────────────────────────────────────── */
+.empty-row td {
+  text-align: center;
+  padding: 64px 24px;
+  color: var(--ink-4);
+  font-size: 14px;
+  height: auto;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   RESPONSIVE
+───────────────────────────────────────────────────────────────────────────── */
+@media(max-width:700px){
+  .hero { padding: 28px 16px 80px; }
+  .kpi-row { margin-top: -64px; padding: 0 16px; }
+  .hero-actions .btn:first-child { display: none; }
+  .toolbar-right { display: none; }
+}
+
+@media print {
+  .hero, .sel-bar { display: none !important; }
+  .kpi-row { margin-top: 0; padding: 0; }
+  body { background: #fff; }
+  .content { padding: 0; margin: 0; max-width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Hero ───────────────────────────────────────────────────────────────── -->
+<div class="hero">
+  <div class="hero-top">
+    <div>
+      <div class="hero-breadcrumb">
+        Contabilidade
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        <span>Razão Contábil</span>
+      </div>
+      <h1 class="hero-title">Razão Contábil — 2025</h1>
+      <p class="hero-sub">Conta 1.1.01 &nbsp;·&nbsp; Caixa e Equivalentes de Caixa</p>
+      <div class="hero-meta">
+        <span class="hero-badge">
+          <span class="pulse"></span>
+          Dados atualizados
+        </span>
+        <span class="hero-badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Jan – Jun 2025
+        </span>
+      </div>
+    </div>
+
+    <div class="hero-actions">
+      <button class="btn btn-ghost-dark" onclick="exportCSV()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Exportar CSV
+      </button>
+      <button class="btn btn-solid" onclick="window.print()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        Imprimir
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── KPI cards ──────────────────────────────────────────────────────────── -->
+<div class="kpi-row">
+  <div class="kpi k-blue">
+    <div class="kpi-stripe"></div>
+    <div class="kpi-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    </div>
+    <div class="kpi-label">Lançamentos</div>
+    <div class="kpi-value" id="kv-count">—</div>
+    <div class="kpi-sub" id="ks-count"></div>
+  </div>
+  <div class="kpi k-green">
+    <div class="kpi-stripe"></div>
+    <div class="kpi-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+    </div>
+    <div class="kpi-label">Total Créditos</div>
+    <div class="kpi-value" id="kv-cr">—</div>
+    <div class="kpi-sub" id="ks-cr"></div>
+    <div class="kpi-bar"><div class="kpi-bar-fill" id="kb-cr" style="background:var(--emerald)"></div></div>
+  </div>
+  <div class="kpi k-red">
+    <div class="kpi-stripe"></div>
+    <div class="kpi-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+    </div>
+    <div class="kpi-label">Total Débitos</div>
+    <div class="kpi-value" id="kv-db">—</div>
+    <div class="kpi-sub" id="ks-db"></div>
+    <div class="kpi-bar"><div class="kpi-bar-fill" id="kb-db" style="background:var(--rose)"></div></div>
+  </div>
+  <div class="kpi k-amber">
+    <div class="kpi-stripe"></div>
+    <div class="kpi-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+    </div>
+    <div class="kpi-label">Saldo do Período</div>
+    <div class="kpi-value" id="kv-bal">—</div>
+    <div class="kpi-sub" id="ks-bal"></div>
+  </div>
+</div>
+
+<!-- ── Content ────────────────────────────────────────────────────────────── -->
+<div class="content">
+  <div class="sheet">
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="search">
+          <span class="search-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </span>
+          <input id="q" type="text" placeholder="Buscar histórico ou documento…">
+        </div>
+
+        <div class="sep"></div>
+
+        <select id="f-month" class="fsel" onchange="applyFilters()">
+          <option value="">Mês</option>
+          <option value="01">Janeiro</option>
+          <option value="02">Fevereiro</option>
+          <option value="03">Março</option>
+          <option value="04">Abril</option>
+          <option value="05">Maio</option>
+          <option value="06">Junho</option>
+        </select>
+
+        <select id="f-type" class="fsel" onchange="applyFilters()">
+          <option value="">Tipo</option>
+          <option value="Crédito">Crédito</option>
+          <option value="Débito">Débito</option>
+        </select>
+
+        <select id="f-status" class="fsel" onchange="applyFilters()">
+          <option value="">Status</option>
+          <option value="Confirmado">Confirmado</option>
+          <option value="Pendente">Pendente</option>
+          <option value="Cancelado">Cancelado</option>
+        </select>
+      </div>
+
+      <div class="toolbar-right">
+        <span class="result-label" id="result-label"></span>
+        <button class="btn-text" id="btn-clear" style="display:none" onclick="clearAll()">Limpar filtros</button>
+      </div>
+    </div>
+
+    <!-- Active chips -->
+    <div class="chips" id="chips"></div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="th-chk"><input type="checkbox" id="chk-all" onchange="toggleAll(this)"></th>
+            <th class="sortable" data-col="date" onclick="doSort(this)">
+              <div class="th-inner">Data <span class="sort-arrows"><svg class="sa sa-up" width="7" height="5" viewBox="0 0 7 5"><path d="M3.5 0L7 5H0z" fill="currentColor"/></svg><svg class="sa sa-down" width="7" height="5" viewBox="0 0 7 5"><path d="M3.5 5L0 0h7z" fill="currentColor"/></svg></span></div>
+            </th>
+            <th class="sortable" data-col="doc" onclick="doSort(this)">
+              <div class="th-inner">Documento <span class="sort-arrows"><svg class="sa sa-up" width="7" height="5" viewBox="0 0 7 5"><path d="M3.5 0L7 5H0z" fill="currentColor"/></svg><svg class="sa sa-down" width="7" height="5" viewBox="0 0 7 5"><path d="M3.5 5L0 0h7z" fill="currentColor"/></svg></span></div>
+            </th>
+            <th class="sortable" style="width:100%" data-col="history" onclick="doSort(this)">
+              <div class="th-inner">Histórico <span class="sort-arrows"><svg class="sa sa-up" width="7" height="5" viewBox="0 0 7 5"><path d="M3.5 0L7 5H0z" fill="currentColor"/></svg><svg class="sa sa-down" width="7" height="5" viewBox="0 0 7 5"><path d="M3.5 5L0 0h7z" fill="currentColor"/></svg></span></div>
+            </th>
+            <th class="sortable" data-col="type" onclick="doSort(this)">
+              <div class="th-inner">Tipo <span class="sort-arrows"><svg class="sa sa-up" width="7" height="5" viewBox="0 0 7 5"><path d="M3.5 0L7 5H0z" fill="currentColor"/></svg><svg class="sa sa-down" width="7" height="5" viewBox="0 0 7 5"><path d="M3.5 5L0 0h7z" fill="currentColor"/></svg></span></div>
+            </th>
+            <th class="sortable r" data-col="amount" onclick="doSort(this)">
+              <div class="th-inner" style="justify-content:flex-end">Valor <span class="sort-arrows"><svg class="sa sa-up" width="7" height="5" viewBox="0 0 7 5"><path d="M3.5 0L7 5H0z" fill="currentColor"/></svg><svg class="sa sa-down" width="7" height="5" viewBox="0 0 7 5"><path d="M3.5 5L0 0h7z" fill="currentColor"/></svg></span></div>
+            </th>
+            <th class="sortable r" data-col="balance" onclick="doSort(this)">
+              <div class="th-inner" style="justify-content:flex-end">Saldo <span class="sort-arrows"><svg class="sa sa-up" width="7" height="5" viewBox="0 0 7 5"><path d="M3.5 0L7 5H0z" fill="currentColor"/></svg><svg class="sa sa-down" width="7" height="5" viewBox="0 0 7 5"><path d="M3.5 5L0 0h7z" fill="currentColor"/></svg></span></div>
+            </th>
+            <th class="sortable" data-col="status" onclick="doSort(this)">
+              <div class="th-inner">Status <span class="sort-arrows"><svg class="sa sa-up" width="7" height="5" viewBox="0 0 7 5"><path d="M3.5 0L7 5H0z" fill="currentColor"/></svg><svg class="sa sa-down" width="7" height="5" viewBox="0 0 7 5"><path d="M3.5 5L0 0h7z" fill="currentColor"/></svg></span></div>
+            </th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+        <tfoot>
+          <tr>
+            <td></td>
+            <td colspan="4" style="padding-top:12px;padding-bottom:12px">
+              <span style="font-size:11.5px;font-weight:600;color:var(--ink-3)" id="foot-count">Totais do período</span>
+            </td>
+            <td class="r" id="foot-amount" style="padding-top:12px;padding-bottom:12px"></td>
+            <td class="r" id="foot-balance" style="padding-top:12px;padding-bottom:12px"></td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Floating selection bar ─────────────────────────────────────────────── -->
+<div class="sel-bar" id="sel-bar">
+  <div class="sb-count">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+    <span id="sb-n">0</span>
+  </div>
+  <div class="sb-stats">
+    <div class="sb-stat">
+      <span class="sb-label">Soma líquida</span>
+      <span class="sb-value" id="sb-net">—</span>
+    </div>
+    <div class="sb-stat">
+      <span class="sb-label">Créditos</span>
+      <span class="sb-value g" id="sb-cr">—</span>
+    </div>
+    <div class="sb-stat">
+      <span class="sb-label">Débitos</span>
+      <span class="sb-value r" id="sb-db">—</span>
+    </div>
+    <div class="sb-stat">
+      <span class="sb-label">Maior valor</span>
+      <span class="sb-value" id="sb-max">—</span>
+    </div>
+    <div class="sb-stat">
+      <span class="sb-label">Média</span>
+      <span class="sb-value" id="sb-avg">—</span>
+    </div>
+  </div>
+  <div class="sb-actions">
+    <button class="sb-btn sec" onclick="exportSel()">Exportar</button>
+    <button class="sb-btn pri" onclick="clearSel()">Limpar seleção</button>
+  </div>
+</div>
+
+<script>
+// ── Data ─────────────────────────────────────────────────────────────────────
+const RAW = [
+  { date:'2025-01-03', doc:'REC-0001', history:'Recebimento de cliente — Nota 2241',        type:'Crédito', amount:18750.00, status:'Confirmado' },
+  { date:'2025-01-05', doc:'PAG-0012', history:'Pagamento fornecedor — MatSupri Ltda',       type:'Débito',  amount:4320.50,  status:'Confirmado' },
+  { date:'2025-01-08', doc:'REC-0002', history:'Transferência recebida — Filial SP',          type:'Crédito', amount:32000.00, status:'Confirmado' },
+  { date:'2025-01-10', doc:'PAG-0013', history:'Pagamento aluguel — Jan/2025',               type:'Débito',  amount:5800.00,  status:'Confirmado' },
+  { date:'2025-01-15', doc:'REC-0003', history:'Recebimento duplicata 3411',                 type:'Crédito', amount:9200.00,  status:'Confirmado' },
+  { date:'2025-01-20', doc:'PAG-0014', history:'Salários — Folha Janeiro',                  type:'Débito',  amount:28400.00, status:'Confirmado' },
+  { date:'2025-01-25', doc:'REC-0004', history:'Juros aplicação financeira',                 type:'Crédito', amount:410.75,   status:'Confirmado' },
+  { date:'2025-02-03', doc:'REC-0005', history:'Recebimento de cliente — Nota 2290',        type:'Crédito', amount:21500.00, status:'Confirmado' },
+  { date:'2025-02-07', doc:'PAG-0020', history:'DARF IRPJ — 2° Quinzena Jan',              type:'Débito',  amount:3840.00,  status:'Confirmado' },
+  { date:'2025-02-10', doc:'PAG-0021', history:'Energia elétrica — Fev/2025',              type:'Débito',  amount:1205.30,  status:'Confirmado' },
+  { date:'2025-02-14', doc:'REC-0006', history:'Adiantamento de cliente — Proj Alpha',      type:'Crédito', amount:50000.00, status:'Confirmado' },
+  { date:'2025-02-18', doc:'PAG-0022', history:'Pagamento fornecedor — LogEx Transportes', type:'Débito',  amount:7620.00,  status:'Confirmado' },
+  { date:'2025-02-20', doc:'PAG-0023', history:'Salários — Folha Fevereiro',               type:'Débito',  amount:28400.00, status:'Confirmado' },
+  { date:'2025-02-27', doc:'REC-0007', history:'Devolução fornecedor — MatSupri Ltda',     type:'Crédito', amount:1800.00,  status:'Confirmado' },
+  { date:'2025-03-04', doc:'REC-0008', history:'Recebimento de cliente — Nota 2310',       type:'Crédito', amount:15300.00, status:'Confirmado' },
+  { date:'2025-03-05', doc:'PAG-0030', history:'Pagamento aluguel — Mar/2025',             type:'Débito',  amount:5800.00,  status:'Confirmado' },
+  { date:'2025-03-10', doc:'PAG-0031', history:'Guia FGTS — Fev/2025',                    type:'Débito',  amount:2272.00,  status:'Confirmado' },
+  { date:'2025-03-15', doc:'REC-0009', history:'Recebimento duplicata 3455',              type:'Crédito', amount:11400.00, status:'Confirmado' },
+  { date:'2025-03-18', doc:'PAG-0032', history:'Manutenção equipamentos',                 type:'Débito',  amount:980.00,   status:'Pendente'   },
+  { date:'2025-03-20', doc:'PAG-0033', history:'Salários — Folha Março',                  type:'Débito',  amount:28400.00, status:'Confirmado' },
+  { date:'2025-03-25', doc:'REC-0010', history:'Venda à vista — cliente novo',            type:'Crédito', amount:6700.00,  status:'Confirmado' },
+  { date:'2025-04-02', doc:'REC-0011', history:'Recebimento de cliente — Nota 2355',      type:'Crédito', amount:24800.00, status:'Confirmado' },
+  { date:'2025-04-07', doc:'PAG-0040', history:'DARF PIS/COFINS — Mar/2025',             type:'Débito',  amount:4215.60,  status:'Confirmado' },
+  { date:'2025-04-10', doc:'PAG-0041', history:'Pagamento aluguel — Abr/2025',           type:'Débito',  amount:5800.00,  status:'Confirmado' },
+  { date:'2025-04-15', doc:'REC-0012', history:'Juros aplicação financeira',              type:'Crédito', amount:512.40,   status:'Confirmado' },
+  { date:'2025-04-18', doc:'PAG-0042', history:'Consultoria jurídica — Abr/2025',        type:'Débito',  amount:3500.00,  status:'Pendente'   },
+  { date:'2025-04-22', doc:'REC-0013', history:'Adiantamento projeto Beta',              type:'Crédito', amount:30000.00, status:'Confirmado' },
+  { date:'2025-04-25', doc:'PAG-0043', history:'Salários — Folha Abril',                 type:'Débito',  amount:28400.00, status:'Confirmado' },
+  { date:'2025-05-05', doc:'PAG-0050', history:'Pagamento aluguel — Mai/2025',           type:'Débito',  amount:5800.00,  status:'Confirmado' },
+  { date:'2025-05-08', doc:'REC-0014', history:'Recebimento de cliente — Nota 2401',     type:'Crédito', amount:19200.00, status:'Confirmado' },
+  { date:'2025-05-12', doc:'PAG-0051', history:'Rescisão contratual — colaborador',      type:'Débito',  amount:12350.00, status:'Confirmado' },
+  { date:'2025-05-15', doc:'REC-0015', history:'Estorno lançamento indevido',            type:'Crédito', amount:980.00,   status:'Confirmado' },
+  { date:'2025-05-20', doc:'PAG-0052', history:'Salários — Folha Maio',                  type:'Débito',  amount:28400.00, status:'Confirmado' },
+  { date:'2025-05-28', doc:'PAG-0053', history:'IPTU cota única',                        type:'Débito',  amount:8740.00,  status:'Cancelado'  },
+  { date:'2025-06-02', doc:'REC-0016', history:'Recebimento de cliente — Nota 2450',     type:'Crédito', amount:27600.00, status:'Confirmado' },
+  { date:'2025-06-05', doc:'PAG-0060', history:'Pagamento aluguel — Jun/2025',           type:'Débito',  amount:5800.00,  status:'Confirmado' },
+  { date:'2025-06-10', doc:'PAG-0061', history:'Seguro empresarial anual',               type:'Débito',  amount:4800.00,  status:'Pendente'   },
+  { date:'2025-06-15', doc:'REC-0017', history:'Recebimento duplicata 3500',             type:'Crédito', amount:13900.00, status:'Confirmado' },
+  { date:'2025-06-20', doc:'PAG-0062', history:'Salários — Folha Junho',                 type:'Débito',  amount:28400.00, status:'Confirmado' },
+  { date:'2025-06-25', doc:'REC-0018', history:'Juros e correção monetária',             type:'Crédito', amount:680.20,   status:'Confirmado' },
+];
+
+let run = 0;
+const DATA = RAW.map(r => { run += r.type === 'Crédito' ? r.amount : -r.amount; return { ...r, balance: run }; });
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let filtered = [...DATA];
+let sortCol  = 'date';
+let sortDir  = 'asc';
+let sel      = new Set();
+
+// ── Formatters ────────────────────────────────────────────────────────────────
+const BRL   = n => new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(n);
+const fmtD  = s => { const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; };
+
+// ── Compute max amount for bars ───────────────────────────────────────────────
+function maxAmt() { return Math.max(...filtered.map(r => r.amount), 1); }
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  const tbody = document.getElementById('tbody');
+  const mx    = maxAmt();
+
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="8">Nenhum lançamento encontrado.</td></tr>';
+  } else {
+    tbody.innerHTML = filtered.map((r, i) => {
+      const isCr  = r.type === 'Crédito';
+      const isSel = sel.has(i);
+      const pct   = (r.amount / mx * 100).toFixed(1);
+      const sBadge = { Confirmado:'b-ok', Pendente:'b-pend', Cancelado:'b-cancel' }[r.status];
+      return `
+        <tr class="${isSel ? 'sel' : ''}" data-i="${i}">
+          <td class="td-chk">
+            <input type="checkbox" class="rc" data-i="${i}" ${isSel ? 'checked' : ''} onchange="toggleRow(this)">
+          </td>
+          <td class="bold">${fmtD(r.date)}</td>
+          <td class="code">${r.doc}</td>
+          <td class="hist" title="${r.history.replace(/"/g,'&quot;')}">${r.history}</td>
+          <td><span class="badge ${isCr ? 'b-credit' : 'b-debit'}">${r.type}</span></td>
+          <td class="r">
+            <div class="amount-cell">
+              <span class="amount-val ${isCr ? 'val-credit' : 'val-debit'}">${BRL(r.amount)}</span>
+              <span class="amount-bar ${isCr ? 'val-credit' : 'val-debit'}" style="width:${pct}%"></span>
+            </div>
+          </td>
+          <td class="r">
+            <div class="bal-cell">
+              <span class="bal-val ${r.balance >= 0 ? 'val-pos' : 'val-neg'}">${BRL(r.balance)}</span>
+            </div>
+          </td>
+          <td><span class="badge ${sBadge}"><span class="sdot"></span>${r.status}</span></td>
+        </tr>`;
+    }).join('');
+  }
+
+  updateFoot();
+  updateKPIs();
+  updateSelBar();
+  updateCheckAll();
+  updateResultLabel();
+  renderChips();
+}
+
+// ── Footer ────────────────────────────────────────────────────────────────────
+function updateFoot() {
+  const totC = filtered.filter(r => r.type==='Crédito').reduce((s,r)=>s+r.amount,0);
+  const totD = filtered.filter(r => r.type==='Débito' ).reduce((s,r)=>s+r.amount,0);
+  const net  = totC - totD;
+  const bal  = filtered.length ? filtered[filtered.length-1].balance : 0;
+
+  document.getElementById('foot-count').textContent =
+    `${filtered.length} lançamento${filtered.length!==1?'s':''} no período`;
+
+  document.getElementById('foot-amount').innerHTML = `
+    <div class="foot-blk">
+      <div class="foot-line">
+        <span class="foot-lbl">Créditos</span>
+        <span class="foot-val val-credit">${BRL(totC)}</span>
+      </div>
+      <div class="foot-line">
+        <span class="foot-lbl">Débitos</span>
+        <span class="foot-val val-debit">${BRL(totD)}</span>
+      </div>
+    </div>`;
+
+  document.getElementById('foot-balance').innerHTML = `
+    <div class="foot-blk">
+      <div class="foot-line">
+        <span class="foot-lbl">Líquido</span>
+        <span class="foot-val ${net>=0?'val-credit':'val-debit'}">${BRL(net)}</span>
+      </div>
+      <div class="foot-line">
+        <span class="foot-lbl">Saldo final</span>
+        <span class="foot-val ${bal>=0?'val-pos':'val-neg'}">${BRL(bal)}</span>
+      </div>
+    </div>`;
+}
+
+// ── KPIs ──────────────────────────────────────────────────────────────────────
+function updateKPIs() {
+  const totC = filtered.filter(r => r.type==='Crédito').reduce((s,r)=>s+r.amount,0);
+  const totD = filtered.filter(r => r.type==='Débito' ).reduce((s,r)=>s+r.amount,0);
+  const bal  = filtered.length ? filtered[filtered.length-1].balance : 0;
+  const allC = DATA.filter(r=>r.type==='Crédito').reduce((s,r)=>s+r.amount,0);
+  const allD = DATA.filter(r=>r.type==='Débito' ).reduce((s,r)=>s+r.amount,0);
+  const total = totC + totD;
+
+  document.getElementById('kv-count').textContent = filtered.length;
+  document.getElementById('ks-count').textContent =
+    filtered.length < DATA.length ? `${DATA.length - filtered.length} ocultos pelo filtro` : `${DATA.filter(r=>r.type==='Crédito').length} entradas · ${DATA.filter(r=>r.type==='Débito').length} saídas`;
+
+  document.getElementById('kv-cr').textContent = BRL(totC);
+  document.getElementById('ks-cr').textContent = `${filtered.filter(r=>r.type==='Crédito').length} lançamentos`;
+  document.getElementById('kb-cr').style.width = allC ? (totC/allC*100)+'%' : '0%';
+
+  document.getElementById('kv-db').textContent = BRL(totD);
+  document.getElementById('ks-db').textContent = `${filtered.filter(r=>r.type==='Débito').length} lançamentos`;
+  document.getElementById('kb-db').style.width = allD ? (totD/allD*100)+'%' : '0%';
+
+  document.getElementById('kv-bal').textContent = BRL(bal);
+  document.getElementById('ks-bal').textContent = bal >= 0 ? 'Saldo positivo' : 'Saldo negativo';
+}
+
+// ── Selection bar ─────────────────────────────────────────────────────────────
+function updateSelBar() {
+  const bar = document.getElementById('sel-bar');
+  if (!sel.size) { bar.classList.remove('on'); return; }
+
+  const rows = [...sel].map(i => filtered[i]);
+  const cr   = rows.filter(r=>r.type==='Crédito').reduce((s,r)=>s+r.amount,0);
+  const db   = rows.filter(r=>r.type==='Débito' ).reduce((s,r)=>s+r.amount,0);
+  const mx   = Math.max(...rows.map(r=>r.amount));
+  const avg  = rows.reduce((s,r)=>s+r.amount,0)/rows.length;
+
+  document.getElementById('sb-n').textContent   = `${sel.size} selecionado${sel.size!==1?'s':''}`;
+  document.getElementById('sb-net').textContent = BRL(cr - db);
+  document.getElementById('sb-cr').textContent  = BRL(cr);
+  document.getElementById('sb-db').textContent  = BRL(db);
+  document.getElementById('sb-max').textContent = BRL(mx);
+  document.getElementById('sb-avg').textContent = BRL(avg);
+  bar.classList.add('on');
+}
+
+// ── Check state ───────────────────────────────────────────────────────────────
+function updateCheckAll() {
+  const cb = document.getElementById('chk-all');
+  const n  = filtered.filter((_,i) => sel.has(i)).length;
+  cb.indeterminate = n > 0 && n < filtered.length;
+  cb.checked = !!filtered.length && n === filtered.length;
+}
+
+function toggleAll(cb) {
+  filtered.forEach((_,i) => cb.checked ? sel.add(i) : sel.delete(i));
+  render();
+}
+
+function toggleRow(cb) {
+  const i = parseInt(cb.dataset.i);
+  cb.checked ? sel.add(i) : sel.delete(i);
+  cb.closest('tr').classList.toggle('sel', cb.checked);
+  updateSelBar();
+  updateCheckAll();
+}
+
+function clearSel() { sel.clear(); render(); }
+
+// ── Sort ──────────────────────────────────────────────────────────────────────
+function doSort(th) {
+  const col = th.dataset.col;
+  sortDir = sortCol === col ? (sortDir==='asc'?'desc':'asc') : 'asc';
+  sortCol = col;
+  document.querySelectorAll('th.sortable').forEach(el => el.classList.remove('sorted','asc','desc'));
+  th.classList.add('sorted', sortDir);
+  sel.clear();
+  applyFilters();
+}
+
+function sortData(arr) {
+  return [...arr].sort((a,b) => {
+    let va = a[sortCol], vb = b[sortCol];
+    if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
+    if (va < vb) return sortDir==='asc' ? -1 : 1;
+    if (va > vb) return sortDir==='asc' ?  1 : -1;
+    return 0;
+  });
+}
+
+// ── Filters ───────────────────────────────────────────────────────────────────
+function applyFilters() {
+  const q  = document.getElementById('q').value.toLowerCase().trim();
+  const mo = document.getElementById('f-month').value;
+  const ty = document.getElementById('f-type').value;
+  const st = document.getElementById('f-status').value;
+
+  filtered = DATA.filter(r => {
+    if (q  && !r.history.toLowerCase().includes(q) && !r.doc.toLowerCase().includes(q)) return false;
+    if (mo && r.date.slice(5,7) !== mo) return false;
+    if (ty && r.type   !== ty)          return false;
+    if (st && r.status !== st)          return false;
+    return true;
+  });
+  filtered = sortData(filtered);
+  sel.clear();
+
+  const hasF = q || mo || ty || st;
+  document.getElementById('btn-clear').style.display = hasF ? '' : 'none';
+  ['f-month','f-type','f-status'].forEach(id => {
+    document.getElementById(id).classList.toggle('active', !!document.getElementById(id).value);
+  });
+
+  render();
+}
+
+function clearAll() {
+  document.getElementById('q').value = '';
+  ['f-month','f-type','f-status'].forEach(id => {
+    document.getElementById(id).value = '';
+    document.getElementById(id).classList.remove('active');
+  });
+  document.getElementById('btn-clear').style.display = 'none';
+  filtered = sortData(DATA);
+  sel.clear();
+  render();
+}
+
+// ── Result label ──────────────────────────────────────────────────────────────
+function updateResultLabel() {
+  const el = document.getElementById('result-label');
+  el.textContent = filtered.length === DATA.length
+    ? `${DATA.length} lançamentos`
+    : `${filtered.length} de ${DATA.length}`;
+}
+
+// ── Chips ─────────────────────────────────────────────────────────────────────
+const MONTHS = {'01':'Janeiro','02':'Fevereiro','03':'Março','04':'Abril','05':'Maio','06':'Junho'};
+
+function renderChips() {
+  const cont  = document.getElementById('chips');
+  const items = [];
+  const q  = document.getElementById('q').value.trim();
+  const mo = document.getElementById('f-month').value;
+  const ty = document.getElementById('f-type').value;
+  const st = document.getElementById('f-status').value;
+
+  if (q)  items.push({ text:`"${q}"`,           rm: () => { document.getElementById('q').value = ''; applyFilters(); } });
+  if (mo) items.push({ text: MONTHS[mo] || mo,  rm: () => { document.getElementById('f-month').value = ''; applyFilters(); } });
+  if (ty) items.push({ text: ty,                rm: () => { document.getElementById('f-type').value = ''; applyFilters(); } });
+  if (st) items.push({ text: st,                rm: () => { document.getElementById('f-status').value = ''; applyFilters(); } });
+
+  cont.classList.toggle('has-chips', items.length > 0);
+  cont._items = items;
+  cont.innerHTML = items.map((it, i) =>
+    `<span class="chip">${it.text}<span class="chip-rm" onclick="document.getElementById('chips')._items[${i}].rm()">✕</span></span>`
+  ).join('');
+}
+
+// ── Export ────────────────────────────────────────────────────────────────────
+function makeCSV(rows) {
+  const h = ['Data','Documento','Histórico','Tipo','Valor','Saldo','Status'];
+  const b = rows.map(r => [
+    fmtD(r.date), r.doc,
+    `"${r.history.replace(/"/g,'""')}"`,
+    r.type,
+    r.amount.toFixed(2).replace('.',','),
+    r.balance.toFixed(2).replace('.',','),
+    r.status
+  ]);
+  return [h, ...b].map(r => r.join(';')).join('\n');
+}
+function dl(csv, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download = name; a.click();
+}
+function exportCSV() { dl(makeCSV(filtered), 'razao_contabil_2025.csv'); }
+function exportSel()  { dl(makeCSV([...sel].map(i=>filtered[i])), 'selecao.csv'); }
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.getElementById('q').addEventListener('input', applyFilters);
+filtered = sortData(DATA);
+document.querySelector('th[data-col="date"]').classList.add('sorted','asc');
+render();
+</script>
+</body>
+</html>
