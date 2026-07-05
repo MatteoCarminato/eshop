@@ -1309,6 +1309,22 @@
                                 </thead>
                                 <tbody>
                                     @forelse($entradaUsd as $tx)
+                                        @php
+                                            $lotesSellUsd = collect($preSellsByUsdTx[$tx->id] ?? []);
+                                            $usdDetalhesData = [
+                                                'type'      => 'entrada_usd',
+                                                'data'      => $tx->created_at->format('d/m/Y H:i'),
+                                                'usd_total' => number_format($tx->amount, 2, ',', '.'),
+                                                'taxa'      => $tx->exchange_rate ? number_format($tx->exchange_rate, 4, ',', '.') : null,
+                                                'fontes'    => $lotesSellUsd->map(fn($l) => [
+                                                    'deposito_data' => $l->sourceTransaction?->created_at?->format('d/m/Y H:i') ?? '-',
+                                                    'deposito_id'   => $l->source_transaction_id,
+                                                    'brl'  => number_format($l->brl_amount, 2, ',', '.'),
+                                                    'taxa' => number_format($l->sell_rate, 4, ',', '.'),
+                                                    'usd'  => number_format($l->usd_amount, 2, ',', '.'),
+                                                ])->values()->toArray(),
+                                            ];
+                                        @endphp
                                         <tr>
                                             <td>{{ $tx->created_at->format('d/m/Y H:i') }}</td>
                                             <td class="fw-bold text-success text-end">
@@ -1363,12 +1379,24 @@
                                                                 <input type="hidden" name="snapshot_ids[]" value="{{ $s->id }}">
                                                             @endforeach
                                                         </form>
-                                                        <div class="dropdown">
-                                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
-                                                                data-bs-toggle="dropdown" aria-expanded="false">
-                                                                <i class="ri-more-2-fill"></i>
-                                                            </button>
-                                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                    @endif
+                                                    <div class="dropdown">
+                                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                                                            data-bs-toggle="dropdown" aria-expanded="false">
+                                                            <i class="ri-more-2-fill"></i>
+                                                        </button>
+                                                        <ul class="dropdown-menu dropdown-menu-end">
+                                                            <li>
+                                                                <button type="button"
+                                                                    class="dropdown-item"
+                                                                    data-bs-toggle="modal"
+                                                                    data-bs-target="#detalhesOperacaoModal"
+                                                                    data-detalhes="{{ json_encode($usdDetalhesData) }}">
+                                                                    <i class="ri-information-line me-1 text-info"></i>Ver detalhes
+                                                                </button>
+                                                            </li>
+                                                            @if($isUsdDepositReversible && $usdSnaps->isNotEmpty())
+                                                                <li><hr class="dropdown-divider"></li>
                                                                 <li>
                                                                     <button class="dropdown-item" type="submit"
                                                                         form="form-usd-{{ $tx->id }}"
@@ -1376,11 +1404,9 @@
                                                                         <i class="ri-arrow-go-back-line me-1 text-danger"></i>Reverter entrada
                                                                     </button>
                                                                 </li>
-                                                            </ul>
-                                                        </div>
-                                                    @else
-                                                        <span class="text-muted">-</span>
-                                                    @endif
+                                                            @endif
+                                                        </ul>
+                                                    </div>
                                                 </td>
                                             @endif
                                         </tr>
@@ -2384,8 +2410,13 @@
                 var subEl   = document.getElementById('detalhesOperacaoSub');
                 var bodyEl  = document.getElementById('detalhesOperacaoBody');
 
-                if (labelEl) labelEl.textContent = 'Entrada #' + d.id + '  —  R$ ' + d.valor;
-                if (subEl)   subEl.textContent   = 'Registrada em ' + d.data;
+                if (d.type === 'entrada_usd') {
+                    if (labelEl) labelEl.textContent = 'Entrada U$  —  US$ ' + d.usd_total;
+                    if (subEl)   subEl.textContent   = 'Registrada em ' + d.data;
+                } else {
+                    if (labelEl) labelEl.textContent = 'Entrada #' + d.id + '  —  R$ ' + d.valor;
+                    if (subEl)   subEl.textContent   = 'Registrada em ' + d.data;
+                }
                 if (bodyEl)  bodyEl.innerHTML    = buildDetalhesHtml(d);
             });
 
@@ -2425,7 +2456,43 @@
                 return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             }
 
+            function buildEntradaUsdHtml(d) {
+                var html = '';
+
+                html += '<div class="row g-2 mb-4">';
+                html += card('Total recebido (U$)', 'US$ ' + d.usd_total, 'text-success');
+                html += card('Taxa de venda', d.taxa ? d.taxa : '—', 'text-muted');
+                html += card('Depósitos R$ de origem', d.fontes.length + ' depósito' + (d.fontes.length !== 1 ? 's' : ''), '');
+                html += '</div>';
+
+                html += '<h6 class="text-primary mb-1"><i class="ri-links-line me-1"></i>Depósitos R$ que originaram esta entrada</h6>';
+                if (d.fontes && d.fontes.length) {
+                    html += '<div class="table-responsive"><table class="table table-sm table-hover table-primary mb-0"><thead><tr>';
+                    html += '<th>#</th>';
+                    html += '<th>Data depósito</th>';
+                    html += '<th class="text-end">R$ usado</th>';
+                    html += '<th class="text-end">Taxa</th>';
+                    html += '<th class="text-end">USD gerado</th>';
+                    html += '</tr></thead><tbody>';
+                    d.fontes.forEach(function(f) {
+                        html += '<tr>';
+                        html += '<td class="text-muted small">' + f.deposito_id + '</td>';
+                        html += '<td>' + f.deposito_data + '</td>';
+                        html += '<td class="text-end">R$ ' + f.brl + '</td>';
+                        html += '<td class="text-end">' + f.taxa + '</td>';
+                        html += '<td class="text-end fw-bold text-success">US$ ' + f.usd + '</td>';
+                        html += '</tr>';
+                    });
+                    html += '</tbody></table></div>';
+                } else {
+                    html += '<p class="text-muted small mb-0 ps-1">Nenhum depósito de origem encontrado.</p>';
+                }
+
+                return html;
+            }
+
             function buildDetalhesHtml(d) {
+                if (d.type === 'entrada_usd') return buildEntradaUsdHtml(d);
                 var html = '';
                 var total    = br(d.valor);
                 var vendido  = br(d.brl_sold);

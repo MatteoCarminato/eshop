@@ -202,6 +202,14 @@ class WalletController extends Controller
             ->whereIn('status', ['open', 'partial'])
             ->get()->groupBy('source_transaction_id');
 
+        // Lotes de pré-venda já fechados, agrupados pela transação USD (Entrada U$).
+        $preSellsByUsdTx = \App\Models\WalletPreSell::query()
+            ->where('client_id', $client->id)
+            ->whereNotNull('transaction_id')
+            ->with('sourceTransaction')
+            ->get()
+            ->groupBy('transaction_id');
+
         // Operações reversíveis (snapshots) ainda não revertidas deste cliente,
         // indexadas pela transação-âncora (id do depósito) para exibir os botões.
         $reversalSnapshots = OperationSnapshot::where('client_id', $client->id)
@@ -226,6 +234,7 @@ class WalletController extends Controller
             'brlAvailableForPreSell',
             'prePurchasesByDeposit',
             'preSellsByDeposit',
+            'preSellsByUsdTx',
             'treasuryClientSummary',
             'treasurySummary',
             'reversalsByAnchor',
