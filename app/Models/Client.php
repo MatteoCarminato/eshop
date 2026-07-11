@@ -34,7 +34,7 @@ class Client extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
-        'spread_points' => 'integer',
+        'spread_points' => 'decimal:2',
         'is_exchange_client' => 'boolean',
         'type' => 'string',
     ];

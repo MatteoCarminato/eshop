@@ -143,11 +143,11 @@
                                                     dólar)</span>
                                             </label>
                                             <div class="form-icon">
-                                                <input type="number" min="0" max="9999"
+                                                <input type="number" min="0" max="9999" step="0.01"
                                                     class="form-control form-control-icon @error('spread_points') is-invalid @enderror"
                                                     id="spread_points" name="spread_points"
                                                     value="{{ old('spread_points', $client->spread_points ?? 0) }}"
-                                                    placeholder="Ex: 10 = R$ 0,10 acima da taxa">
+                                                    placeholder="Ex: 5.5 = R$ 0,055 acima da taxa">
                                                 <i class="ri-arrow-up-circle-line"></i>
                                             </div>
                                             @error('spread_points')

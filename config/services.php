@@ -36,9 +36,32 @@ return [
     ],
 
     'whatsapp_node' => [
-        'url' => env('WHATSAPP_NODE_URL', 'http://127.0.0.1:3000'),
+        'url'     => env('WHATSAPP_NODE_URL', 'http://127.0.0.1:3000'),
         'api_key' => env('WHATSAPP_NODE_API_KEY', ''),
         'timeout' => env('WHATSAPP_NODE_TIMEOUT', 10),
+    ],
+
+    'whatsapp_node_grupos' => [
+        'url'     => env('WHATSAPP_NODE_GRUPOS_URL', 'http://127.0.0.1:3001'),
+        'api_key' => env('WHATSAPP_NODE_GRUPOS_API_KEY', ''),
+        'timeout' => env('WHATSAPP_NODE_GRUPOS_TIMEOUT', 10),
+    ],
+
+    'whatsapp' => [
+        'webhook_token' => env('WHATSAPP_WEBHOOK_TOKEN', ''),
+    ],
+
+    'clientbank' => [
+        'url'      => env('CLIENTBANK_URL', 'https://client-bank.spacedati.com'),
+        'name'     => env('CLIENTBANK_NAME'),
+        'password' => env('CLIENTBANK_PASSWORD'),
+    ],
+
+    'openai' => [
+        'key' => env('OPENAI_API_KEY'),
+        'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
+        'max_tokens' => env('OPENAI_MAX_TOKENS', 500),
+        'temperature' => env('OPENAI_TEMPERATURE', 0.7),
     ],
 
 ];

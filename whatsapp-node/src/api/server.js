@@ -496,6 +496,31 @@ const createServer = (client, botState) => {
     }
   });
 
+  /**
+   * GET /api/groups — Lista todos os grupos do WhatsApp conectado.
+   * Response: { total, groups: [{ chatId, name, participantsCount, timestamp }] }
+   */
+  app.get('/api/groups', authMiddleware, async (_req, res) => {
+    try {
+      const allChats = await client.getChats();
+
+      const groups = allChats
+        .filter((chat) => chat.isGroup)
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+        .map((chat) => ({
+          chatId: chat.id._serialized,
+          name: chat.name || chat.id.user,
+          participantsCount: chat.participants ? chat.participants.length : null,
+          timestamp: chat.timestamp || null,
+        }));
+
+      res.json({ total: groups.length, groups });
+    } catch (error) {
+      logger.error('Erro ao listar grupos:', { error: error.message });
+      res.status(500).json({ error: 'Erro ao carregar grupos do WhatsApp' });
+    }
+  });
+
   // Rotas de captura de tela
   registerScreenRoutes(app, client, authMiddleware);
 

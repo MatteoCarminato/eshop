@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\SendWhatsappBroadcastJob;
+use App\Models\WhatsappGroup;
+use App\Models\WhatsappPixExtraction;
 use App\Models\WhatsappScheduledMessage;
 use App\Services\WhatsappNodeService;
 use Illuminate\Http\RedirectResponse;
@@ -11,6 +13,7 @@ use Illuminate\Http\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -18,15 +21,61 @@ class WhatsappController extends Controller
 {
     public function __construct(protected WhatsappNodeService $whatsappNodeService) {}
 
+    private function gruposService(): WhatsappNodeService
+    {
+        return new WhatsappNodeService('whatsapp_node_grupos');
+    }
+
     public function index()
     {
-        $health = $this->whatsappNodeService->health();
-        $status = $this->whatsappNodeService->status();
-
         return view('admin.whatsapp.index', [
-            'nodeHealth' => $health,
-            'initialStatus' => $status,
+            'nodeHealth'         => $this->whatsappNodeService->health(),
+            'nodeHealthGrupos'   => $this->gruposService()->health(),
+            'initialStatus'      => $this->whatsappNodeService->status(),
+            'initialStatusGrupos'=> $this->gruposService()->status(),
         ]);
+    }
+
+    public function wppGroups()
+    {
+        $result = $this->gruposService()->groups();
+
+        $error = null;
+        if (!($result['success'] ?? false)) {
+            $raw = $result['error'] ?? '';
+            $error = str_contains($raw, 'cURL') || str_contains($raw, 'timed out') || str_contains($raw, 'Connection refused')
+                ? 'Não foi possível conectar ao serviço WhatsApp. Verifique se ele está rodando na porta 3000.'
+                : ($raw ?: 'Erro ao carregar grupos.');
+        }
+
+        $saved = WhatsappGroup::all()->keyBy('chat_id');
+
+        return view('admin.whatsapp.grupos', [
+            'groups' => $result['groups'] ?? [],
+            'saved' => $saved,
+            'error' => $error,
+        ]);
+    }
+
+    public function saveWppGroups(Request $request): RedirectResponse
+    {
+        $selected = collect($request->input('groups', []))->filter()->values();
+
+        // Desativa todos, depois ativa os selecionados
+        WhatsappGroup::query()->update(['ai_active' => false]);
+
+        foreach ($selected as $item) {
+            WhatsappGroup::updateOrCreate(
+                ['chat_id' => $item['chat_id']],
+                [
+                    'name' => $item['name'] ?? $item['chat_id'],
+                    'participants_count' => $item['participants_count'] ? (int) $item['participants_count'] : null,
+                    'ai_active' => true,
+                ]
+            );
+        }
+
+        return back()->with('success', count($selected) . ' grupo(s) salvos para resposta com IA.');
     }
 
     public function envio()
@@ -86,9 +135,35 @@ class WhatsappController extends Controller
             return response()->json($qrImage, 502);
         }
 
-        return response($qrImage['svg'], 200, [
-            'Content-Type' => 'image/svg+xml; charset=utf-8',
+        return response($qrImage['png'], 200, [
+            'Content-Type' => 'image/png',
             'Cache-Control' => 'no-store, no-cache, must-revalidate, private',
+        ]);
+    }
+
+    public function pairingCode(Request $request): JsonResponse
+    {
+        $phone = preg_replace('/\D+/', '', (string) $request->input('phone', ''));
+
+        if ($phone === '') {
+            return response()->json(['success' => false, 'error' => 'Número de telefone obrigatório.'], 422);
+        }
+
+        $this->whatsappNodeService->start();
+
+        $result = $this->whatsappNodeService->pairingCode($phone);
+
+        if (!($result['success'] ?? false)) {
+            return response()->json([
+                'success' => false,
+                'error' => $result['error'] ?? 'Erro ao gerar código.',
+            ], 502);
+        }
+
+        return response()->json([
+            'success' => true,
+            'pairing_code' => $result['data']['pairing_code'] ?? null,
+            'expires_in_ms' => $result['data']['expires_in_ms'] ?? null,
         ]);
     }
 
@@ -104,16 +179,88 @@ class WhatsappController extends Controller
         ], $result['success'] ? 200 : 502);
     }
 
+    // ── Instância Grupos ────────────────────────────────────────────────────
+
+    public function statusGrupos(): JsonResponse
+    {
+        $status = $this->gruposService()->status();
+        return ($status['success'] ?? false)
+            ? response()->json($status)
+            : response()->json($status, 502);
+    }
+
+    public function qrGrupos(): JsonResponse
+    {
+        $qr = $this->gruposService()->qr();
+        return ($qr['success'] ?? false)
+            ? response()->json($qr)
+            : response()->json($qr, 502);
+    }
+
+    public function connectGrupos(): JsonResponse
+    {
+        $svc = $this->gruposService();
+        $svc->start();
+        $status = $svc->status();
+        $qr     = $svc->qr();
+
+        return response()->json([
+            'success' => ($status['success'] ?? false),
+            'status'  => $status,
+            'qr'      => $qr,
+            'message' => 'Sessão grupos iniciada.',
+        ]);
+    }
+
+    public function disconnectGrupos(): JsonResponse
+    {
+        $result = $this->gruposService()->disconnect();
+
+        return response()->json([
+            'success' => $result['success'] ?? false,
+            'message' => $result['success']
+                ? 'Instância grupos desconectada.'
+                : ($result['error'] ?? 'Erro ao desconectar grupos.'),
+        ], $result['success'] ? 200 : 502);
+    }
+
+    public function pairingCodeGrupos(Request $request): JsonResponse
+    {
+        $phone = preg_replace('/\D+/', '', (string) $request->input('phone', ''));
+
+        if ($phone === '') {
+            return response()->json(['success' => false, 'error' => 'Número de telefone obrigatório.'], 422);
+        }
+
+        $svc = $this->gruposService();
+        $svc->start();
+        $result = $svc->pairingCode($phone);
+
+        if (!($result['success'] ?? false)) {
+            return response()->json([
+                'success' => false,
+                'error'   => $result['error'] ?? 'Erro ao gerar código.',
+            ], 502);
+        }
+
+        return response()->json([
+            'success'        => true,
+            'pairing_code'   => $result['data']['pairing_code'] ?? null,
+            'expires_in_ms'  => $result['data']['expires_in_ms'] ?? null,
+        ]);
+    }
+
     public function connect(): JsonResponse
     {
+        $this->whatsappNodeService->start();
         $status = $this->whatsappNodeService->status();
         $qr = $this->whatsappNodeService->qr();
 
         return response()->json([
-            'success' => ($status['success'] ?? false) && ($qr['success'] ?? false),
+            'success' => ($status['success'] ?? false),
             'status' => $status,
             'qr' => $qr,
-            'message' => 'Conexão iniciada no processo do Node. Escaneie o QR abaixo se disponível.',
+            'message' => 'Sessão iniciada. Escaneie o QR abaixo se disponível.',
         ]);
     }
 
@@ -383,5 +530,54 @@ class WhatsappController extends Controller
             'groups' => $groups,
             'groupClients' => $groupClients,
         ];
+    }
+
+    public function extracoes(Request $request)
+    {
+        $query = WhatsappPixExtraction::with('group')->latest();
+
+        if ($status = $request->input('status')) {
+            $query->where('status', $status);
+        }
+
+        if ($groupId = $request->input('group_id')) {
+            $query->where('whatsapp_group_id', $groupId);
+        }
+
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('pix_nome', 'like', "%{$search}%")
+                  ->orWhere('pix_valor', 'like', "%{$search}%")
+                  ->orWhere('numero_transacao', 'like', "%{$search}%")
+                  ->orWhere('from', 'like', "%{$search}%");
+            });
+        }
+
+        if ($from = $request->input('data_inicio')) {
+            $query->whereDate('created_at', '>=', $from);
+        }
+
+        if ($to = $request->input('data_fim')) {
+            $query->whereDate('created_at', '<=', $to);
+        }
+
+        $extractions = $query->paginate(20)->withQueryString();
+        $groups      = \App\Models\WhatsappGroup::orderBy('name')->get(['id', 'name']);
+
+        return view('admin.whatsapp.extracoes', compact('extractions', 'groups'));
+    }
+
+    public function extracoesImagem(WhatsappPixExtraction $extraction)
+    {
+        if (!Storage::disk('do_spaces')->exists($extraction->image_path)) {
+            abort(404);
+        }
+
+        $content  = Storage::disk('do_spaces')->get($extraction->image_path);
+        $mimetype = $extraction->mimetype ?? 'application/octet-stream';
+
+        return response($content, 200)
+            ->header('Content-Type', $mimetype)
+            ->header('Cache-Control', 'private, max-age=3600');
     }
 }

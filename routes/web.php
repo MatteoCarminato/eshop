@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AiController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -20,6 +21,11 @@ require __DIR__.'/auth.php';
 
 
 
+
+Route::middleware('auth')->prefix('admin/ai')->name('admin.ai.')->group(function () {
+    Route::get('/', [AiController::class, 'index'])->name('index');
+    Route::post('/analyze', [AiController::class, 'analyzeExtract'])->name('analyze');
+});
 
 Route::middleware('auth')->group(function () {
     // Cargos & Permissões (gerenciamento)
@@ -105,14 +111,28 @@ Route::middleware('auth')->group(function () {
             Route::get('/', [\App\Http\Controllers\WhatsappController::class, 'index'])->name('index');
             Route::get('/envio', [\App\Http\Controllers\WhatsappController::class, 'envio'])->name('envio');
             Route::get('/agendamentos', [\App\Http\Controllers\WhatsappController::class, 'schedules'])->name('schedules');
+            Route::get('/grupos-wpp', [\App\Http\Controllers\WhatsappController::class, 'wppGroups'])->name('grupos-wpp');
+            Route::post('/grupos-wpp', [\App\Http\Controllers\WhatsappController::class, 'saveWppGroups'])->name('grupos-wpp.save');
+            Route::get('/extracoes', [\App\Http\Controllers\WhatsappController::class, 'extracoes'])->name('extracoes');
+            Route::get('/extracoes/{extraction}/imagem', [\App\Http\Controllers\WhatsappController::class, 'extracoesImagem'])->name('extracoes.imagem');
+            // Instância disparador
             Route::get('/status', [\App\Http\Controllers\WhatsappController::class, 'status'])->name('status');
             Route::get('/qr', [\App\Http\Controllers\WhatsappController::class, 'qr'])->name('qr');
             Route::get('/qr-image', [\App\Http\Controllers\WhatsappController::class, 'qrImage'])->name('qr-image');
+            // Instância grupos
+            Route::get('/grupos-instance/status', [\App\Http\Controllers\WhatsappController::class, 'statusGrupos'])->name('grupos-instance.status');
+            Route::get('/grupos-instance/qr', [\App\Http\Controllers\WhatsappController::class, 'qrGrupos'])->name('grupos-instance.qr');
         });
 
         Route::middleware('module:whatsapp.manage')->group(function () {
+            // Instância disparador
             Route::post('/connect', [\App\Http\Controllers\WhatsappController::class, 'connect'])->name('connect');
             Route::post('/disconnect', [\App\Http\Controllers\WhatsappController::class, 'disconnect'])->name('disconnect');
+            Route::post('/pairing-code', [\App\Http\Controllers\WhatsappController::class, 'pairingCode'])->name('pairing-code');
+            // Instância grupos
+            Route::post('/grupos-instance/connect', [\App\Http\Controllers\WhatsappController::class, 'connectGrupos'])->name('grupos-instance.connect');
+            Route::post('/grupos-instance/disconnect', [\App\Http\Controllers\WhatsappController::class, 'disconnectGrupos'])->name('grupos-instance.disconnect');
+            Route::post('/grupos-instance/pairing-code', [\App\Http\Controllers\WhatsappController::class, 'pairingCodeGrupos'])->name('grupos-instance.pairing-code');
             Route::post('/send', [\App\Http\Controllers\WhatsappController::class, 'send'])->name('send');
             Route::post('/schedules', [\App\Http\Controllers\WhatsappController::class, 'storeSchedule'])->name('schedules.store');
             Route::patch('/schedules/{scheduledMessage}', [\App\Http\Controllers\WhatsappController::class, 'updateSchedule'])->name('schedules.update');
@@ -126,6 +146,9 @@ Route::middleware('auth')->group(function () {
 
 
 
+
+Route::post('/api/whatsapp/webhook', [\App\Http\Controllers\WhatsappWebhookController::class, 'handle'])
+    ->name('whatsapp.webhook');
 
 Route::fallback(function () {
     return view('welcome');

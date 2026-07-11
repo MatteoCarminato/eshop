@@ -196,6 +196,14 @@
                 @endif
 
                 @auth
+                    <li class="nav-item">
+                        <a href="{{ route('admin.ai.index') }}" class="nav-link menu-link">
+                            <i class="mdi mdi-robot-outline"></i> <span>Análise IA (PIX)</span>
+                        </a>
+                    </li>
+                @endauth
+
+                @auth
                     @if (auth()->user()->hasModule('whatsapp.view') || auth()->user()->hasModule('whatsapp.manage'))
                         <li class="nav-item">
                             <a class="nav-link menu-link" href="#sidebarWhatsApp" data-bs-toggle="collapse" role="button"
@@ -212,6 +220,14 @@
                                         <li class="nav-item">
                                             <a href="{{ route('admin.whatsapp.schedules') }}"
                                                 class="nav-link menu-link">Agendamentos</a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a href="{{ route('admin.whatsapp.grupos-wpp') }}"
+                                                class="nav-link menu-link">Grupos WPP</a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a href="{{ route('admin.whatsapp.extracoes') }}"
+                                                class="nav-link menu-link">Extrações PIX</a>
                                         </li>
                                     @endif
                                     @if (auth()->user()->hasModule('whatsapp.manage'))

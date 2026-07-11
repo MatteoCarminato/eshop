@@ -40,7 +40,7 @@ class StoreClientRequest extends FormRequest
                 Rule::unique('clients', 'email')->whereNotNull('email'),
             ],
             'phone' => 'nullable|string|max:20',
-            'spread_points' => 'nullable|integer|min:0|max:9999',
+            'spread_points' => 'nullable|numeric|min:0|max:9999',
             'is_exchange_client' => 'nullable|boolean',
             'type' => 'required|in:cliente,fornecedor',
         ];
