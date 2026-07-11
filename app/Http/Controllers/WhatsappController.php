@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\FetchWhatsappGroupsJob;
 use App\Jobs\SendWhatsappBroadcastJob;
 use App\Models\WhatsappGroup;
 use App\Models\WhatsappPixExtraction;
@@ -12,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -36,16 +38,32 @@ class WhatsappController extends Controller
         ]);
     }
 
+    private function friendlyGroupsError(string $raw): string
+    {
+        return str_contains($raw, 'cURL') || str_contains($raw, 'timed out') || str_contains($raw, 'Connection refused')
+            ? 'Não foi possível conectar ao serviço WhatsApp. Verifique se ele está rodando na porta 3000.'
+            : ($raw ?: 'Erro ao carregar grupos.');
+    }
+
+    private function dispatchGroupsFetchIfNeeded(): void
+    {
+        if (!Cache::has('whatsapp:grupos:loading')) {
+            Cache::put('whatsapp:grupos:loading', true, now()->addMinutes(2));
+            FetchWhatsappGroupsJob::dispatch();
+        }
+    }
+
     public function wppGroups()
     {
-        $result = $this->gruposService()->groups();
+        $result = Cache::get('whatsapp:grupos:result');
+
+        if ($result === null) {
+            $this->dispatchGroupsFetchIfNeeded();
+        }
 
         $error = null;
-        if (!($result['success'] ?? false)) {
-            $raw = $result['error'] ?? '';
-            $error = str_contains($raw, 'cURL') || str_contains($raw, 'timed out') || str_contains($raw, 'Connection refused')
-                ? 'Não foi possível conectar ao serviço WhatsApp. Verifique se ele está rodando na porta 3000.'
-                : ($raw ?: 'Erro ao carregar grupos.');
+        if ($result !== null && !($result['success'] ?? false)) {
+            $error = $this->friendlyGroupsError($result['error'] ?? '');
         }
 
         $saved = WhatsappGroup::all()->keyBy('chat_id');
@@ -54,7 +72,37 @@ class WhatsappController extends Controller
             'groups' => $result['groups'] ?? [],
             'saved' => $saved,
             'error' => $error,
+            'loading' => $result === null,
         ]);
+    }
+
+    public function wppGroupsStatus(): JsonResponse
+    {
+        $result = Cache::get('whatsapp:grupos:result');
+
+        if ($result === null) {
+            return response()->json(['status' => 'loading']);
+        }
+
+        if (!($result['success'] ?? false)) {
+            return response()->json([
+                'status' => 'error',
+                'error' => $this->friendlyGroupsError($result['error'] ?? ''),
+            ]);
+        }
+
+        return response()->json([
+            'status' => 'done',
+            'groups' => $result['groups'] ?? [],
+        ]);
+    }
+
+    public function wppGroupsRefresh(): JsonResponse
+    {
+        Cache::forget('whatsapp:grupos:result');
+        $this->dispatchGroupsFetchIfNeeded();
+
+        return response()->json(['status' => 'loading']);
     }
 
     public function saveWppGroups(Request $request): RedirectResponse

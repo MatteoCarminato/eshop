@@ -56,8 +56,17 @@
                     </div>
                 </div>
 
-                @if (count($groups) === 0 && !$error)
-                    <div class="card">
+                @if ($loading)
+                    <div class="card" id="groups-loading">
+                        <div class="card-body text-center py-5 text-muted">
+                            <div class="spinner-border text-primary mb-3" role="status"></div>
+                            <div>Carregando grupos do WhatsApp... isso pode levar até um minuto.</div>
+                        </div>
+                    </div>
+                @endif
+
+                @if (!$loading && count($groups) === 0 && !$error)
+                    <div class="card" id="groups-empty">
                         <div class="card-body text-center py-5 text-muted">
                             <i class="ri-group-line fs-1 mb-2 d-block"></i>
                             Nenhum grupo encontrado no WhatsApp conectado.
@@ -65,7 +74,7 @@
                     </div>
                 @endif
 
-                <div class="row g-3" id="groups-container">
+                <div class="row g-3" id="groups-container" style="{{ $loading ? 'display:none' : '' }}">
                     @foreach ($groups as $group)
                         @php
                             $chatId  = $group['chatId'] ?? '';
@@ -182,7 +191,58 @@
                 updateCount();
             });
 
-            document.getElementById('btn-refresh').addEventListener('click', () => window.location.reload());
+            function pollStatus() {
+                fetch('{{ route('admin.whatsapp.grupos-wpp.status') }}', {
+                    headers: { 'Accept': 'application/json' },
+                })
+                    .then((r) => r.json())
+                    .then((data) => {
+                        if (data.status === 'loading') {
+                            setTimeout(pollStatus, 3000);
+                            return;
+                        }
+                        // 'done' ou 'error' → recarrega a página pra renderizar os dados atualizados
+                        window.location.reload();
+                    })
+                    .catch(() => setTimeout(pollStatus, 5000));
+            }
+
+            @if ($loading)
+                pollStatus();
+            @endif
+
+            document.getElementById('btn-refresh').addEventListener('click', function () {
+                const btn = this;
+                btn.disabled = true;
+
+                fetch('{{ route('admin.whatsapp.grupos-wpp.refresh') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    },
+                }).then(() => {
+                    const container = document.getElementById('groups-container');
+                    const empty = document.getElementById('groups-empty');
+                    if (container) container.style.display = 'none';
+                    if (empty) empty.style.display = 'none';
+
+                    let loadingCard = document.getElementById('groups-loading');
+                    if (!loadingCard) {
+                        loadingCard = document.createElement('div');
+                        loadingCard.id = 'groups-loading';
+                        loadingCard.className = 'card';
+                        loadingCard.innerHTML = `
+                            <div class="card-body text-center py-5 text-muted">
+                                <div class="spinner-border text-primary mb-3" role="status"></div>
+                                <div>Carregando grupos do WhatsApp... isso pode levar até um minuto.</div>
+                            </div>`;
+                        container.parentNode.insertBefore(loadingCard, container);
+                    }
+
+                    pollStatus();
+                });
+            });
 
             // ao submeter, remove os hidden inputs dos não-selecionados
             // para não enviar grupos desmarcados

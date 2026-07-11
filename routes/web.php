@@ -113,6 +113,8 @@ Route::middleware('auth')->group(function () {
             Route::get('/agendamentos', [\App\Http\Controllers\WhatsappController::class, 'schedules'])->name('schedules');
             Route::get('/grupos-wpp', [\App\Http\Controllers\WhatsappController::class, 'wppGroups'])->name('grupos-wpp');
             Route::post('/grupos-wpp', [\App\Http\Controllers\WhatsappController::class, 'saveWppGroups'])->name('grupos-wpp.save');
+            Route::get('/grupos-wpp/status', [\App\Http\Controllers\WhatsappController::class, 'wppGroupsStatus'])->name('grupos-wpp.status');
+            Route::post('/grupos-wpp/refresh', [\App\Http\Controllers\WhatsappController::class, 'wppGroupsRefresh'])->name('grupos-wpp.refresh');
             Route::get('/extracoes', [\App\Http\Controllers\WhatsappController::class, 'extracoes'])->name('extracoes');
             Route::get('/extracoes/{extraction}/imagem', [\App\Http\Controllers\WhatsappController::class, 'extracoesImagem'])->name('extracoes.imagem');
             // Instância disparador
