@@ -87,6 +87,7 @@
     <script>
         (function () {
             const statusUrl = '{{ route('admin.whatsapp.status') }}';
+            const statusGruposUrl = '{{ route('admin.whatsapp.grupos-instance.status') }}';
             const alertEl = document.getElementById('wpp-header-alert');
             const textEl = document.getElementById('wpp-header-alert-text');
 
@@ -94,48 +95,46 @@
                 return;
             }
 
-            const updateAlert = (state, hasError = false) => {
-                const normalized = String(state || '').toLowerCase();
-
-                if (hasError) {
-                    textEl.textContent = 'Nao foi possivel verificar o WhatsApp agora. Confira a conexao para relogar se necessario.';
-                    alertEl.classList.remove('d-none');
-                    return;
-                }
-
-                if (normalized === 'connected') {
-                    alertEl.classList.add('d-none');
-                    return;
-                }
-
-                if (normalized === 'disconnected') {
-                    textEl.textContent = 'WhatsApp desconectado. Reconecte para voltar a enviar mensagens.';
-                } else {
-                    textEl.textContent = 'WhatsApp aguardando autenticacao. Abra a conexao para escanear o QR novamente.';
-                }
-
-                alertEl.classList.remove('d-none');
-            };
-
-            const checkWhatsappStatus = async () => {
+            const fetchState = async (url) => {
                 try {
-                    const response = await fetch(statusUrl, {
+                    const response = await fetch(url, {
                         headers: {
                             'X-Requested-With': 'XMLHttpRequest',
                         },
                     });
 
                     if (!response.ok) {
-                        updateAlert(null, true);
-                        return;
+                        return { state: null, error: true };
                     }
 
                     const payload = await response.json();
-                    const state = payload?.data?.state || 'unknown';
-                    updateAlert(state, false);
+                    return { state: (payload?.data?.state || 'unknown').toLowerCase(), error: false };
                 } catch (error) {
-                    updateAlert(null, true);
+                    return { state: null, error: true };
                 }
+            };
+
+            const checkWhatsappStatus = async () => {
+                const [main, grupos] = await Promise.all([
+                    fetchState(statusUrl),
+                    fetchState(statusGruposUrl),
+                ]);
+
+                // Se qualquer uma das instancias estiver conectada, nao ha o que avisar.
+                if (main.state === 'connected' || grupos.state === 'connected') {
+                    alertEl.classList.add('d-none');
+                    return;
+                }
+
+                if (main.error && grupos.error) {
+                    textEl.textContent = 'Nao foi possivel verificar o WhatsApp agora. Confira a conexao para relogar se necessario.';
+                } else if (main.state === 'disconnected' || grupos.state === 'disconnected') {
+                    textEl.textContent = 'WhatsApp desconectado. Reconecte para voltar a enviar mensagens.';
+                } else {
+                    textEl.textContent = 'WhatsApp aguardando autenticacao. Abra a conexao para escanear o QR novamente.';
+                }
+
+                alertEl.classList.remove('d-none');
             };
 
             checkWhatsappStatus();
