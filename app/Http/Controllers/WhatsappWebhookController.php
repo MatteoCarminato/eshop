@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Smalot\PdfParser\Config as PdfParserConfig;
 use Smalot\PdfParser\Parser as PdfParser;
 
 class WhatsappWebhookController extends Controller
@@ -189,7 +190,12 @@ class WhatsappWebhookController extends Controller
             '{"nome_pagador":null,"cpf_cnpj":null,"instituicao":null,"numero_transacao":null,"data_hora":null,"valor":null}',
             'Preencha cada campo com o valor encontrado no documento.',
             'Se um campo não estiver disponível, mantenha null.',
-            'O campo valor deve estar no formato "R$ 0,00".',
+            'ATENÇÃO ao campo valor — documentos brasileiros usam PONTO como separador de milhar e VÍRGULA como separador decimal (é o INVERSO do padrão americano).',
+            'Exemplo: o texto "7.300" significa sete mil e trezentos reais (R$ 7.300,00), e NÃO sete reais e trinta centavos. O texto "46.128,60" significa quarenta e seis mil, cento e vinte e oito reais e sessenta centavos.',
+            'Comprovantes do Mercado Pago exibem os centavos em fonte pequena SOBRESCRITA logo após o valor principal (ex.: "R$ 46.128" com um "60" pequeno elevado ao final) — esses dois dígitos sobrescritos SÃO os centavos, não um valor separado. Junte tudo como "R$ 46.128,60".',
+            'NUNCA trunque, arredonde ou descarte dígitos do valor. Copie TODOS os dígitos da parte inteira exatamente como aparecem no documento, da esquerda para a direita, antes de adicionar os centavos.',
+            'Antes de responder, releia o valor extraído e confira dígito por dígito contra o documento original.',
+            'O campo valor deve estar no formato "R$ 0.000,00" (com ponto de milhar quando aplicável).',
             'O campo data_hora deve estar no formato "DD/MM/YYYY HH:MM".',
             'O campo cpf_cnpj deve conter apenas dígitos, sem pontuação.',
         ]);
@@ -222,9 +228,20 @@ class WhatsappWebhookController extends Controller
         file_put_contents($tmpPdf, $binary);
 
         try {
-            // 1. Tenta extração de texto (PDF com camada de texto)
-            $parser = new PdfParser();
-            $text   = trim($parser->parseFile($tmpPdf)->getText());
+            // 1. Tenta extração de texto (PDF com camada de texto).
+            //    PDFs protegidos (secured/encrypted) fazem o parser lançar exceção;
+            //    nesse caso caímos para a renderização como imagem abaixo.
+            $text = '';
+            try {
+                $pdfConfig = new PdfParserConfig();
+                $pdfConfig->setIgnoreEncryption(true);
+                $parser = new PdfParser([], $pdfConfig);
+                $text   = trim($parser->parseFile($tmpPdf)->getText());
+            } catch (\Throwable $e) {
+                Log::info('WhatsappWebhook: extração de texto do PDF falhou, tentando renderizar como imagem', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             if (!empty($text)) {
                 if (mb_strlen($text) > 8000) {
@@ -236,24 +253,21 @@ class WhatsappWebhookController extends Controller
                 ];
             }
 
-            // 2. PDF baseado em imagem — converte primeira página com ImageMagick + Ghostscript
-            $tmpImg = sys_get_temp_dir() . '/pix_wpp_' . uniqid() . '.jpg';
-            $cmd    = sprintf(
-                '/opt/homebrew/bin/magick -density 200 %s[0] -quality 85 %s 2>&1',
-                escapeshellarg($tmpPdf),
-                escapeshellarg($tmpImg)
-            );
-            exec($cmd, $output, $exitCode);
-
-            if ($exitCode === 0 && file_exists($tmpImg) && filesize($tmpImg) > 0) {
-                $imgBase64 = base64_encode(file_get_contents($tmpImg));
-                @unlink($tmpImg);
-                return $this->buildImageMessages($imgBase64, 'image/jpeg');
+            // 2. PDF baseado em imagem (ou protegido) — renderiza a primeira página via Imagick/Ghostscript
+            try {
+                $imagick = new \Imagick();
+                $imagick->setResolution(200, 200);
+                $imagick->readImage($tmpPdf . '[0]');
+                $imagick->setImageFormat('jpeg');
+                $imagick->setImageCompressionQuality(85);
+                $imgBase64 = base64_encode($imagick->getImageBlob());
+                $imagick->clear();
+                $imagick->destroy();
+            } catch (\Throwable $e) {
+                throw new \RuntimeException('PDF baseado em imagem e conversão falhou: ' . $e->getMessage());
             }
 
-            throw new \RuntimeException(
-                'PDF baseado em imagem e conversão falhou. Instale ghostscript: brew install ghostscript'
-            );
+            return $this->buildImageMessages($imgBase64, 'image/jpeg');
         } finally {
             @unlink($tmpPdf);
         }
