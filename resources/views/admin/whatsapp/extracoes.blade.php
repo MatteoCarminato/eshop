@@ -177,11 +177,131 @@
                                                     ID: {{ $item->message_id ?? '—' }}
                                                 </span>
                                             </div>
+
+                                            @if ($item->status === 'duplicate')
+                                                @php
+                                                    $reasonLabels = [
+                                                        'hash'                 => 'Mesma imagem',
+                                                        'numero_transacao'     => 'Mesmo nº de transação',
+                                                        'nome_valor_data'      => 'Mesmo pagador + valor + data',
+                                                        'bank_transaction_id'  => 'Mesmo ID bancário',
+                                                    ];
+                                                    $match = $item->duplicateMatch;
+                                                @endphp
+                                                <div class="mt-2 p-2 border rounded bg-light-subtle" style="font-size:0.8rem;">
+                                                    @if ($match)
+                                                        @php
+                                                            $orig     = $match['record'];
+                                                            $origData = $orig->ai_data ?? [];
+                                                        @endphp
+                                                        <div class="fw-semibold text-warning-emphasis mb-1">
+                                                            🔗 Duplicado de: {{ $reasonLabels[$match['reason']] ?? $match['reason'] }}
+                                                        </div>
+                                                        <div>
+                                                            Grupo: <strong>{{ $orig->group?->name ?? $orig->whatsapp_group_id }}</strong>
+                                                            &nbsp;|&nbsp;
+                                                            Enviado em: {{ $orig->created_at->format('d/m/Y H:i') }}
+                                                        </div>
+                                                        <div>
+                                                            Pagador: {{ $origData['nome_pagador'] ?? $orig->pix_nome ?? '—' }}
+                                                            &nbsp;|&nbsp;
+                                                            Valor: {{ $origData['valor'] ?? $orig->pix_valor ?? '—' }}
+                                                        </div>
+                                                        <a href="{{ route('admin.whatsapp.extracoes.imagem', $orig) }}" target="_blank">
+                                                            Ver comprovante original
+                                                        </a>
+                                                        &nbsp;|&nbsp;
+                                                        <a href="#" data-bs-toggle="modal" data-bs-target="#dupModal{{ $item->id }}">
+                                                            Comparar lado a lado
+                                                        </a>
+                                                    @else
+                                                        <span class="text-muted">
+                                                            Não foi possível localizar automaticamente o registro original.
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                            @endif
                                         </div>
 
                                     </div>
                                 </div>
                             </div>
+
+                            @if ($item->status === 'duplicate' && $match)
+                                <div class="modal fade" id="dupModal{{ $item->id }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-xl">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Comparação: duplicado x registro original</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="row g-3">
+                                                    @foreach ([['label' => 'Este envio (duplicado)', 'extraction' => $item], ['label' => 'Registro original (confirmado)', 'extraction' => $orig]] as $compare)
+                                                        @php
+                                                            $cExt     = $compare['extraction'];
+                                                            $cData    = $cExt->ai_data ?? [];
+                                                            $cIsPdf   = str_contains($cExt->mimetype ?? '', 'pdf');
+                                                            $cImgUrl  = route('admin.whatsapp.extracoes.imagem', $cExt);
+                                                        @endphp
+                                                        <div class="col-md-6">
+                                                            <div class="border rounded p-2 h-100">
+                                                                <div class="fw-semibold mb-2">{{ $compare['label'] }}</div>
+                                                                <div class="text-center mb-2">
+                                                                    @if ($cIsPdf)
+                                                                        <a href="{{ $cImgUrl }}" target="_blank" class="d-block text-muted">
+                                                                            <i class="ri-file-pdf-line" style="font-size:4rem;color:#e74c3c;"></i>
+                                                                            <br><small>Abrir PDF</small>
+                                                                        </a>
+                                                                    @else
+                                                                        <a href="{{ $cImgUrl }}" target="_blank">
+                                                                            <img src="{{ $cImgUrl }}"
+                                                                                 alt="Comprovante"
+                                                                                 class="img-fluid rounded border"
+                                                                                 style="max-height:320px;object-fit:contain;cursor:zoom-in;">
+                                                                        </a>
+                                                                    @endif
+                                                                </div>
+                                                                <table class="table table-sm table-bordered mb-0">
+                                                                    <tbody>
+                                                                        <tr>
+                                                                            <th style="width:35%">Grupo</th>
+                                                                            <td>{{ $cExt->group?->name ?? $cExt->whatsapp_group_id }}</td>
+                                                                        </tr>
+                                                                        <tr>
+                                                                            <th>Enviado em</th>
+                                                                            <td>{{ $cExt->created_at->format('d/m/Y H:i') }}</td>
+                                                                        </tr>
+                                                                        <tr>
+                                                                            <th>Pagador</th>
+                                                                            <td>{{ $cData['nome_pagador'] ?? $cExt->pix_nome ?? '—' }}</td>
+                                                                        </tr>
+                                                                        <tr>
+                                                                            <th>N° Transação</th>
+                                                                            <td style="word-break:break-all;">{{ $cData['numero_transacao'] ?? $cExt->numero_transacao ?? '—' }}</td>
+                                                                        </tr>
+                                                                        <tr>
+                                                                            <th>Data / Hora</th>
+                                                                            <td>{{ $cData['data_hora'] ?? $cExt->pix_data ?? '—' }}</td>
+                                                                        </tr>
+                                                                        <tr>
+                                                                            <th>Valor</th>
+                                                                            <td><strong>{{ $cData['valor'] ?? $cExt->pix_valor ?? '—' }}</strong></td>
+                                                                        </tr>
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
                         </div>
                     @endforeach
                 </div>

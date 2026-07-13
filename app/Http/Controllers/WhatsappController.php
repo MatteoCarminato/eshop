@@ -612,7 +612,59 @@ class WhatsappController extends Controller
         $extractions = $query->paginate(20)->withQueryString();
         $groups      = \App\Models\WhatsappGroup::orderBy('name')->get(['id', 'name']);
 
+        foreach ($extractions as $item) {
+            if ($item->status === 'duplicate') {
+                $item->duplicateMatch = $this->findDuplicateMatch($item);
+            }
+        }
+
         return view('admin.whatsapp.extracoes', compact('extractions', 'groups'));
+    }
+
+    /**
+     * Reproduz a mesma ordem de prioridade usada em
+     * WhatsappWebhookController::isDuplicate()/handle() para achar qual
+     * registro confirmado fez este item ser marcado como duplicado.
+     */
+    private function findDuplicateMatch(WhatsappPixExtraction $item): ?array
+    {
+        $base = WhatsappPixExtraction::with('group')
+            ->where('status', 'confirmed')
+            ->where('id', '!=', $item->id);
+
+        if ($item->image_hash) {
+            $match = (clone $base)->where('image_hash', $item->image_hash)->first();
+            if ($match) {
+                return ['record' => $match, 'reason' => 'hash'];
+            }
+        }
+
+        if ($item->numero_transacao) {
+            $match = (clone $base)->where('numero_transacao', $item->numero_transacao)->first();
+            if ($match) {
+                return ['record' => $match, 'reason' => 'numero_transacao'];
+            }
+        }
+
+        if ($item->pix_nome && $item->pix_valor && $item->pix_data) {
+            $match = (clone $base)
+                ->where('pix_nome', $item->pix_nome)
+                ->where('pix_valor', $item->pix_valor)
+                ->where('pix_data', $item->pix_data)
+                ->first();
+            if ($match) {
+                return ['record' => $match, 'reason' => 'nome_valor_data'];
+            }
+        }
+
+        if ($item->bank_transaction_id) {
+            $match = (clone $base)->where('bank_transaction_id', $item->bank_transaction_id)->first();
+            if ($match) {
+                return ['record' => $match, 'reason' => 'bank_transaction_id'];
+            }
+        }
+
+        return null;
     }
 
     public function extracoesImagem(WhatsappPixExtraction $extraction)
