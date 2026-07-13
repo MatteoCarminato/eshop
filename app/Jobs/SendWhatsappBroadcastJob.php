@@ -18,7 +18,14 @@ class SendWhatsappBroadcastJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public int $timeout = 3600;
+    public int $timeout = 7200;
+
+    /**
+     * Intervalo aleatório (em segundos) entre cada envio do disparo em massa,
+     * pra reduzir o risco de o número ser marcado como spam/banido.
+     */
+    private const MIN_DELAY_SECONDS = 3;
+    private const MAX_DELAY_SECONDS = 9;
 
     /**
      * @param array<int, array{name:string, phone:string}> $recipients
@@ -44,7 +51,9 @@ class SendWhatsappBroadcastJob implements ShouldQueue
         }
 
         try {
-            foreach ($this->recipients as $recipient) {
+            $total = count($this->recipients);
+
+            foreach ($this->recipients as $index => $recipient) {
                 $name = (string) ($recipient['name'] ?? 'Contato');
                 $phone = (string) ($recipient['phone'] ?? '');
 
@@ -77,6 +86,10 @@ class SendWhatsappBroadcastJob implements ShouldQueue
                     'phone' => $phone,
                     'success' => (bool) ($result['success'] ?? false),
                 ]);
+
+                if ($index < $total - 1) {
+                    sleep(random_int(self::MIN_DELAY_SECONDS, self::MAX_DELAY_SECONDS));
+                }
             }
 
             Log::info('🏁 Broadcast WhatsApp concluído', [

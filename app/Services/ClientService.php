@@ -27,7 +27,7 @@ class ClientService
 
     public function filter(?string $search, ?string $type, ?int $perPage = null): Collection|LengthAwarePaginator
     {
-        $query = Client::orderBy('created_at', 'desc');
+        $query = Client::orderBy('name');
 
         if ($type === 'cliente' || $type === 'fornecedor') {
             $query->where('type', $type);

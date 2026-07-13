@@ -26,7 +26,7 @@ class ClientController extends Controller
         $search = $request->get('search');
         $type   = $request->get('type');
 
-        $clients = $this->clientService->filter($search, $type, 15);
+        $clients = $this->clientService->filter($search, $type, 50);
 
         return view('admin.clients.index', compact('clients', 'search', 'type'));
     }
