@@ -118,9 +118,9 @@ class ClientBankService
                 continue;
             }
 
-            // Nome do pagador (match parcial, case-insensitive)
+            // Nome do pagador (match parcial, case-insensitive, tolerante a pequena divergência de grafia)
             $desc = mb_strtolower($item['description'] ?? '');
-            if (!str_contains($desc, $nomeLower) && !str_contains($nomeLower, $desc)) {
+            if (!$this->nomesCorrespondem($nomeLower, $desc)) {
                 continue;
             }
 
@@ -138,6 +138,26 @@ class ClientBankService
         }
 
         return null;
+    }
+
+    /**
+     * Compara nomes tolerando pequena divergência de grafia — a IA às vezes "corrige"
+     * uma grafia de nome incomum para a variante mais comum (ex.: lê "Willian" como "William").
+     */
+    private function nomesCorrespondem(string $nome, string $desc): bool
+    {
+        if ($nome === '' || $desc === '') {
+            return false;
+        }
+
+        if (str_contains($desc, $nome) || str_contains($nome, $desc)) {
+            return true;
+        }
+
+        $tamanho    = max(mb_strlen($nome), mb_strlen($desc));
+        $tolerancia = max(1, (int) floor($tamanho / 10));
+
+        return levenshtein($nome, $desc) <= $tolerancia;
     }
 
     private function parseValor(string $valor): float

@@ -198,6 +198,7 @@ class WhatsappWebhookController extends Controller
             'O campo valor deve estar no formato "R$ 0.000,00" (com ponto de milhar quando aplicável).',
             'O campo data_hora deve estar no formato "DD/MM/YYYY HH:MM".',
             'O campo cpf_cnpj deve conter apenas dígitos, sem pontuação.',
+            'ATENÇÃO ao campo nome_pagador — transcreva o nome EXATAMENTE como está escrito no documento, letra por letra. NUNCA "corrija" ou normalize a grafia para a variante mais comum (ex.: se o documento diz "Willian", responda "Willian", e NÃO "William"; se diz "Marcia", NÃO troque por "Márcia"). Releia o nome extraído e confira letra por letra contra o documento antes de responder.',
         ]);
     }
 
