@@ -124,10 +124,10 @@ class ClientBankService
                 continue;
             }
 
-            // Data (mesmo dia — AI pode não ler horário exato)
+            // Data e horário (o comprovante só traz HH:MM, então toleramos até 2 min do transactionDate)
             try {
                 $dataTx = Carbon::parse($item['transactionDate']);
-                if ($dataTx->format('Y-m-d') !== $dataAi->format('Y-m-d')) {
+                if (abs($dataTx->diffInSeconds($dataAi, false)) > 120) {
                     continue;
                 }
             } catch (\Throwable) {
