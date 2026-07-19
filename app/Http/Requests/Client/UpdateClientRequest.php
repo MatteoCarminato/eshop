@@ -43,6 +43,7 @@ class UpdateClientRequest extends FormRequest
             'spread_points' => 'nullable|numeric|min:0|max:9999',
             'is_exchange_client' => 'nullable|boolean',
             'type' => 'required|in:cliente,fornecedor',
+            'whatsapp_group_id' => 'nullable|exists:whatsapp_groups,id',
         ];
     }
 

@@ -1012,6 +1012,15 @@
                                                                 <i class="ri-information-line me-1 text-info"></i>Ver detalhes
                                                             </button>
                                                         </li>
+                                                        @if($tx->whatsappPixExtraction)
+                                                            <li>
+                                                                <a class="dropdown-item"
+                                                                    href="{{ route('admin.whatsapp.extracoes.imagem', $tx->whatsappPixExtraction) }}"
+                                                                    target="_blank">
+                                                                    <i class="ri-image-line me-1 text-primary"></i>Ver comprovante
+                                                                </a>
+                                                            </li>
+                                                        @endif
                                                         @if($hasAnyAction)
                                                             <li><hr class="dropdown-divider"></li>
                                                             @if(!$isLocked && $canDelete)

@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\WhatsappGroup;
 use App\Models\WhatsappPixExtraction;
 use App\Services\ClientBankService;
+use App\Services\OperationReversalService;
+use App\Services\TransactionService;
+use App\Services\WalletService;
 use App\Services\WhatsappNodeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,6 +21,9 @@ class WhatsappWebhookController extends Controller
 {
     public function __construct(
         protected ClientBankService $clientBankService,
+        protected WalletService $walletService,
+        protected TransactionService $transactionService,
+        protected OperationReversalService $reversalService,
     ) {
         // Respostas nos grupos saem sempre pela instância de grupos
         $this->whatsappNodeService = new WhatsappNodeService('whatsapp_node_grupos');
@@ -141,7 +147,7 @@ class WhatsappWebhookController extends Controller
             };
 
             // Persiste no banco
-            WhatsappPixExtraction::create([
+            $extraction = WhatsappPixExtraction::create([
                 'whatsapp_group_id'  => $group->id,
                 'message_id'         => $payload['message_id'] ?? null,
                 'from'               => $payload['name'] ?? $payload['short_name'] ?? $payload['push_name'] ?? $payload['from'] ?? null,
@@ -157,6 +163,11 @@ class WhatsappWebhookController extends Controller
                 'ai_data'            => $aiData,
                 'ai_raw'             => $aiRaw,
             ]);
+
+            // Credita a carteira do cliente vinculado a este grupo, quando o PIX foi confirmado no extrato bancário
+            if ($status === 'confirmed' && $group->client_id) {
+                $this->creditClientWallet($group->client_id, $pixValor, $extraction);
+            }
 
             // Responde no grupo
             if ($aiData) {
@@ -179,6 +190,39 @@ class WhatsappWebhookController extends Controller
         }
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Credita o valor do PIX confirmado na carteira BRL do cliente vinculado ao grupo,
+     * registrando a transação com referência ao comprovante que a originou.
+     */
+    private function creditClientWallet(int $clientId, string $pixValor, WhatsappPixExtraction $extraction): void
+    {
+        try {
+            $valor = $this->clientBankService->parseValor($pixValor);
+
+            $label = 'Depósito PIX (WhatsApp) R$ ' . number_format($valor, 2, ',', '.');
+
+            $this->reversalService->capture('deposit_brl', $clientId, [], $label, function () use ($clientId, $valor, $extraction) {
+                $this->walletService->updateBalance($clientId, 'BRL', $valor);
+
+                return $this->transactionService->create([
+                    'client_id'                  => $clientId,
+                    'type'                       => 'deposit',
+                    'currency'                   => 'BRL',
+                    'amount'                     => $valor,
+                    'payment_method'             => 'pix',
+                    'description'                => 'PIX de ' . ($extraction->pix_nome ?? 'pagador não identificado') . ' via WhatsApp',
+                    'whatsapp_pix_extraction_id' => $extraction->id,
+                ]);
+            });
+        } catch (\Throwable $e) {
+            Log::error('WhatsappWebhook: erro ao creditar carteira do cliente a partir do PIX confirmado', [
+                'client_id'      => $clientId,
+                'extraction_id'  => $extraction->id,
+                'error'          => $e->getMessage(),
+            ]);
+        }
     }
 
     private function systemPrompt(): string

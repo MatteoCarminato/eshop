@@ -160,7 +160,7 @@ class ClientBankService
         return levenshtein($nome, $desc) <= $tolerancia;
     }
 
-    private function parseValor(string $valor): float
+    public function parseValor(string $valor): float
     {
         // "R$ 7.195,00" → 7195.00
         $v = preg_replace('/[R$\s]/u', '', $valor);

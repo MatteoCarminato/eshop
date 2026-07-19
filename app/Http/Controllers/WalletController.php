@@ -180,6 +180,7 @@ class WalletController extends Controller
         [$dateFrom, $dateTo] = $this->parseDateRange($request);
 
         $transactions = $client->transactions()
+            ->with('whatsappPixExtraction:id,image_path,mimetype')
             ->when($dateFrom, fn ($q) => $q->where('created_at', '>=', $dateFrom))
             ->when($dateTo, fn ($q) => $q->where('created_at', '<=', $dateTo))
             ->orderByDesc('created_at')

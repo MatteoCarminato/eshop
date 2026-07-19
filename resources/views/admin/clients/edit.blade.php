@@ -204,6 +204,56 @@
                                     </div>
                                     <!--end col-->
 
+                                    <!-- Carteira -->
+                                    <div class="col-12">
+                                        <div class="d-flex align-items-center gap-4 p-3 rounded border bg-light flex-wrap">
+                                            <div>
+                                                <span class="text-muted text-uppercase fs-12">Saldo BRL</span>
+                                                <h5 class="mb-0 text-success">R$
+                                                    {{ number_format($balances['BRL'] ?? 0, 2, ',', '.') }}</h5>
+                                            </div>
+                                            <div>
+                                                <span class="text-muted text-uppercase fs-12">Saldo USD</span>
+                                                <h5 class="mb-0 text-info">US$
+                                                    {{ number_format($balances['USD'] ?? 0, 2, ',', '.') }}</h5>
+                                            </div>
+                                            <div class="ms-auto">
+                                                <a href="{{ route('admin.wallet.client', $client) }}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="ri-wallet-3-line align-middle me-1"></i>
+                                                    Ver carteira completa
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!--end col-->
+
+                                    <!-- Grupo de WhatsApp -->
+                                    <div class="col-xxl-6 col-md-6">
+                                        <div>
+                                            <label for="whatsapp_group_id" class="form-label">
+                                                Grupo do WhatsApp <i class="ri-whatsapp-line text-success"></i>
+                                            </label>
+                                            <select class="form-select @error('whatsapp_group_id') is-invalid @enderror"
+                                                id="whatsapp_group_id" name="whatsapp_group_id">
+                                                <option value="">Nenhum grupo vinculado</option>
+                                                @foreach ($whatsappGroups as $group)
+                                                    <option value="{{ $group->id }}"
+                                                        {{ (int) old('whatsapp_group_id', $linkedWhatsappGroup->id ?? '') === $group->id ? 'selected' : '' }}>
+                                                        {{ $group->name }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            @error('whatsapp_group_id')
+                                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                            @enderror
+                                            <div class="form-text">
+                                                <i class="ri-information-line"></i>
+                                                Comprovantes de PIX enviados nesse grupo serão creditados na carteira deste cliente ao ser confirmados.
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!--end col-->
+
                                     <div class="col-12">
                                         <div class="alert alert-info">
                                             <div class="d-flex">

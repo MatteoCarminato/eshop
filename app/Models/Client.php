@@ -102,4 +102,12 @@ class Client extends Model
     {
         return $this->hasMany(Transaction::class);
     }
+
+    /**
+     * Relacionamento: grupos de WhatsApp vinculados a este cliente
+     */
+    public function whatsappGroups()
+    {
+        return $this->hasMany(WhatsappGroup::class);
+    }
 }

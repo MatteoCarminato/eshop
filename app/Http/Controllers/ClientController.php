@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Client;
+use App\Models\WhatsappGroup;
 use App\Services\ClientService;
 use App\Http\Requests\Client\StoreClientRequest;
 use App\Http\Requests\Client\UpdateClientRequest;
@@ -71,7 +72,16 @@ class ClientController extends Controller
      */
     public function edit(Client $client): View
     {
-        return view('admin.clients.edit', compact('client'));
+        $whatsappGroups = WhatsappGroup::whereNull('client_id')
+            ->orWhere('client_id', $client->id)
+            ->orderBy('name')
+            ->get();
+
+        $linkedWhatsappGroup = $client->whatsappGroups()->first();
+
+        $balances = $client->wallets()->pluck('balance', 'currency');
+
+        return view('admin.clients.edit', compact('client', 'whatsappGroups', 'linkedWhatsappGroup', 'balances'));
     }
 
     /**

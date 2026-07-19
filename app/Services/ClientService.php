@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Client;
+use App\Models\WhatsappGroup;
 use App\Http\Requests\Client\StoreClientRequest;
 use App\Http\Requests\Client\UpdateClientRequest;
 use Illuminate\Database\Eloquent\Collection;
@@ -81,9 +82,29 @@ class ClientService
         // Com os novos mutators, a normalização é automática
         $data = $request->validated();
 
+        $whatsappGroupId = $data['whatsapp_group_id'] ?? null;
+        unset($data['whatsapp_group_id']);
+
         $client->update($data);
+        $this->syncWhatsappGroup($client, $whatsappGroupId);
 
         return $client->fresh();
+    }
+
+    /**
+     * Vincula (ou desvincula) o grupo de WhatsApp selecionado a este cliente.
+     * Cada grupo pertence a no máximo um cliente por vez.
+     */
+    protected function syncWhatsappGroup(Client $client, ?int $whatsappGroupId): void
+    {
+        // Libera qualquer grupo anteriormente vinculado a este cliente que não seja o selecionado agora
+        WhatsappGroup::where('client_id', $client->id)
+            ->when($whatsappGroupId, fn ($q) => $q->where('id', '!=', $whatsappGroupId))
+            ->update(['client_id' => null]);
+
+        if ($whatsappGroupId) {
+            WhatsappGroup::where('id', $whatsappGroupId)->update(['client_id' => $client->id]);
+        }
     }
 
     /**

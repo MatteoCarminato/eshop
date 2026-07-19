@@ -32,4 +32,9 @@ class WhatsappPixExtraction extends Model
     {
         return $this->belongsTo(WhatsappGroup::class, 'whatsapp_group_id');
     }
+
+    public function transaction()
+    {
+        return $this->hasOne(Transaction::class);
+    }
 }

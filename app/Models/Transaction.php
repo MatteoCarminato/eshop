@@ -25,6 +25,7 @@ class Transaction extends Model
         'treasury_sale_id',
         'description',
         'status',
+        'whatsapp_pix_extraction_id',
     ];
 
     /**
@@ -41,5 +42,13 @@ class Transaction extends Model
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_transaction_id');
+    }
+
+    /**
+     * Comprovante de PIX (WhatsApp) que originou este depósito, quando aplicável.
+     */
+    public function whatsappPixExtraction(): BelongsTo
+    {
+        return $this->belongsTo(WhatsappPixExtraction::class);
     }
 }
