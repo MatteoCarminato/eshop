@@ -114,7 +114,7 @@ class ClientBankService
             }
 
             // Valor com tolerância de R$ 0,01
-            if (abs($item['amount'] - $valor) > 0.01) {
+            if (abs($item['amount'] - $valor) > 0.005) {
                 continue;
             }
 
