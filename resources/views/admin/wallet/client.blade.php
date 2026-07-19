@@ -339,56 +339,6 @@
                 controls.classList.toggle('d-none', selectedCount === 0);
             }
 
-            function saveSingleRate(rateInput) {
-                // Impede salvar se o input está desabilitado (linha finalizada)
-                if (rateInput.disabled) {
-                    return;
-                }
-
-                var row = rateInput.closest('tr');
-                var url = rateInput.getAttribute('data-url');
-                var rateValue = rateInput.value;
-                var normalizedRate = parseFloat(rateValue);
-                var originalValue = rateInput.getAttribute('data-original-value');
-
-                if (originalValue !== null && parseFloat(originalValue) === parseFloat(rateValue)) {
-                    return;
-                }
-
-                if (!rateValue || !(normalizedRate > 0)) {
-                    alert('Informe uma taxa válida.');
-                    return;
-                }
-
-                normalizedRate = parseFloat(normalizedRate.toFixed(4));
-                rateValue = normalizedRate.toFixed(4);
-                rateInput.value = rateValue;
-
-                var payload = new FormData();
-                payload.append('_token', '{{ csrf_token() }}');
-                payload.append('_method', 'PATCH');
-                payload.append('exchange_rate', rateValue);
-
-                fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: payload
-                })
-                    .then(function (response) {
-                        if (response.ok) {
-                            rateInput.setAttribute('data-original-value', rateValue);
-                            location.reload();
-                        } else {
-                            alert('Erro ao atualizar a taxa.');
-                        }
-                    })
-                    .catch(function () {
-                        alert('Erro ao atualizar a taxa.');
-                    });
-            }
-
             document.addEventListener('DOMContentLoaded', function () {
                 document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
                     new bootstrap.Tooltip(el);
@@ -456,12 +406,6 @@
                 });
 
                 updateBulkRateControlsVisibility();
-
-                document.querySelectorAll('.js-rate-input').forEach(function (input) {
-                    input.addEventListener('blur', function () {
-                        saveSingleRate(input);
-                    });
-                });
 
                 // ===== Cotação global da página =====
                 // Busca a taxa USD/BRL no Investing + spread do cliente e aplica nos modais
@@ -738,6 +682,16 @@
                                     class="badge bg-primary-subtle text-primary border border-primary-subtle d-none">
                                     Selecionado: R$ 0,00
                                 </span>
+
+                                <span id="entrada_selected_avg_rate"
+                                    class="badge bg-info-subtle text-info border border-info-subtle d-none">
+                                    Taxa média: —
+                                </span>
+
+                                <span id="entrada_selected_usd_total"
+                                    class="badge bg-success-subtle text-success border border-success-subtle d-none">
+                                    Valor U$: —
+                                </span>
                             </div>
 
                             {{-- DIREITA --}}
@@ -882,7 +836,9 @@
                                             data-is-red-row="{{ $rowClass === 'table-pre-sold' ? '1' : '0' }}"
                                             data-sold-brl="{{ number_format($brlSold, 2, '.', '') }}"
                                             data-sold-usd="{{ number_format($usdSell, 4, '.', '') }}"
-                                            data-sold-rate="{{ $taxaMediaSell ? number_format($taxaMediaSell, 6, '.', '') : '' }}">
+                                            data-sold-rate="{{ $taxaMediaSell ? number_format($taxaMediaSell, 6, '.', '') : '' }}"
+                                            data-rate="{{ $taxa ? number_format($taxa, 6, '.', '') : '' }}"
+                                            data-usd-equiv="{{ $valorConvertido !== null ? number_format($valorConvertido, 6, '.', '') : '' }}">
                                             <td>
                                                 {{-- <input type="checkbox" class="entrada-select-item" form="bulk_rate_form"
                                                     name="transaction_ids[]" value="{{ $tx->id }}" @if($isLocked) disabled
@@ -920,17 +876,7 @@
                                                 @endif
                                             </td>
                                             <td class="fw-bold text-success text-end">{{ number_format($tx->amount, 2, ',', '.') }}</td>
-                                            <td>
-                                                <div class="d-flex align-items-center gap-1">
-                                                    <input type="number" step="0.0001" min="0.0001"
-                                                        value="{{ $taxa ? number_format($taxa, 4, '.', '') : '' }}"
-                                                        class="form-control form-control-sm js-rate-input"
-                                                        data-url="{{ route('admin.wallet.update-rate', $tx) }}"
-                                                        data-original-value="{{ $taxa ? number_format($taxa, 4, '.', '') : '' }}"
-                                                        style="min-width: 70px; width: 100%" required @if($isLocked || $hasSold)
-                                                        disabled readonly @endif>
-                                                </div>
-                                            </td>
+                                            <td class="text-end">{{ $taxa ? number_format($taxa, 4, ',', '.') : '-' }}</td>
                                             <td class="text-end">{{ $valorConvertido !== null ? number_format($valorConvertido, 2, ',', '.') : '-' }}
                                             </td>
                                             <td>
@@ -1013,12 +959,30 @@
                                                             </button>
                                                         </li>
                                                         @if($tx->whatsappPixExtraction)
+                                                            @php
+                                                                $extracao = $tx->whatsappPixExtraction;
+                                                                $comprovanteData = [
+                                                                    'imagemUrl'    => route('admin.whatsapp.extracoes.imagem', $extracao),
+                                                                    'mimetype'     => $extracao->mimetype,
+                                                                    'nome'         => $extracao->pix_nome,
+                                                                    'valor'        => $extracao->pix_valor,
+                                                                    'data'         => $extracao->pix_data,
+                                                                    'numero'       => $extracao->numero_transacao,
+                                                                    'status'       => $extracao->status,
+                                                                    'extracoesUrl' => route('admin.whatsapp.extracoes', array_filter([
+                                                                        'group_id' => $extracao->whatsapp_group_id,
+                                                                        'search'   => $extracao->numero_transacao,
+                                                                    ])),
+                                                                ];
+                                                            @endphp
                                                             <li>
-                                                                <a class="dropdown-item"
-                                                                    href="{{ route('admin.whatsapp.extracoes.imagem', $tx->whatsappPixExtraction) }}"
-                                                                    target="_blank">
+                                                                <button type="button"
+                                                                    class="dropdown-item"
+                                                                    data-bs-toggle="modal"
+                                                                    data-bs-target="#comprovantePixModal"
+                                                                    data-comprovante="{{ json_encode($comprovanteData) }}">
                                                                     <i class="ri-image-line me-1 text-primary"></i>Ver comprovante
-                                                                </a>
+                                                                </button>
                                                             </li>
                                                         @endif
                                                         @if($hasAnyAction)
@@ -1124,6 +1088,9 @@
                     const checkboxes = document.querySelectorAll('.entrada-select-item');
                     const selectAll = document.getElementById('entrada_select_all');
                     const totalBadge = document.getElementById('entrada_selected_total');
+                    const totalValorBadge = document.getElementById('entrada_selected_total_old');
+                    const avgRateBadge = document.getElementById('entrada_selected_avg_rate');
+                    const usdTotalBadge = document.getElementById('entrada_selected_usd_total');
                     const redSummary = document.getElementById('entrada_red_summary');
                     const redCountEl = document.getElementById('red_count');
                     const redTotalBrlEl = document.getElementById('red_total_brl');
@@ -1142,10 +1109,14 @@
                         let redCount = 0;
                         let redBrl = 0;
                         let redUsd = 0;
+                        let rateSum = 0;
+                        let rateCount = 0;
+                        let usdTotal = 0;
 
                         checkboxes.forEach(cb => {
                             if (cb.checked && !cb.disabled) {
-                                total += parseFloat(cb.dataset.amount || 0);
+                                const amount = parseFloat(cb.dataset.amount || 0);
+                                total += amount;
 
                                 const row = cb.closest('tr');
                                 const isRedRow = row && row.getAttribute('data-is-red-row') === '1';
@@ -1153,6 +1124,18 @@
                                     redCount += 1;
                                     redBrl += parseFloat(row.getAttribute('data-sold-brl') || 0);
                                     redUsd += parseFloat(row.getAttribute('data-sold-usd') || 0);
+                                }
+
+                                // Cada coluna soma/calcula só sobre si mesma — não mistura valor com taxa.
+                                const rate = row ? parseFloat(row.getAttribute('data-rate')) : NaN;
+                                if (rate > 0) {
+                                    rateSum += rate;
+                                    rateCount += 1;
+                                }
+
+                                const usdEquiv = row ? parseFloat(row.getAttribute('data-usd-equiv')) : NaN;
+                                if (usdEquiv > 0) {
+                                    usdTotal += usdEquiv;
                                 }
                             }
                         });
@@ -1162,6 +1145,40 @@
                             totalBadge.textContent = `${formatBRL(total)}`;
                         } else {
                             totalBadge.classList.add('d-none');
+                        }
+
+                        if (totalValorBadge) {
+                            if (total > 0) {
+                                totalValorBadge.classList.remove('d-none');
+                                totalValorBadge.textContent = 'Selecionado: ' + formatBRL(total);
+                            } else {
+                                totalValorBadge.classList.add('d-none');
+                            }
+                        }
+
+                        if (avgRateBadge) {
+                            if (rateCount > 0) {
+                                const avgRate = rateSum / rateCount;
+                                avgRateBadge.classList.remove('d-none');
+                                avgRateBadge.textContent = 'Taxa média: ' + avgRate.toLocaleString('pt-BR', {
+                                    minimumFractionDigits: 4,
+                                    maximumFractionDigits: 4
+                                });
+                            } else {
+                                avgRateBadge.classList.add('d-none');
+                            }
+                        }
+
+                        if (usdTotalBadge) {
+                            if (usdTotal > 0) {
+                                usdTotalBadge.classList.remove('d-none');
+                                usdTotalBadge.textContent = 'Valor U$: US$ ' + usdTotal.toLocaleString('pt-BR', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                });
+                            } else {
+                                usdTotalBadge.classList.add('d-none');
+                            }
                         }
 
                         if (redSummary) {
@@ -2251,7 +2268,7 @@
                         }
 
                         if (!taxaSugerida || taxaSugerida <= 0) {
-                            var rowRate = parseFloat(row.querySelector('.js-rate-input').value);
+                            var rowRate = parseFloat(row.getAttribute('data-rate'));
                             if (rowRate > 0) taxaSugerida = rowRate;
                         }
                     });
@@ -2398,6 +2415,62 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="comprovantePixModal" tabindex="-1" aria-labelledby="comprovantePixLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title mb-0" id="comprovantePixLabel">Comprovante PIX</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body" id="comprovantePixBody"></div>
+                <div class="modal-footer">
+                    <a href="#" id="comprovantePixExtracoesLink" target="_blank" class="btn btn-outline-primary btn-sm">
+                        <i class="ri-external-link-line align-middle me-1"></i>Ver na extração do grupo
+                    </a>
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var modal = document.getElementById('comprovantePixModal');
+            if (!modal) return;
+
+            modal.addEventListener('show.bs.modal', function (e) {
+                var btn = e.relatedTarget;
+                if (!btn) return;
+                var d;
+                try { d = JSON.parse(btn.getAttribute('data-comprovante') || '{}'); } catch (_) { return; }
+
+                var bodyEl = document.getElementById('comprovantePixBody');
+                var linkEl = document.getElementById('comprovantePixExtracoesLink');
+
+                var isPdf = (d.mimetype || '').indexOf('pdf') !== -1;
+                var preview = isPdf
+                    ? '<div class="text-center mb-3"><iframe src="' + d.imagemUrl + '" style="width:100%;height:60vh;border:1px solid #dee2e6;border-radius:.375rem"></iframe></div>'
+                    : '<div class="text-center mb-3"><img src="' + d.imagemUrl + '" class="img-fluid rounded border" style="max-height:60vh"></div>';
+
+                function row(label, value) {
+                    if (!value) return '';
+                    return '<div class="col-6 col-md-4"><div class="text-muted small">' + label + '</div><div class="fw-bold">' + value + '</div></div>';
+                }
+
+                bodyEl.innerHTML = preview +
+                    '<div class="row g-2">' +
+                    row('Pagador', d.nome) +
+                    row('Valor', d.valor) +
+                    row('Data/Hora', d.data) +
+                    row('Nº transação', d.numero) +
+                    row('Status', d.status) +
+                    '</div>';
+
+                if (linkEl) linkEl.href = d.extracoesUrl || '#';
+            });
+        });
+    </script>
 
     <div id="xls-copy-toast">✓ Copiado</div>
     <div id="xls-status-bar"></div>
