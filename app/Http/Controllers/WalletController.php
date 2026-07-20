@@ -1293,45 +1293,92 @@ class WalletController extends Controller
     }
 
     /**
-     * Busca a cotação atual USD/BRL no investing.com e cacheia por 60s.
+     * Busca a cotação atual USD/BRL (Yahoo Finance como fonte primária,
+     * investing.com como fallback) e cacheia por 15s.
      */
     public function fetchUsdBrlRate()
     {
         try {
-            $rate = Cache::remember('usd_brl_rate', 15, function () {
-                $response = Http::withHeaders([
-                    'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-                    'Accept' => 'text/html,application/xhtml+xml',
-                    'Accept-Language' => 'pt-BR,pt;q=0.9,en;q=0.8',
-                ])->timeout(10)->get('https://br.investing.com/currencies/usd-brl');
-
-                if (!$response->ok()) {
-                    return null;
+            $result = Cache::remember('usd_brl_rate', 15, function () {
+                $rate = $this->fetchUsdBrlFromYahoo();
+                if ($rate !== null) {
+                    return ['rate' => $rate, 'source' => 'finance.yahoo.com'];
                 }
 
-                $html = $response->body();
-
-                // Procura: data-test="instrument-price-last">4,9208<
-                if (preg_match('/data-test="instrument-price-last"[^>]*>([\d.,]+)</', $html, $m)) {
-                    $raw = str_replace('.', '', $m[1]);   // remove separador de milhar
-                    $raw = str_replace(',', '.', $raw);   // vírgula -> ponto
-                    return (float) $raw;
+                $rate = $this->fetchUsdBrlFromInvesting();
+                if ($rate !== null) {
+                    return ['rate' => $rate, 'source' => 'br.investing.com'];
                 }
 
                 return null;
             });
 
-            if ($rate === null) {
+            if ($result === null) {
                 return response()->json(['success' => false, 'message' => 'Não foi possível obter a cotação.'], 502);
             }
 
             return response()->json([
                 'success' => true,
-                'rate' => $rate,
-                'source' => 'br.investing.com',
+                'rate' => $result['rate'],
+                'source' => $result['source'],
             ]);
         } catch (\Throwable $e) {
             return response()->json(['success' => false, 'message' => 'Erro ao consultar cotação.'], 500);
+        }
+    }
+
+    private function fetchUsdBrlFromYahoo(): ?float
+    {
+        try {
+            $response = Http::withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+                'Accept' => 'text/html,application/xhtml+xml',
+                'Accept-Language' => 'en-US,en;q=0.9',
+            ])->timeout(10)->get('https://finance.yahoo.com/quote/BRL%3DX/');
+
+            if (!$response->ok()) {
+                return null;
+            }
+
+            $html = $response->body();
+
+            // Procura: data-testid="qsp-price">5.0845<
+            if (preg_match('/data-testid="qsp-price"[^>]*>([\d.,]+)</', $html, $m)) {
+                $raw = str_replace(',', '', $m[1]); // remove separador de milhar
+                return (float) $raw;
+            }
+
+            return null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    private function fetchUsdBrlFromInvesting(): ?float
+    {
+        try {
+            $response = Http::withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+                'Accept' => 'text/html,application/xhtml+xml',
+                'Accept-Language' => 'pt-BR,pt;q=0.9,en;q=0.8',
+            ])->timeout(10)->get('https://br.investing.com/currencies/usd-brl');
+
+            if (!$response->ok()) {
+                return null;
+            }
+
+            $html = $response->body();
+
+            // Procura: data-test="instrument-price-last">4,9208<
+            if (preg_match('/data-test="instrument-price-last"[^>]*>([\d.,]+)</', $html, $m)) {
+                $raw = str_replace('.', '', $m[1]);   // remove separador de milhar
+                $raw = str_replace(',', '.', $raw);   // vírgula -> ponto
+                return (float) $raw;
+            }
+
+            return null;
+        } catch (\Throwable $e) {
+            return null;
         }
     }
 
