@@ -1293,21 +1293,21 @@ class WalletController extends Controller
     }
 
     /**
-     * Busca a cotação atual USD/BRL (Yahoo Finance como fonte primária,
-     * investing.com como fallback) e cacheia por 15s.
+     * Busca a cotação atual USD/BRL via APIs de câmbio (Frankfurter como fonte
+     * primária, open.er-api.com como fallback) e cacheia por 15s.
      */
     public function fetchUsdBrlRate()
     {
         try {
             $result = Cache::remember('usd_brl_rate', 15, function () {
-                $rate = $this->fetchUsdBrlFromYahoo();
+                $rate = $this->fetchUsdBrlFromFrankfurter();
                 if ($rate !== null) {
-                    return ['rate' => $rate, 'source' => 'finance.yahoo.com'];
+                    return ['rate' => $rate - 0.02, 'source' => 'frankfurter.dev'];
                 }
 
-                $rate = $this->fetchUsdBrlFromInvesting();
+                $rate = $this->fetchUsdBrlFromExchangeRateApi();
                 if ($rate !== null) {
-                    return ['rate' => $rate, 'source' => 'br.investing.com'];
+                    return ['rate' => $rate - 0.02, 'source' => 'open.er-api.com'];
                 }
 
                 return null;
@@ -1327,56 +1327,38 @@ class WalletController extends Controller
         }
     }
 
-    private function fetchUsdBrlFromYahoo(): ?float
+    private function fetchUsdBrlFromFrankfurter(): ?float
     {
         try {
-            $response = Http::withHeaders([
-                'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-                'Accept' => 'text/html,application/xhtml+xml',
-                'Accept-Language' => 'en-US,en;q=0.9',
-            ])->timeout(10)->get('https://finance.yahoo.com/quote/BRL%3DX/');
+            $response = Http::timeout(10)->get('https://api.frankfurter.dev/v1/latest', [
+                'base' => 'USD',
+                'symbols' => 'BRL',
+            ]);
 
             if (!$response->ok()) {
                 return null;
             }
 
-            $html = $response->body();
+            $rate = $response->json('rates.BRL');
 
-            // Procura: data-testid="qsp-price">5.0845<
-            if (preg_match('/data-testid="qsp-price"[^>]*>([\d.,]+)</', $html, $m)) {
-                $raw = str_replace(',', '', $m[1]); // remove separador de milhar
-                return (float) $raw;
-            }
-
-            return null;
+            return $rate !== null ? (float) $rate : null;
         } catch (\Throwable $e) {
             return null;
         }
     }
 
-    private function fetchUsdBrlFromInvesting(): ?float
+    private function fetchUsdBrlFromExchangeRateApi(): ?float
     {
         try {
-            $response = Http::withHeaders([
-                'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-                'Accept' => 'text/html,application/xhtml+xml',
-                'Accept-Language' => 'pt-BR,pt;q=0.9,en;q=0.8',
-            ])->timeout(10)->get('https://br.investing.com/currencies/usd-brl');
+            $response = Http::timeout(10)->get('https://open.er-api.com/v6/latest/USD');
 
             if (!$response->ok()) {
                 return null;
             }
 
-            $html = $response->body();
+            $rate = $response->json('rates.BRL');
 
-            // Procura: data-test="instrument-price-last">4,9208<
-            if (preg_match('/data-test="instrument-price-last"[^>]*>([\d.,]+)</', $html, $m)) {
-                $raw = str_replace('.', '', $m[1]);   // remove separador de milhar
-                $raw = str_replace(',', '.', $raw);   // vírgula -> ponto
-                return (float) $raw;
-            }
-
-            return null;
+            return $rate !== null ? (float) $rate : null;
         } catch (\Throwable $e) {
             return null;
         }
