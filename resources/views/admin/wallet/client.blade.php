@@ -1222,6 +1222,47 @@
                         });
                     }
 
+                    // Seleção por clique-e-arraste (estilo Excel): clica num checkbox
+                    // e, mantendo o botão pressionado, arrasta sobre as demais linhas
+                    // para marcá-las (ou desmarcá-las) todas de uma vez.
+                    let dragSelecting = false;
+                    let dragSelectValue = false;
+
+                    function setCheckboxState(cb, value) {
+                        if (cb.disabled || cb.checked === value) return;
+                        cb.checked = value;
+                        cb.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+
+                    checkboxes.forEach(cb => {
+                        cb.addEventListener('mousedown', function (e) {
+                            if (cb.disabled) return;
+                            dragSelecting = true;
+                            dragSelectValue = !cb.checked;
+                            setCheckboxState(cb, dragSelectValue);
+                            document.body.classList.add('wallet-drag-selecting');
+                            e.preventDefault();
+                        });
+
+                        // O toggle já é feito manualmente no mousedown; bloqueia o
+                        // default do navegador para o click não desfazer a marcação
+                        // (isso acontecia em cliques parados, sem arrastar).
+                        cb.addEventListener('click', function (e) {
+                            e.preventDefault();
+                        });
+
+                        cb.addEventListener('mouseenter', function () {
+                            if (!dragSelecting) return;
+                            setCheckboxState(cb, dragSelectValue);
+                        });
+                    });
+
+                    document.addEventListener('mouseup', function () {
+                        if (!dragSelecting) return;
+                        dragSelecting = false;
+                        document.body.classList.remove('wallet-drag-selecting');
+                    });
+
                     updateSelectedTotal();
                 });
             </script>
@@ -1534,6 +1575,20 @@
             cursor: not-allowed !important;
             opacity: 0.3;
             pointer-events: none !important;
+        }
+
+        /* Seleção por clique-e-arraste (estilo Excel) na coluna de checkbox das entradas */
+        .entrada-select-item {
+            cursor: pointer;
+        }
+
+        body.wallet-drag-selecting {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body.wallet-drag-selecting .entrada-select-item {
+            cursor: grabbing;
         }
 
         /* Linha de depósito que possui pré-compra parcial pelo dono */
