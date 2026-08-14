@@ -105,20 +105,26 @@ class WalletController extends Controller
             'USD' => round((float) $walletsByClient->sum('USD'), 2),
         ];
 
-        // Resumo de pré-compra por cliente (USD pré-comprado, BRL em aberto = devo, PnL realizado).
+        // Resumo de pré-compra por cliente (USD pré-comprado = hedge do dono, PnL realizado).
         $prePurchaseByClient = [];
         foreach ($clientIds as $cid) {
             $prePurchaseByClient[$cid] = $this->walletService->prePurchaseSummary((int) $cid);
+
+            // "Devo ao cliente" tem que refletir o que ainda NÃO foi entregue (pré-vendido),
+            // não o que falta o dono comprar pra si (pré-compra é só hedge/custo interno e
+            // fica em aberto mesmo depois do dólar já ter sido entregue via "Vender DÓLAR
+            // antecipado" — ver WalletService::finalizeDepositIfCovered).
+            $prePurchaseByClient[$cid]['devido_ao_cliente'] = $this->walletService->brlAvailableForPreSell((int) $cid);
         }
 
         // Totais consolidados (estado atual — não dependem do filtro de data).
-        $totals['DEVO_BRL'] = 0.0;        // R$ que devo aos clientes (pré-compras em aberto)
+        $totals['DEVO_BRL'] = 0.0;        // R$ que devo aos clientes (ainda não entregue/pré-vendido)
         $totals['USD_PRE']  = 0.0;        // USD pré-comprado total
         $totals['CLIENTE_DEVE_BRL'] = 0.0; // saldo BRL negativo (cliente está negativo → me deve)
         $totals['CLIENTE_DEVE_USD'] = 0.0; // idem em USD
 
         foreach ($clientIds as $cid) {
-            $totals['DEVO_BRL'] += $prePurchaseByClient[$cid]['brl_em_aberto'] ?? 0;
+            $totals['DEVO_BRL'] += $prePurchaseByClient[$cid]['devido_ao_cliente'] ?? 0;
             $totals['USD_PRE']  += $prePurchaseByClient[$cid]['usd_pre_comprado'] ?? 0;
 
             $w = $walletsByClient[$cid] ?? ['BRL' => 0, 'USD' => 0];

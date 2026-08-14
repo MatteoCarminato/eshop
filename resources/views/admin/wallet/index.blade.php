@@ -50,7 +50,7 @@
                         <div class="card-body">
                             <h6 class="text-muted text-uppercase mb-2">Devo aos clientes</h6>
                             <h3 class="mb-0 text-danger">R$ {{ number_format($totals['DEVO_BRL'] ?? 0, 2, ',', '.') }}</h3>
-                            <small class="text-muted">Pré-compras em aberto (R$ reservados).</small>
+                            <small class="text-muted">Depositado e ainda não vendido/entregue ao cliente.</small>
                         </div>
                     </div>
                 </div>
@@ -145,10 +145,10 @@
                                             <th>Cliente</th>
                                             <th class="text-end">Saldo BRL</th>
                                             <th class="text-end">Saldo USD</th>
-                                            <th class="text-end" title="R$ que devo ao cliente (pré-compras em aberto)">
+                                            <th class="text-end" title="R$ depositado pelo cliente que ainda não foi vendido/entregue em dólar">
                                                 Devo (R$)
                                             </th>
-                                            <th class="text-end" title="USD comprado pelo dono ainda não entregue">
+                                            <th class="text-end" title="USD comprado pelo dono para hedge — pode já ter sido entregue via venda antecipada">
                                                 USD pré-comprado
                                             </th>
                                             @if($canViewPnl)
@@ -163,6 +163,7 @@
                                                 $clientWallets = $walletsByClient[$client->id] ?? ['BRL' => 0, 'USD' => 0];
                                                 $pp = $prePurchaseByClient[$client->id] ?? [
                                                     'usd_pre_comprado' => 0, 'brl_em_aberto' => 0, 'pnl_realizado_usd' => 0,
+                                                    'devido_ao_cliente' => 0,
                                                 ];
                                                 $brl = (float) ($clientWallets['BRL'] ?? 0);
                                                 $usd = (float) ($clientWallets['USD'] ?? 0);
@@ -177,9 +178,9 @@
                                                             Cliente me deve
                                                         </span>
                                                     @endif
-                                                    @if($pp['brl_em_aberto'] > 0)
+                                                    @if($pp['devido_ao_cliente'] > 0)
                                                         <span class="badge bg-danger-subtle text-danger ms-1"
-                                                            title="Você tem pré-compras em aberto deste cliente.">
+                                                            title="Ainda falta vender/entregar parte do depósito deste cliente em dólar.">
                                                             Devo
                                                         </span>
                                                     @endif
@@ -192,13 +193,8 @@
                                                     {{ $usd < 0 ? '-' : '' }}US$
                                                     {{ number_format(abs($usd), 2, ',', '.') }}
                                                 </td>
-                                                <td class="text-end {{ $pp['brl_em_aberto'] > 0 ? 'text-danger fw-semibold' : 'text-muted' }}">
-                                                    R$ {{ number_format($pp['brl_em_aberto'], 2, ',', '.') }}
-                                                    @if($pp['taxa_media'])
-                                                        <small class="text-muted d-block">
-                                                            @ {{ number_format($pp['taxa_media'], 4, ',', '.') }}
-                                                        </small>
-                                                    @endif
+                                                <td class="text-end {{ $pp['devido_ao_cliente'] > 0 ? 'text-danger fw-semibold' : 'text-muted' }}">
+                                                    R$ {{ number_format($pp['devido_ao_cliente'], 2, ',', '.') }}
                                                 </td>
                                                 <td class="text-end {{ $pp['usd_pre_comprado'] > 0 ? 'fw-semibold' : 'text-muted' }}">
                                                     US$ {{ number_format($pp['usd_pre_comprado'], 2, ',', '.') }}

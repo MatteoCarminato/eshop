@@ -131,7 +131,7 @@
                                             <div class="flex-grow-1 ms-3">
                                                 <h2 class="mb-0 cfs-22 text-danger">
                                                     R$
-                                                    {{ number_format($prePurchaseSummary['brl_em_aberto'], 2, ',', '.') }}
+                                                    {{ number_format($brlAvailableForPreSell, 2, ',', '.') }}
                                                 </h2>
                                                 <small class="text-muted">Disp. p/ comprar: R$
                                                     {{ number_format($brlAvailableForPrePurchase, 2, ',', '.') }}</small>

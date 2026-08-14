@@ -263,8 +263,12 @@ class WalletService
 
     /**
      * Resumo das pré-compras em aberto para um cliente.
-     * - usd_pre_comprado: total de USD ainda não entregue ao cliente.
-     * - brl_em_aberto: total de R$ que o dono "deve" ao cliente em aberto.
+     * IMPORTANTE: isto é o hedge/custo interno do dono, não uma dívida com o cliente —
+     * uma pré-compra pode ficar em aberto mesmo depois do dólar já ter sido entregue ao
+     * cliente via "Vender DÓLAR antecipado" (pré-venda). Para saber o que ainda falta
+     * entregar ao cliente, use brlAvailableForPreSell().
+     * - usd_pre_comprado: total de USD que o dono comprou e ainda não usou pra cobrir uma venda.
+     * - brl_em_aberto: total de R$ do dono ainda alocado nessa compra em aberto (custo interno).
      * - pnl_realizado_usd: PnL acumulado já liquidado (em USD — é o ganho efetivo do dono).
      * - taxa_media: taxa média ponderada das pré-compras em aberto.
      */
