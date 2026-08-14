@@ -527,7 +527,7 @@ class WalletService
             ->where('type', 'deposit')
             ->where('currency', 'BRL')
             ->where('amount', '>', 0)
-            ->whereNotIn('status', ['fechado', 'finalizado'])
+            ->where(fn ($q) => $q->whereNull('status')->orWhereNotIn('status', ['fechado', 'finalizado']))
             ->orderBy('created_at')
             ->orderBy('id');
     }

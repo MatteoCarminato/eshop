@@ -10,6 +10,7 @@ use App\Services\TransactionService;
 use App\Services\CurrencyService;
 use App\Services\TreasuryService;
 use App\Services\OperationReversalService;
+use App\Services\ExchangeRateService;
 use App\Models\OperationSnapshot;
 use App\Models\Transaction;
 use App\Models\TransactionRateChangeLog;
@@ -27,14 +28,16 @@ class WalletController extends Controller
     protected $currencyService;
     protected $treasuryService;
     protected $reversalService;
+    protected $exchangeRateService;
 
-    public function __construct(WalletService $walletService, TransactionService $transactionService, CurrencyService $currencyService, TreasuryService $treasuryService, OperationReversalService $reversalService)
+    public function __construct(WalletService $walletService, TransactionService $transactionService, CurrencyService $currencyService, TreasuryService $treasuryService, OperationReversalService $reversalService, ExchangeRateService $exchangeRateService)
     {
         $this->walletService = $walletService;
         $this->transactionService = $transactionService;
         $this->currencyService = $currencyService;
         $this->treasuryService = $treasuryService;
         $this->reversalService = $reversalService;
+        $this->exchangeRateService = $exchangeRateService;
     }
 
     protected function calculateDisplayedBalances(\App\Models\Client $client): array
@@ -75,7 +78,7 @@ class WalletController extends Controller
             ->where('type', 'deposit')
             ->where('currency', 'BRL')
             ->where('amount', '>', 0)
-            ->whereNotIn('status', ['fechado', 'finalizado'])
+            ->where(fn ($q) => $q->whereNull('status')->orWhereNotIn('status', ['fechado', 'finalizado']))
             ->sum('brl_pre_sold');
 
         return [
@@ -1299,25 +1302,12 @@ class WalletController extends Controller
     }
 
     /**
-     * Busca a cotação atual USD/BRL via APIs de câmbio (Frankfurter como fonte
-     * primária, open.er-api.com como fallback) e cacheia por 15s.
+     * Busca a cotação atual USD/BRL (via ExchangeRateService, cacheada por 15s).
      */
     public function fetchUsdBrlRate()
     {
         try {
-            $result = Cache::remember('usd_brl_rate', 15, function () {
-                $rate = $this->fetchUsdBrlFromFrankfurter();
-                if ($rate !== null) {
-                    return ['rate' => $rate - 0.02, 'source' => 'frankfurter.dev'];
-                }
-
-                $rate = $this->fetchUsdBrlFromExchangeRateApi();
-                if ($rate !== null) {
-                    return ['rate' => $rate - 0.02, 'source' => 'open.er-api.com'];
-                }
-
-                return null;
-            });
+            $result = $this->exchangeRateService->getUsdBrlRate();
 
             if ($result === null) {
                 return response()->json(['success' => false, 'message' => 'Não foi possível obter a cotação.'], 502);
@@ -1330,43 +1320,6 @@ class WalletController extends Controller
             ]);
         } catch (\Throwable $e) {
             return response()->json(['success' => false, 'message' => 'Erro ao consultar cotação.'], 500);
-        }
-    }
-
-    private function fetchUsdBrlFromFrankfurter(): ?float
-    {
-        try {
-            $response = Http::timeout(10)->get('https://api.frankfurter.dev/v1/latest', [
-                'base' => 'USD',
-                'symbols' => 'BRL',
-            ]);
-
-            if (!$response->ok()) {
-                return null;
-            }
-
-            $rate = $response->json('rates.BRL');
-
-            return $rate !== null ? (float) $rate : null;
-        } catch (\Throwable $e) {
-            return null;
-        }
-    }
-
-    private function fetchUsdBrlFromExchangeRateApi(): ?float
-    {
-        try {
-            $response = Http::timeout(10)->get('https://open.er-api.com/v6/latest/USD');
-
-            if (!$response->ok()) {
-                return null;
-            }
-
-            $rate = $response->json('rates.BRL');
-
-            return $rate !== null ? (float) $rate : null;
-        } catch (\Throwable $e) {
-            return null;
         }
     }
 
@@ -1431,7 +1384,7 @@ class WalletController extends Controller
                 ->where('type', 'deposit')
                 ->where('currency', 'BRL')
                 ->where('amount', '>', 0)
-                ->whereNotIn('status', ['fechado', 'finalizado'])
+                ->where(fn ($q) => $q->whereNull('status')->orWhereNotIn('status', ['fechado', 'finalizado']))
                 ->get();
 
             if ($transactions->isEmpty()) {
@@ -1568,7 +1521,7 @@ class WalletController extends Controller
                 ->where('type', 'deposit')
                 ->where('currency', 'BRL')
                 ->where('amount', '>', 0)
-                ->whereNotIn('status', ['fechado', 'finalizado'])
+                ->where(fn ($q) => $q->whereNull('status')->orWhereNotIn('status', ['fechado', 'finalizado']))
                 ->orderBy('created_at', 'asc')
                 ->orderBy('id', 'asc')
                 ->lockForUpdate()

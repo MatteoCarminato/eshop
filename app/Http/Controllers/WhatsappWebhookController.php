@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Client;
 use App\Models\WhatsappGroup;
 use App\Models\WhatsappPixExtraction;
 use App\Services\ClientBankService;
+use App\Services\ExchangeRateService;
 use App\Services\OperationReversalService;
 use App\Services\TransactionService;
 use App\Services\WalletService;
@@ -24,6 +26,7 @@ class WhatsappWebhookController extends Controller
         protected WalletService $walletService,
         protected TransactionService $transactionService,
         protected OperationReversalService $reversalService,
+        protected ExchangeRateService $exchangeRateService,
     ) {
         // Respostas nos grupos saem sempre pela instância de grupos
         $this->whatsappNodeService = new WhatsappNodeService('whatsapp_node_grupos');
@@ -203,7 +206,21 @@ class WhatsappWebhookController extends Controller
 
             $label = 'Depósito PIX (WhatsApp) R$ ' . number_format($valor, 2, ',', '.');
 
-            $this->reversalService->capture('deposit_brl', $clientId, [], $label, function () use ($clientId, $valor, $extraction) {
+            // Mesma taxa (Frankfurter/fallback - R$0,02 + spread do cliente) e mesmos
+            // campos que o depósito manual via modal grava, para que o depósito já
+            // entre pronto para compra/venda de dólar sem ajuste manual.
+            $client = Client::find($clientId);
+            $rateData = $this->exchangeRateService->getUsdBrlRate();
+            $exchangeRate = null;
+            $convertedAmount = null;
+
+            if ($rateData !== null) {
+                $spreadValue = ((float) ($client->spread_points ?? 0)) * 0.01;
+                $exchangeRate = $rateData['rate'] + $spreadValue;
+                $convertedAmount = round($valor / $exchangeRate, 2);
+            }
+
+            $this->reversalService->capture('deposit_brl', $clientId, [], $label, function () use ($clientId, $valor, $extraction, $exchangeRate, $convertedAmount) {
                 $this->walletService->updateBalance($clientId, 'BRL', $valor);
 
                 return $this->transactionService->create([
@@ -212,6 +229,10 @@ class WhatsappWebhookController extends Controller
                     'currency'                   => 'BRL',
                     'amount'                     => $valor,
                     'payment_method'             => 'pix',
+                    'exchange_rate'              => $exchangeRate,
+                    'converted_currency'         => 'USD',
+                    'converted_amount'           => $convertedAmount,
+                    'status'                     => 'ambos_abertos',
                     'description'                => 'PIX de ' . ($extraction->pix_nome ?? 'pagador não identificado') . ' via WhatsApp',
                     'whatsapp_pix_extraction_id' => $extraction->id,
                 ]);
@@ -223,6 +244,137 @@ class WhatsappWebhookController extends Controller
                 'error'          => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Reprocessa um comprovante já salvo (ex.: falhou originalmente por erro da OpenAI).
+     * Refaz a chamada à IA a partir da imagem/PDF já armazenado, atualiza o registro
+     * existente (em vez de criar um novo) e credita a carteira se confirmado.
+     *
+     * @param  bool  $persist  false = não grava nada nem credita, só retorna o resultado (dry-run)
+     */
+    public function reprocess(WhatsappPixExtraction $extraction, bool $persist = true, bool $notify = false): array
+    {
+        $binary = Storage::disk('do_spaces')->get($extraction->image_path);
+        if ($binary === null) {
+            throw new \RuntimeException("Arquivo não encontrado em do_spaces: {$extraction->image_path}");
+        }
+
+        $mimetype = $extraction->mimetype;
+        $isPdf    = str_contains($mimetype, 'pdf');
+        $base64   = base64_encode($binary);
+
+        $messages = $isPdf
+            ? $this->buildPdfMessages($base64)
+            : $this->buildImageMessages($base64, $mimetype);
+
+        $aiResponse = Http::withToken(config('services.openai.key'))
+            ->timeout(90)
+            ->post('https://api.openai.com/v1/chat/completions', [
+                'model'       => config('services.openai.model'),
+                'max_tokens'  => 800,
+                'temperature' => 0,
+                'messages'    => $messages,
+            ]);
+
+        if (!$aiResponse->successful()) {
+            Log::warning('WhatsappWebhook: OpenAI falhou (reprocess)', [
+                'extraction_id' => $extraction->id,
+                'status'        => $aiResponse->status(),
+            ]);
+
+            return [
+                'status'  => 'ai_failed',
+                'http'    => $aiResponse->status(),
+            ];
+        }
+
+        $aiRaw  = $aiResponse->json('choices.0.message.content', '');
+        $aiData = $this->parseJson($aiRaw);
+
+        $numeroTransacao = $aiData['numero_transacao'] ?? null;
+        $pixNome         = $aiData['nome_pagador'] ?? null;
+        $pixValor        = $aiData['valor'] ?? null;
+        $pixData         = $aiData['data_hora'] ?? null;
+
+        $isDuplicate = $this->isDuplicate($extraction->image_hash, $numeroTransacao, $pixNome, $pixValor, $pixData, $extraction->id);
+
+        $bankTransactionId = null;
+        $bankError         = false;
+
+        if (!$isDuplicate && $aiData && $pixNome && $pixValor && $pixData) {
+            try {
+                $bankTransactionId = $this->clientBankService->verifyPix($pixNome, $pixValor, $pixData);
+            } catch (\Throwable $e) {
+                $bankError = true;
+                Log::warning('ClientBank: erro na verificação, marcando como não verificado', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            if ($bankTransactionId && WhatsappPixExtraction::where('bank_transaction_id', $bankTransactionId)
+                    ->where('status', 'confirmed')
+                    ->where('id', '!=', $extraction->id)
+                    ->exists()
+            ) {
+                $isDuplicate = true;
+            }
+        }
+
+        $status = match (true) {
+            $isDuplicate                => 'duplicate',
+            $bankError                  => 'unverified',
+            $bankTransactionId !== null => 'confirmed',
+            default                     => 'false_payment',
+        };
+
+        $result = [
+            'status'               => $status,
+            'numero_transacao'     => $numeroTransacao,
+            'pix_nome'             => $pixNome,
+            'pix_valor'            => $pixValor,
+            'pix_data'             => $pixData,
+            'bank_transaction_id'  => $bankTransactionId,
+            'ai_data'              => $aiData,
+            'ai_raw'               => $aiRaw,
+        ];
+
+        if (!$persist) {
+            return $result;
+        }
+
+        $extraction->fill([
+            'numero_transacao'    => $numeroTransacao,
+            'pix_nome'            => $pixNome,
+            'pix_valor'           => $pixValor,
+            'pix_data'            => $pixData,
+            'status'              => $status,
+            'bank_transaction_id' => $bankTransactionId,
+            'ai_data'             => $aiData,
+            'ai_raw'              => $aiRaw,
+        ]);
+        $extraction->save();
+
+        $group = $extraction->group;
+
+        if ($status === 'confirmed' && $group?->client_id && !$extraction->transaction()->exists()) {
+            $this->creditClientWallet($group->client_id, $pixValor, $extraction);
+        }
+
+        if ($notify && $aiData && $group) {
+            $reply = match ($status) {
+                'confirmed'     => $this->formatConfirmed($aiData),
+                'duplicate'     => $this->formatDuplicate($aiData),
+                'false_payment' => $this->formatFalse($aiData),
+                default         => null,
+            };
+
+            if ($reply) {
+                $this->whatsappNodeService->sendText($group->chat_id, $reply);
+            }
+        }
+
+        return $result;
     }
 
     private function systemPrompt(): string
@@ -318,9 +470,12 @@ class WhatsappWebhookController extends Controller
         }
     }
 
-    private function isDuplicate(string $imageHash, ?string $txid, ?string $nome, ?string $valor, ?string $data): bool
+    private function isDuplicate(string $imageHash, ?string $txid, ?string $nome, ?string $valor, ?string $data, ?int $excludeId = null): bool
     {
         $base = WhatsappPixExtraction::where('status', 'confirmed');
+        if ($excludeId !== null) {
+            $base->where('id', '!=', $excludeId);
+        }
 
         // 1. Mesma imagem (hash idêntico) — mais confiável
         if ((clone $base)->where('image_hash', $imageHash)->exists()) {
