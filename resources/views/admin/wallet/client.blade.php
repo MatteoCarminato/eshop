@@ -1892,7 +1892,7 @@
                     }
 
                     brl.max = disp.toFixed(2);
-                    if (!brl.value || parseFloat(brl.value) > disp) brl.value = disp.toFixed(2);
+                    brl.value = disp.toFixed(2);
                     recalcUsd();
                 });
             }
@@ -2073,9 +2073,7 @@
                     if (taxaSugerida > 0) comprarTaxa.value = taxaSugerida;
 
                     comprarBrl.max = dispBrlSelecao.toFixed(2);
-                    if (!comprarBrl.value || parseFloat(comprarBrl.value) > dispBrlSelecao) {
-                        comprarBrl.value = dispBrlSelecao.toFixed(2);
-                    }
+                    comprarBrl.value = dispBrlSelecao.toFixed(2);
                     recalcUsd();
                     updateComprarDescricao();
                 });
