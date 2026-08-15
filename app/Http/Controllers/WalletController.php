@@ -180,6 +180,89 @@ class WalletController extends Controller
     }
 
     /**
+     * Tela de auditoria: reconcilia o saldo salvo (wallets.balance) contra o saldo
+     * recalculado a partir do histórico de transações (dry-run, não grava nada) para
+     * todos os clientes de câmbio, e mostra um extrato consolidado e filtrável de
+     * todas as transações (entradas e saídas) de todos os clientes.
+     */
+    public function audit(Request $request)
+    {
+        $clients = \App\Models\Client::query()
+            ->where('is_exchange_client', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        // O saldo (salvo e recalculado) é sempre acumulado desde o início — não existe
+        // "saldo do período", então o filtro de data não se aplica aqui. Só o cliente
+        // filtra a reconciliação (pra focar em um só); tipo/moeda/status/período filtram
+        // apenas o extrato, mais abaixo.
+        $reconClients = $request->filled('client_id')
+            ? $clients->where('id', (int) $request->input('client_id'))
+            : $clients;
+
+        $reconciliation = $reconClients->map(function (\App\Models\Client $client) {
+            $brl = $this->walletService->recalculateBrlBalance($client->id, true);
+            $usd = $this->walletService->recalculateUsdBalance($client->id, true);
+
+            return [
+                'client_id'   => $client->id,
+                'client_name' => $client->name,
+                'brl'         => $brl,
+                'usd'         => $usd,
+                'has_diff'    => abs($brl['difference']) > 0.01 || abs($usd['difference']) > 0.01,
+            ];
+        });
+
+        $divergentCount = $reconciliation->where('has_diff', true)->count();
+
+        $reconTotals = [
+            'brl_atual'  => round((float) $reconciliation->sum(fn ($r) => $r['brl']['current_balance']), 2),
+            'brl_recalc' => round((float) $reconciliation->sum(fn ($r) => $r['brl']['computed_balance']), 2),
+            'brl_diff'   => round((float) $reconciliation->sum(fn ($r) => $r['brl']['difference']), 2),
+            'usd_atual'  => round((float) $reconciliation->sum(fn ($r) => $r['usd']['current_balance']), 2),
+            'usd_recalc' => round((float) $reconciliation->sum(fn ($r) => $r['usd']['computed_balance']), 2),
+            'usd_diff'   => round((float) $reconciliation->sum(fn ($r) => $r['usd']['difference']), 2),
+        ];
+
+        // Extrato consolidado (todos os clientes de câmbio), com filtros.
+        [$dateFrom, $dateTo] = $this->parseDateRange($request);
+
+        $extratoQuery = Transaction::query()
+            ->whereIn('client_id', $clients->pluck('id'))
+            ->with('client:id,name')
+            ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->input('client_id')))
+            ->when($request->filled('type'), fn ($q) => $q->where('type', $request->input('type')))
+            ->when($request->filled('currency'), fn ($q) => $q->where('currency', $request->input('currency')))
+            ->when($request->filled('status'), function ($q) use ($request) {
+                $status = $request->input('status');
+                $status === '__null__' ? $q->whereNull('status') : $q->where('status', $status);
+            })
+            ->when($dateFrom, fn ($q) => $q->where('created_at', '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->where('created_at', '<=', $dateTo))
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
+
+        $extratoTotals = [
+            'count' => (clone $extratoQuery)->count(),
+            'brl'   => round((float) (clone $extratoQuery)->where('currency', 'BRL')->sum('amount'), 2),
+            'usd'   => round((float) (clone $extratoQuery)->where('currency', 'USD')->sum('amount'), 2),
+        ];
+
+        $transactions = $extratoQuery->paginate(50)->withQueryString();
+
+        return view('admin.wallet.audit', compact(
+            'clients',
+            'reconciliation',
+            'divergentCount',
+            'reconTotals',
+            'transactions',
+            'extratoTotals',
+            'dateFrom',
+            'dateTo'
+        ));
+    }
+
+    /**
      * Exibe a carteira do cliente com saldos em BRL e USD e botões de ação
      */
     public function clientWallet(\App\Models\Client $client, Request $request)

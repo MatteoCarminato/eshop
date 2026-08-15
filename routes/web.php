@@ -64,6 +64,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/export-pdf-poll/{key}', [\App\Http\Controllers\WalletController::class, 'pollPdfExport'])->name('export-pdf-poll');
             Route::get('/export-pdf-download/{key}', [\App\Http\Controllers\WalletController::class, 'downloadPdfExport'])->name('export-pdf-download');
             Route::get('/transactions', [\App\Http\Controllers\WalletController::class, 'transactions'])->name('transactions');
+            Route::get('/audit', [\App\Http\Controllers\WalletController::class, 'audit'])->name('audit');
             Route::get('/usd-brl-rate', [\App\Http\Controllers\WalletController::class, 'fetchUsdBrlRate'])->name('usd-brl-rate');
         });
 

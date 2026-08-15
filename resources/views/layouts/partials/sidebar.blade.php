@@ -189,6 +189,9 @@
                                     <li class="nav-item">
                                         <a href="{{ route('admin.wallet.index') }}" class="nav-link">Saldo</a>
                                     </li>
+                                    <li class="nav-item">
+                                        <a href="{{ route('admin.wallet.audit') }}" class="nav-link">Auditoria</a>
+                                    </li>
                                 @endif
                             </ul>
                         </div>
