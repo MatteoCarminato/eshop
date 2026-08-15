@@ -118,6 +118,11 @@ class WalletController extends Controller
             // fica em aberto mesmo depois do dólar já ter sido entregue via "Vender DÓLAR
             // antecipado" — ver WalletService::finalizeDepositIfCovered).
             $prePurchaseByClient[$cid]['devido_ao_cliente'] = $this->walletService->brlAvailableForPreSell((int) $cid);
+
+            // R$ ainda disponível nos depósitos abertos deste cliente pra cada operação:
+            // comprar dólar (hedge do dono) e vender/entregar dólar a ele.
+            $prePurchaseByClient[$cid]['disp_compra'] = $this->walletService->brlAvailableForPrePurchase((int) $cid);
+            $prePurchaseByClient[$cid]['disp_venda']  = $prePurchaseByClient[$cid]['devido_ao_cliente'];
         }
 
         // Totais consolidados (estado atual — não dependem do filtro de data).
