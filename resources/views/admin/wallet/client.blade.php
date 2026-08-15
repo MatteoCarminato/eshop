@@ -692,6 +692,16 @@
                                     class="badge bg-success-subtle text-success border border-success-subtle d-none">
                                     Valor U$: —
                                 </span>
+
+                                <span id="entrada_selected_disp_compra"
+                                    class="badge bg-warning-subtle text-warning border border-warning-subtle d-none">
+                                    Disp. p/ compra: —
+                                </span>
+
+                                <span id="entrada_selected_disp_venda"
+                                    class="badge bg-danger-subtle text-danger border border-danger-subtle d-none">
+                                    Disp. p/ venda: —
+                                </span>
                             </div>
 
                             {{-- DIREITA --}}
@@ -1091,6 +1101,8 @@
                     const totalValorBadge = document.getElementById('entrada_selected_total_old');
                     const avgRateBadge = document.getElementById('entrada_selected_avg_rate');
                     const usdTotalBadge = document.getElementById('entrada_selected_usd_total');
+                    const dispCompraBadge = document.getElementById('entrada_selected_disp_compra');
+                    const dispVendaBadge = document.getElementById('entrada_selected_disp_venda');
                     const redSummary = document.getElementById('entrada_red_summary');
                     const redCountEl = document.getElementById('red_count');
                     const redTotalBrlEl = document.getElementById('red_total_brl');
@@ -1112,6 +1124,8 @@
                         let rateSum = 0;
                         let rateCount = 0;
                         let usdTotal = 0;
+                        let dispCompra = 0;
+                        let dispVenda = 0;
 
                         checkboxes.forEach(cb => {
                             if (cb.checked && !cb.disabled) {
@@ -1137,6 +1151,9 @@
                                 if (usdEquiv > 0) {
                                     usdTotal += usdEquiv;
                                 }
+
+                                dispCompra += row ? (parseFloat(row.getAttribute('data-brl-livre-compra')) || 0) : 0;
+                                dispVenda += row ? (parseFloat(row.getAttribute('data-brl-livre-venda')) || 0) : 0;
                             }
                         });
 
@@ -1178,6 +1195,24 @@
                                 });
                             } else {
                                 usdTotalBadge.classList.add('d-none');
+                            }
+                        }
+
+                        if (dispCompraBadge) {
+                            if (total > 0) {
+                                dispCompraBadge.classList.remove('d-none');
+                                dispCompraBadge.textContent = 'Disp. p/ compra: ' + formatBRL(dispCompra);
+                            } else {
+                                dispCompraBadge.classList.add('d-none');
+                            }
+                        }
+
+                        if (dispVendaBadge) {
+                            if (total > 0) {
+                                dispVendaBadge.classList.remove('d-none');
+                                dispVendaBadge.textContent = 'Disp. p/ venda: ' + formatBRL(dispVenda);
+                            } else {
+                                dispVendaBadge.classList.add('d-none');
                             }
                         }
 
