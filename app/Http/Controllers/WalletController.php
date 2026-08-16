@@ -122,6 +122,29 @@ class WalletController extends Controller
 
             $prePurchaseByClient[$cid]['devido_ao_cliente']     = max(0.0, $devoRaw);
             $prePurchaseByClient[$cid]['devido_ao_cliente_raw'] = $devoRaw;
+
+            // "USD pré-comprado" líquido: por depósito, USD comprado (lotes abertos/
+            // parciais) menos USD já vendido/entregue daquele mesmo depósito. Se já
+            // vendeu mais do que comprou naquele depósito, ele não soma nada (fica
+            // negativo e some no floor abaixo) — regra pedida pelo usuário.
+            $usdCompradoPorDeposito = \App\Models\WalletPrePurchase::where('client_id', (int) $cid)
+                ->whereIn('status', ['open', 'partial'])
+                ->get()
+                ->groupBy('source_transaction_id')
+                ->map(fn ($rows) => (float) $rows->sum('usd_remaining'));
+
+            $usdVendidoPorDeposito = \App\Models\WalletPreSell::where('client_id', (int) $cid)
+                ->get()
+                ->groupBy('source_transaction_id')
+                ->map(fn ($rows) => (float) $rows->sum('usd_amount'));
+
+            $usdPreCompradoRaw = 0.0;
+            foreach ($usdCompradoPorDeposito as $txId => $usdComprado) {
+                $usdPreCompradoRaw += $usdComprado - (float) ($usdVendidoPorDeposito[$txId] ?? 0.0);
+            }
+
+            $prePurchaseByClient[$cid]['usd_pre_comprado']     = max(0.0, $usdPreCompradoRaw);
+            $prePurchaseByClient[$cid]['usd_pre_comprado_raw'] = $usdPreCompradoRaw;
         }
 
         // Totais consolidados (estado atual — não dependem do filtro de data).

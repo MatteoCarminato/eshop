@@ -148,7 +148,7 @@
                                             <th class="text-end" title="Comprado − vendido dos depósitos abertos. Quando negativo, mostra R$ 0,00 com um '?' ao lado indicando o valor bruto.">
                                                 Devo (R$)
                                             </th>
-                                            <th class="text-end" title="USD comprado pelo dono (pré-compra) que ainda não usou pra cobrir uma venda">
+                                            <th class="text-end" title="Por depósito: USD comprado − USD já vendido daquele depósito. Quando já vendeu mais do que comprou, mostra US$ 0,00 com um '?' ao lado indicando o valor bruto.">
                                                 USD pré-comprado
                                             </th>
                                             @if($canViewPnl)
@@ -162,7 +162,8 @@
                                             @php
                                                 $clientWallets = $walletsByClient[$client->id] ?? ['BRL' => 0, 'USD' => 0];
                                                 $pp = $prePurchaseByClient[$client->id] ?? [
-                                                    'usd_pre_comprado' => 0, 'brl_em_aberto' => 0, 'pnl_realizado_usd' => 0,
+                                                    'usd_pre_comprado' => 0, 'usd_pre_comprado_raw' => 0,
+                                                    'brl_em_aberto' => 0, 'pnl_realizado_usd' => 0,
                                                     'devido_ao_cliente' => 0, 'devido_ao_cliente_raw' => 0,
                                                 ];
                                                 $brl = (float) ($clientWallets['BRL'] ?? 0);
@@ -202,6 +203,10 @@
                                                 </td>
                                                 <td class="text-end {{ $pp['usd_pre_comprado'] > 0 ? 'fw-semibold' : 'text-muted' }}">
                                                     US$ {{ number_format($pp['usd_pre_comprado'], 2, ',', '.') }}
+                                                    @if($pp['usd_pre_comprado_raw'] < 0)
+                                                        <i class="ri-question-line text-warning ms-1"
+                                                            title="Valor bruto (USD comprado − USD já vendido, por depósito) ficou negativo: -US$ {{ number_format(abs($pp['usd_pre_comprado_raw']), 2, ',', '.') }}. Já vendeu mais do que comprou. Mostrando US$ 0,00 em vez de negativo."></i>
+                                                    @endif
                                                 </td>
                                                 @if($canViewPnl)
                                                     <td class="text-end {{ $ppPnlUsd >= 0 ? 'text-success' : 'text-danger' }}">
