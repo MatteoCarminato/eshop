@@ -145,11 +145,8 @@
                                             <th>Cliente</th>
                                             <th class="text-end">Saldo BRL</th>
                                             <th class="text-end">Saldo USD</th>
-                                            <th class="text-end" title="R$ depositado pelo cliente que ainda não foi vendido/entregue em dólar">
+                                            <th class="text-end" title="Comprado − vendido dos depósitos abertos. Quando negativo, mostra R$ 0,00 com um '?' ao lado indicando o valor bruto.">
                                                 Devo (R$)
-                                            </th>
-                                            <th class="text-end" title="R$ ainda disponível nos depósitos abertos deste cliente: pra você comprar dólar (hedge) e pra vender/entregar dólar a ele.">
-                                                Disponível compra/venda (R$)
                                             </th>
                                             @if($canViewPnl)
                                                 <th class="text-end" title="Lucro/prejuízo já realizado nos fechamentos">PnL (US$)</th>
@@ -163,7 +160,7 @@
                                                 $clientWallets = $walletsByClient[$client->id] ?? ['BRL' => 0, 'USD' => 0];
                                                 $pp = $prePurchaseByClient[$client->id] ?? [
                                                     'usd_pre_comprado' => 0, 'brl_em_aberto' => 0, 'pnl_realizado_usd' => 0,
-                                                    'devido_ao_cliente' => 0, 'disp_compra' => 0, 'disp_venda' => 0,
+                                                    'devido_ao_cliente' => 0, 'devido_ao_cliente_raw' => 0,
                                                 ];
                                                 $brl = (float) ($clientWallets['BRL'] ?? 0);
                                                 $usd = (float) ($clientWallets['USD'] ?? 0);
@@ -195,18 +192,10 @@
                                                 </td>
                                                 <td class="text-end {{ $pp['devido_ao_cliente'] > 0 ? 'text-danger fw-semibold' : 'text-muted' }}">
                                                     R$ {{ number_format($pp['devido_ao_cliente'], 2, ',', '.') }}
-                                                </td>
-                                                <td class="text-end">
-                                                    <div class="d-flex justify-content-end gap-1 flex-wrap">
-                                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle"
-                                                            title="Disponível pra você comprar dólar (pré-compra) nos depósitos abertos deste cliente.">
-                                                            C: R$ {{ number_format($pp['disp_compra'], 2, ',', '.') }}
-                                                        </span>
-                                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle"
-                                                            title="Disponível pra vender/entregar dólar a este cliente nos depósitos abertos.">
-                                                            V: R$ {{ number_format($pp['disp_venda'], 2, ',', '.') }}
-                                                        </span>
-                                                    </div>
+                                                    @if($pp['devido_ao_cliente_raw'] < 0)
+                                                        <i class="ri-question-line text-warning ms-1"
+                                                            title="Valor bruto (comprado − vendido) ficou negativo: -R$ {{ number_format(abs($pp['devido_ao_cliente_raw']), 2, ',', '.') }}. Mostrando R$ 0,00 em vez de negativo."></i>
+                                                    @endif
                                                 </td>
                                                 @if($canViewPnl)
                                                     <td class="text-end {{ $ppPnlUsd >= 0 ? 'text-success' : 'text-danger' }}">
@@ -223,7 +212,7 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="{{ $canViewPnl ? 7 : 6 }}" class="text-center text-muted py-4">
+                                                <td colspan="{{ $canViewPnl ? 6 : 5 }}" class="text-center text-muted py-4">
                                                     Nenhum cliente com módulo de câmbio ativo.
                                                 </td>
                                             </tr>

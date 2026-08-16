@@ -113,16 +113,15 @@ class WalletController extends Controller
         foreach ($clientIds as $cid) {
             $prePurchaseByClient[$cid] = $this->walletService->prePurchaseSummary((int) $cid);
 
-            // "Devo ao cliente" tem que refletir o que ainda NÃO foi entregue (pré-vendido),
-            // não o que falta o dono comprar pra si (pré-compra é só hedge/custo interno e
-            // fica em aberto mesmo depois do dólar já ter sido entregue via "Vender DÓLAR
-            // antecipado" — ver WalletService::finalizeDepositIfCovered).
-            $prePurchaseByClient[$cid]['devido_ao_cliente'] = $this->walletService->brlAvailableForPreSell((int) $cid);
+            // "Devo ao cliente" = comprado − vendido dos depósitos abertos (regra pedida
+            // pelo usuário). Pode ficar negativo quando já vendeu mais do que comprou —
+            // nesse caso mostra R$ 0,00 na tela (guardamos o valor bruto em
+            // devido_ao_cliente_raw pra exibir o "?" de alerta ao lado).
+            $devoRaw = $this->walletService->openBrlDepositsQuery((int) $cid)->get()
+                ->sum(fn ($tx) => (float) $tx->brl_pre_purchased - (float) $tx->brl_pre_sold);
 
-            // R$ ainda disponível nos depósitos abertos deste cliente pra cada operação:
-            // comprar dólar (hedge do dono) e vender/entregar dólar a ele.
-            $prePurchaseByClient[$cid]['disp_compra'] = $this->walletService->brlAvailableForPrePurchase((int) $cid);
-            $prePurchaseByClient[$cid]['disp_venda']  = $prePurchaseByClient[$cid]['devido_ao_cliente'];
+            $prePurchaseByClient[$cid]['devido_ao_cliente']     = max(0.0, $devoRaw);
+            $prePurchaseByClient[$cid]['devido_ao_cliente_raw'] = $devoRaw;
         }
 
         // Totais consolidados (estado atual — não dependem do filtro de data).
