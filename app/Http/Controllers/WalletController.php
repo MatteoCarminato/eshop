@@ -285,9 +285,17 @@ class WalletController extends Controller
         $prePurchaseSummary = $this->walletService->prePurchaseSummary($client->id);
         $brlAvailableForPrePurchase = $this->walletService->brlAvailableForPrePurchase($client->id);
         $preSellSummary = $this->walletService->preSellSummary($client->id);
-        $brlAvailableForPreSell = $this->walletService->brlAvailableForPreSell($client->id);
         $treasuryClientSummary = $this->treasuryService->clientSummary($client->id);
         $treasurySummary = $this->treasuryService->summary();
+
+        // "Devo ao Cliente" = comprado − vendido, só contando depósitos onde já houve
+        // ALGUMA compra (brl_pre_purchased > 0). Depósitos sem nenhuma compra ainda não
+        // entram na conta. Quando o resultado é negativo (vendeu mais do que comprou
+        // nesses depósitos), mostra R$ 0,00 e guarda o valor bruto pra exibir o "?".
+        $devoAoClienteRaw = $this->walletService->openBrlDepositsQuery($client->id)->get()
+            ->filter(fn ($tx) => (float) $tx->brl_pre_purchased > 0)
+            ->sum(fn ($tx) => (float) $tx->brl_pre_purchased - (float) $tx->brl_pre_sold);
+        $devoAoCliente = max(0.0, $devoAoClienteRaw);
 
         // Lotes em aberto por depósito (para mostrar badges 🟢 compra / 🔴 venda).
         $prePurchasesByDeposit = \App\Models\WalletPrePurchase::query()
@@ -328,7 +336,8 @@ class WalletController extends Controller
             'prePurchaseSummary',
             'brlAvailableForPrePurchase',
             'preSellSummary',
-            'brlAvailableForPreSell',
+            'devoAoCliente',
+            'devoAoClienteRaw',
             'prePurchasesByDeposit',
             'preSellsByDeposit',
             'preSellsByUsdTx',

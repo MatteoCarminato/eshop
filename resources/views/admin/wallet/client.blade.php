@@ -131,7 +131,11 @@
                                             <div class="flex-grow-1 ms-3">
                                                 <h2 class="mb-0 cfs-22 text-danger">
                                                     R$
-                                                    {{ number_format($brlAvailableForPreSell, 2, ',', '.') }}
+                                                    {{ number_format($devoAoCliente, 2, ',', '.') }}
+                                                    @if($devoAoClienteRaw < 0)
+                                                        <i class="ri-question-line text-warning fs-16 ms-1"
+                                                            title="Valor bruto (comprado − vendido, só depósitos com compra) ficou negativo: -R$ {{ number_format(abs($devoAoClienteRaw), 2, ',', '.') }}. Mostrando R$ 0,00 em vez de negativo."></i>
+                                                    @endif
                                                 </h2>
                                                 <small class="text-muted">Disp. p/ comprar: R$
                                                     {{ number_format($brlAvailableForPrePurchase, 2, ',', '.') }}</small>
