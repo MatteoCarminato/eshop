@@ -148,6 +148,9 @@
                                             <th class="text-end" title="Comprado − vendido dos depósitos abertos. Quando negativo, mostra R$ 0,00 com um '?' ao lado indicando o valor bruto.">
                                                 Devo (R$)
                                             </th>
+                                            <th class="text-end" title="USD comprado pelo dono (pré-compra) que ainda não usou pra cobrir uma venda">
+                                                USD pré-comprado
+                                            </th>
                                             @if($canViewPnl)
                                                 <th class="text-end" title="Lucro/prejuízo já realizado nos fechamentos">PnL (US$)</th>
                                             @endif
@@ -197,6 +200,9 @@
                                                             title="Valor bruto (comprado − vendido) ficou negativo: -R$ {{ number_format(abs($pp['devido_ao_cliente_raw']), 2, ',', '.') }}. Mostrando R$ 0,00 em vez de negativo."></i>
                                                     @endif
                                                 </td>
+                                                <td class="text-end {{ $pp['usd_pre_comprado'] > 0 ? 'fw-semibold' : 'text-muted' }}">
+                                                    US$ {{ number_format($pp['usd_pre_comprado'], 2, ',', '.') }}
+                                                </td>
                                                 @if($canViewPnl)
                                                     <td class="text-end {{ $ppPnlUsd >= 0 ? 'text-success' : 'text-danger' }}">
                                                         {{ $ppPnlUsd >= 0 ? '+' : '' }}US$
@@ -212,7 +218,7 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="{{ $canViewPnl ? 6 : 5 }}" class="text-center text-muted py-4">
+                                                <td colspan="{{ $canViewPnl ? 7 : 6 }}" class="text-center text-muted py-4">
                                                     Nenhum cliente com módulo de câmbio ativo.
                                                 </td>
                                             </tr>
