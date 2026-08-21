@@ -124,10 +124,11 @@ class ClientBankService
                 continue;
             }
 
-            // Data e horário (o comprovante só traz HH:MM, então toleramos até 2 min do transactionDate)
+            // Data e horário (o comprovante só traz HH:MM, sem segundos; toleramos até 3h + 2min
+            // do transactionDate, somando o fuso (3h) à margem de segundos que o transactionDate tem)
             try {
                 $dataTx = Carbon::parse($item['transactionDate']);
-                if (abs($dataTx->diffInSeconds($dataAi, false)) > 120) {
+                if (abs($dataTx->diffInSeconds($dataAi, false)) > 10920) {
                     continue;
                 }
             } catch (\Throwable) {
