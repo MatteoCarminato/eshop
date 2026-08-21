@@ -692,6 +692,12 @@
                                     Taxa média: —
                                 </span>
 
+                                <span id="entrada_selected_avg_compra_rate"
+                                    class="badge bg-success-subtle text-success border border-success-subtle d-none"
+                                    title="Taxa média ponderada apenas das entradas que já têm compra de dólar registrada">
+                                    Taxa média compra: —
+                                </span>
+
                                 <span id="entrada_selected_usd_total"
                                     class="badge bg-success-subtle text-success border border-success-subtle d-none">
                                     Valor U$: —
@@ -851,6 +857,9 @@
                                             data-sold-brl="{{ number_format($brlSold, 2, '.', '') }}"
                                             data-sold-usd="{{ number_format($usdSell, 4, '.', '') }}"
                                             data-sold-rate="{{ $taxaMediaSell ? number_format($taxaMediaSell, 6, '.', '') : '' }}"
+                                            data-compra-brl="{{ number_format($lotesPre->sum('brl_remaining'), 2, '.', '') }}"
+                                            data-compra-usd="{{ number_format($lotesPre->sum('usd_remaining'), 6, '.', '') }}"
+                                            data-compra-rate="{{ $taxaMediaPre ? number_format($taxaMediaPre, 6, '.', '') : '' }}"
                                             data-rate="{{ $taxa ? number_format($taxa, 6, '.', '') : '' }}"
                                             data-usd-equiv="{{ $valorConvertido !== null ? number_format($valorConvertido, 6, '.', '') : '' }}">
                                             <td>
@@ -1104,6 +1113,7 @@
                     const totalBadge = document.getElementById('entrada_selected_total');
                     const totalValorBadge = document.getElementById('entrada_selected_total_old');
                     const avgRateBadge = document.getElementById('entrada_selected_avg_rate');
+                    const avgCompraRateBadge = document.getElementById('entrada_selected_avg_compra_rate');
                     const usdTotalBadge = document.getElementById('entrada_selected_usd_total');
                     const dispCompraBadge = document.getElementById('entrada_selected_disp_compra');
                     const dispVendaBadge = document.getElementById('entrada_selected_disp_venda');
@@ -1125,8 +1135,10 @@
                         let redCount = 0;
                         let redBrl = 0;
                         let redUsd = 0;
-                        let rateSum = 0;
-                        let rateCount = 0;
+                        let rateBrlSum = 0;
+                        let rateUsdSum = 0;
+                        let compraBrlSum = 0;
+                        let compraUsdSum = 0;
                         let usdTotal = 0;
                         let dispCompra = 0;
                         let dispVenda = 0;
@@ -1144,16 +1156,29 @@
                                     redUsd += parseFloat(row.getAttribute('data-sold-usd') || 0);
                                 }
 
-                                // Cada coluna soma/calcula só sobre si mesma — não mistura valor com taxa.
                                 const rate = row ? parseFloat(row.getAttribute('data-rate')) : NaN;
-                                if (rate > 0) {
-                                    rateSum += rate;
-                                    rateCount += 1;
+                                const usdEquiv = row ? parseFloat(row.getAttribute('data-usd-equiv')) : NaN;
+
+                                // Taxa média ponderada pelo valor (R$ total / US$ total), não a média
+                                // simples dos valores da coluna Taxa — senão uma entrada pequena pesa
+                                // igual a uma grande na conta.
+                                if (rate > 0 && usdEquiv > 0) {
+                                    rateBrlSum += amount;
+                                    rateUsdSum += usdEquiv;
                                 }
 
-                                const usdEquiv = row ? parseFloat(row.getAttribute('data-usd-equiv')) : NaN;
                                 if (usdEquiv > 0) {
                                     usdTotal += usdEquiv;
+                                }
+
+                                // Taxa média de compra: só das entradas que já têm dólar comprado
+                                // (badge "C: ... @ ..."), ponderada pelo R$ efetivamente comprado —
+                                // é diferente da Taxa média acima, que usa a taxa nominal do depósito.
+                                const compraBrl = row ? parseFloat(row.getAttribute('data-compra-brl')) : NaN;
+                                const compraUsd = row ? parseFloat(row.getAttribute('data-compra-usd')) : NaN;
+                                if (compraBrl > 0 && compraUsd > 0) {
+                                    compraBrlSum += compraBrl;
+                                    compraUsdSum += compraUsd;
                                 }
 
                                 dispCompra += row ? (parseFloat(row.getAttribute('data-brl-livre-compra')) || 0) : 0;
@@ -1178,8 +1203,8 @@
                         }
 
                         if (avgRateBadge) {
-                            if (rateCount > 0) {
-                                const avgRate = rateSum / rateCount;
+                            if (rateUsdSum > 0) {
+                                const avgRate = rateBrlSum / rateUsdSum;
                                 avgRateBadge.classList.remove('d-none');
                                 avgRateBadge.textContent = 'Taxa média: ' + avgRate.toLocaleString('pt-BR', {
                                     minimumFractionDigits: 4,
@@ -1187,6 +1212,19 @@
                                 });
                             } else {
                                 avgRateBadge.classList.add('d-none');
+                            }
+                        }
+
+                        if (avgCompraRateBadge) {
+                            if (compraUsdSum > 0) {
+                                const avgCompraRate = compraBrlSum / compraUsdSum;
+                                avgCompraRateBadge.classList.remove('d-none');
+                                avgCompraRateBadge.textContent = 'Taxa média compra: ' + avgCompraRate.toLocaleString('pt-BR', {
+                                    minimumFractionDigits: 4,
+                                    maximumFractionDigits: 4
+                                });
+                            } else {
+                                avgCompraRateBadge.classList.add('d-none');
                             }
                         }
 
