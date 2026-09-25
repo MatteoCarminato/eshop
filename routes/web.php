@@ -55,8 +55,10 @@ Route::middleware('auth')->group(function () {
     Route::prefix('admin/wallet')->name('admin.wallet.')->group(function () {
         Route::middleware('module:wallet.view')->group(function () {
             Route::get('/', [\App\Http\Controllers\WalletController::class, 'index'])->name('index');
+            Route::get('/v2', [\App\Http\Controllers\WalletController::class, 'indexV2'])->name('index.v2');
             Route::get('/pix-daily-pdf', [\App\Http\Controllers\WalletController::class, 'exportDailyPixPdf'])->name('pix-daily-pdf');
             Route::get('/client/{client}', [\App\Http\Controllers\WalletController::class, 'clientWallet'])->name('client');
+            Route::get('/v2/client/{client}', [\App\Http\Controllers\WalletController::class, 'clientWalletV2'])->name('client.v2');
             Route::get('/client/{client}/export', [\App\Http\Controllers\WalletController::class, 'exportClientCsv'])->name('client.export');
             Route::get('/client/{client}/export-xlsx', [\App\Http\Controllers\WalletController::class, 'exportClientXlsx'])->name('client.export-xlsx');
             Route::get('/client/{client}/export-pdf', [\App\Http\Controllers\WalletController::class, 'exportClientPdf'])->name('client.export-pdf');

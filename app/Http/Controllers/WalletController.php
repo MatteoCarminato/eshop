@@ -92,6 +92,19 @@ class WalletController extends Controller
      */
     public function index(Request $request)
     {
+        return $this->renderWalletIndex($request, 'admin.wallet.index');
+    }
+
+    /**
+     * Mesma tela, layout v2 (grade densa, busca e filtros no estilo planilha).
+     */
+    public function indexV2(Request $request)
+    {
+        return $this->renderWalletIndex($request, 'admin.wallet.v2.index');
+    }
+
+    private function renderWalletIndex(Request $request, string $view)
+    {
         $clients = \App\Models\Client::query()
             ->where('is_exchange_client', true)
             ->orderBy('name')
@@ -182,7 +195,7 @@ class WalletController extends Controller
             ->groupBy('client_id')
             ->pluck('total', 'client_id');
 
-        return view('admin.wallet.index', compact(
+        return view($view, compact(
             'clients',
             'totals',
             'walletsByClient',
@@ -294,6 +307,20 @@ class WalletController extends Controller
      */
     public function clientWallet(\App\Models\Client $client, Request $request)
     {
+        return $this->renderClientWallet($client, $request, 'admin.wallet.client');
+    }
+
+    /**
+     * Mesma carteira do cliente, layout v2 (grade densa, busca e filtros no
+     * estilo planilha). Somente leitura — ações continuam na tela clássica.
+     */
+    public function clientWalletV2(\App\Models\Client $client, Request $request)
+    {
+        return $this->renderClientWallet($client, $request, 'admin.wallet.v2.client');
+    }
+
+    private function renderClientWallet(\App\Models\Client $client, Request $request, string $view)
+    {
         $balances = $this->calculateDisplayedBalances($client);
 
         [$dateFrom, $dateTo] = $this->parseDateRange($request);
@@ -352,7 +379,7 @@ class WalletController extends Controller
             }
         }
 
-        return view('admin.wallet.client', compact(
+        return view($view, compact(
             'client',
             'balances',
             'transactions',

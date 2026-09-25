@@ -1,0 +1,3001 @@
+            {{-- Flash messages e erros de validação --}}
+            {{-- @if(session('success'))
+            <div class="alert alert-success alert-dismissible fade show mt-2 mb-0" role="alert">
+                <i class="ri-check-line me-1"></i>{{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            @endif
+            @if(session('error'))
+            <div class="alert alert-danger alert-dismissible fade show mt-2 mb-0" role="alert">
+                <i class="ri-error-warning-line me-1"></i>{{ session('error') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            @endif
+            @if(session('warning'))
+            <div class="alert alert-warning alert-dismissible fade show mt-2 mb-0" role="alert">
+                <i class="ri-alert-line me-1"></i>{{ session('warning') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            @endif
+            @if($errors->any())
+            <div class="alert alert-danger alert-dismissible fade show mt-2 mb-0" role="alert">
+                <strong><i class="ri-error-warning-line me-1"></i>Erro na validação:</strong>
+                <ul class="mb-0">
+                    @foreach($errors->all() as $err)
+                    <li>{{ $err }}</li>
+                    @endforeach
+                </ul>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            @endif --}}
+
+            {{-- Linha fina mostrando o caixa USD da empresa (global e do cliente) --}}
+            @php
+                $caixaTotal = (float) ($treasurySummary['usd_em_caixa'] ?? 0);
+                $caixaCliente = (float) ($treasuryClientSummary['usd_em_caixa_cliente'] ?? 0);
+                $custoMedioCli = $treasuryClientSummary['custo_medio_cliente'] ?? null;
+                $pnlAcumUsd = (float) ($treasurySummary['pnl_acumulado_usd'] ?? 0);
+            @endphp
+            <div class="row mt-2">
+                <div class="col-12">
+                    {{-- <div
+                        class="alert alert-secondary py-2 px-3 mb-0 d-flex flex-wrap align-items-center justify-content-between gap-3 small">
+                        <div>
+                            <i class="ri-safe-2-line me-1"></i>
+                            <strong>Caixa USD da empresa:</strong>
+                            US$ {{ number_format($caixaTotal, 2, ',', '.') }}
+                            <span class="text-muted ms-2">|</span>
+                            <span class="ms-2">deste cliente:</span>
+                            <strong class="{{ $caixaCliente > 0 ? 'text-primary' : 'text-muted' }}">
+                                US$ {{ number_format($caixaCliente, 2, ',', '.') }}
+                            </strong>
+                            @if($custoMedioCli)
+                            <span class="text-muted ms-1">@ R$ {{ number_format($custoMedioCli, 4, ',', '.') }}</span>
+                            @endif
+                        </div>
+                        <div>
+                            <i class="ri-line-chart-line me-1"></i>
+                            <span class="text-muted">Lucro acumulado (caixa):</span>
+                            <strong
+                                class="{{ $pnlAcumUsd > 0 ? 'text-success' : ($pnlAcumUsd < 0 ? 'text-danger' : 'text-muted') }}">
+                                {{ $pnlAcumUsd >= 0 ? '+' : '' }}US$ {{ number_format($pnlAcumUsd, 2, ',', '.') }}
+                            </strong>
+                        </div>
+                    </div> --}}
+                </div>
+            </div>
+            @unless($hideSummaryCards ?? false)
+            <div class="row justify-content-center">
+                <div class="col-xl-12">
+                    <div class="card crm-widget">
+                        <div class="card-body p-0">
+                            <div class="row row-cols-xxl-4 row-cols-md-3 row-cols-1 g-0 text-center">
+                                <div class="col">
+                                    <div class="py-4 px-3">
+                                        <h5 class="text-muted text-uppercase fs-13">Saldo em Real (BRL)
+                                        </h5>
+                                        <div class="d-flex align-items-center">
+                                            <div class="flex-shrink-0">
+                                                <i class="ri-space-ship-line display-6 text-muted cfs-22"></i>
+                                            </div>
+                                            <div class="flex-grow-1 ms-3">
+                                                <h2 class="mb-0 cfs-22 text-success"><span>R$
+                                                        {{ number_format($balances['BRL'], 2, ',', '.') }}</span></h2>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="py-4 px-3">
+                                        <h5 class="text-muted text-uppercase fs-13">Saldo em Dólar (USD)
+                                        </h5>
+                                        <div class="d-flex align-items-center">
+                                            <div class="flex-shrink-0">
+                                                <i class="ri-money-dollar-box-line display-6 text-muted cfs-22"></i>
+                                            </div>
+                                            <div class="flex-grow-1 ms-3">
+                                                <h2 class="mb-0 cfs-22 text-info"><span>US$
+                                                        {{ number_format($balances['USD'], 2, ',', '.') }}</span></h2>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="py-4 px-3">
+                                        <h5 class="text-muted text-uppercase fs-13">Devo ao Cliente (R$)</h5>
+                                        <div class="d-flex align-items-center">
+                                            <div class="flex-shrink-0">
+                                                <i class="ri-hand-coin-line display-6 text-muted cfs-22"></i>
+                                            </div>
+                                            <div class="flex-grow-1 ms-3">
+                                                <h2 class="mb-0 cfs-22 text-danger">
+                                                    R$
+                                                    {{ number_format($devoAoCliente, 2, ',', '.') }}
+                                                    @if($devoAoClienteRaw < 0)
+                                                        <i class="ri-question-line text-warning fs-16 ms-1"
+                                                            title="Valor bruto (comprado − vendido, só depósitos com compra) ficou negativo: -R$ {{ number_format(abs($devoAoClienteRaw), 2, ',', '.') }}. Mostrando R$ 0,00 em vez de negativo."></i>
+                                                    @endif
+                                                </h2>
+                                                <small class="text-muted">Disp. p/ comprar: R$
+                                                    {{ number_format($brlAvailableForPrePurchase, 2, ',', '.') }}</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                @if($canViewPnl)
+                                    <div class="col">
+                                        <div class="py-4 px-3">
+                                            <h5 class="text-muted text-uppercase fs-13">PnL Realizado</h5>
+                                            <div class="d-flex align-items-center">
+                                                <div class="flex-shrink-0">
+                                                    <i class="ri-line-chart-line display-6 text-muted cfs-22"></i>
+                                                </div>
+                                                <div class="flex-grow-1 ms-3">
+                                                    @php $pnlUsdCard = (float) ($prePurchaseSummary['pnl_realizado_usd'] ?? 0); @endphp
+                                                    <h2
+                                                        class="mb-0 cfs-22 {{ $pnlUsdCard >= 0 ? 'text-success' : 'text-danger' }}">
+                                                        {{ $pnlUsdCard >= 0 ? '+' : '' }}US$
+                                                        {{ number_format($pnlUsdCard, 4, ',', '.') }}
+                                                    </h2>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    </div><!-- end card body -->
+                </div><!-- end card -->
+            </div><!-- end col -->
+        </div><!-- end row -->
+            @endunless
+
+        <!-- Modal Depositar -->
+        <div class="modal fade" id="depositModal" tabindex="-1" aria-labelledby="depositModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="depositModalLabel">Depositar</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <form method="POST" action="{{ route('admin.wallet.deposit') }}">
+                        @csrf
+                        <input type="hidden" name="client_id" value="{{ $client->id }}">
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="deposit_currency" class="form-label">Moeda</label>
+                                <select name="currency" id="deposit_currency" class="form-select" required>
+                                    <option value="BRL">Reais (BRL)</option>
+                                    <option value="USD">Dólar (USD)</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="deposit_amount" class="form-label">Valor</label>
+                                <input type="number" step="0.01" name="amount" id="deposit_amount" class="form-control"
+                                    required>
+                            </div>
+                            <div class="mb-3" id="deposit_fee_group">
+                                <label for="deposit_fee" class="form-label d-flex align-items-center gap-1">
+                                    Taxa
+                                    <i class="ri-question-line text-muted" data-bs-toggle="tooltip"
+                                        data-bs-placement="right"
+                                        title="Cotação USD/BRL preenchida automaticamente do Investing.com já somada ao spread do cliente."></i>
+                                    <span id="deposit_fee_status" class="ms-auto small text-muted"></span>
+                                </label>
+                                <input type="number" step="0.0001" min="0.0001" name="fee" id="deposit_fee"
+                                    class="form-control" value="4.9311" placeholder="4,9311" required>
+                                <small class="text-muted d-block mt-1">
+                                    Cotação base buscada do Investing + spread do cliente
+                                    (<strong>{{ $client->spread_points }}</strong> pts = R$
+                                    {{ number_format($client->spread_points * 0.01, 2, ',', '.') }}).
+                                    <a href="https://br.investing.com/currencies/usd-brl" target="_blank"
+                                        rel="noopener noreferrer">Ver cotação</a>
+                                </small>
+                            </div>
+                            <div class="mb-3">
+                                <label for="deposit_payment_method" class="form-label">Forma de Pagamento</label>
+                                <select name="payment_method" id="deposit_payment_method" class="form-select" required>
+                                    <option value="pix">Pix</option>
+                                    <option value="dinheiro">Dinheiro</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-success" id="depositModalSubmitBtn">Depositar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Sacar -->
+        <div class="modal fade" id="withdrawModal" tabindex="-1" aria-labelledby="withdrawModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="withdrawModalLabel">Sacar</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <form method="POST" action="{{ route('admin.wallet.withdraw') }}">
+                        @csrf
+                        <input type="hidden" name="client_id" value="{{ $client->id }}">
+                        <div class="modal-body">
+                            <div class="alert alert-info py-2 mb-3">
+                                <small>
+                                    <i class="ri-information-line"></i>
+                                    Saque sempre em <strong>Dólar (USD)</strong>. Será debitado do saldo USD do cliente.<br>
+                                    Saldo USD disponível:
+                                    <strong>U$ {{ number_format($balances['USD'] ?? 0, 2, ',', '.') }}</strong>
+                                </small>
+                            </div>
+                            <div class="mb-3">
+                                <label for="withdraw_payment_method" class="form-label">Tipo de envio</label>
+                                <select name="payment_method" id="withdraw_payment_method" class="form-select" required
+                                    onchange="updateWithdrawDescription()">
+                                    <option value="efetivo">Efetivo (papel)</option>
+                                    <option value="usdt">USDT</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="withdraw_amount" class="form-label">Valor (US$)</label>
+                                <input type="number" step="0.01" min="0.01" name="amount" id="withdraw_amount"
+                                    class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="withdraw_description" class="form-label">Descrição</label>
+                                <input type="text" name="description" id="withdraw_description" class="form-control"
+                                    value="Efetivo Enviado" maxlength="255">
+                                <small class="text-muted">Auto-preenchido conforme o tipo. Pode ser editado
+                                    livremente.</small>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-danger">Sacar</button>
+                        </div>
+                    </form>
+                    <script>
+                        function updateWithdrawDescription() {
+                            var m = document.getElementById('withdraw_payment_method').value;
+                            var d = document.getElementById('withdraw_description');
+                            // só sobrescreve se ainda estiver com um dos defaults
+                            if (d.value === '' || d.value === 'Efetivo Enviado' || d.value === 'USDT Enviado') {
+                                d.value = m === 'usdt' ? 'USDT Enviado' : 'Efetivo Enviado';
+                            }
+                        }
+                    </script>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function updateDepositPaymentMethod() {
+                var currency = document.getElementById('deposit_currency').value;
+                var payment = document.getElementById('deposit_payment_method');
+                var feeGroup = document.getElementById('deposit_fee_group');
+                var feeInput = document.getElementById('deposit_fee');
+                payment.innerHTML = '';
+                if (currency === 'BRL') {
+                    payment.innerHTML += '<option value="pix" selected>Pix</option>';
+                    payment.innerHTML += '<option value="dinheiro">Dinheiro</option>';
+                    payment.disabled = false;
+                    payment.required = true;
+                    feeGroup.style.display = '';
+                    feeInput.disabled = false;
+                    feeInput.required = true;
+                } else if (currency === 'USD') {
+                    payment.innerHTML += '<option value="efetivo" selected>Efetivo</option>';
+                    payment.innerHTML += '<option value="usdt">USDT</option>';
+                    payment.disabled = false;
+                    payment.required = true;
+                    feeGroup.style.display = 'none';
+                    feeInput.disabled = true;
+                    feeInput.required = false;
+                } else {
+                    payment.innerHTML += '<option value="">Selecione a forma de pagamento</option>';
+                    payment.disabled = false;
+                    payment.required = true;
+                    feeGroup.style.display = 'none';
+                    feeInput.disabled = true;
+                    feeInput.required = false;
+                }
+            }
+
+            function toggleAllEntradaRows() {
+                var master = document.getElementById('entrada_select_all');
+                var items = document.querySelectorAll('.entrada-select-item');
+                items.forEach(function (item) {
+                    if (!item.disabled) {
+                        item.checked = master.checked;
+                    }
+                });
+                updateBulkRateControlsVisibility();
+            }
+
+            function updateBulkRateControlsVisibility() {
+                var controls = document.getElementById('bulk_rate_controls');
+                if (!controls) {
+                    return;
+                }
+
+                var selectedCount = document.querySelectorAll('.entrada-select-item:checked').length;
+                controls.classList.toggle('d-none', selectedCount === 0);
+            }
+
+            document.addEventListener('DOMContentLoaded', function () {
+                document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+                    new bootstrap.Tooltip(el);
+                });
+
+                document.getElementById('deposit_currency').addEventListener('change', updateDepositPaymentMethod);
+                updateDepositPaymentMethod();
+
+                // Buscar cotação USD/BRL ao abrir o modal Depositar
+                var depositModalEl = document.getElementById('depositModal');
+                var depositFeeInput = document.getElementById('deposit_fee');
+                var depositFeeStatus = document.getElementById('deposit_fee_status');
+                var clientSpread = parseFloat('{{ $client->spread_points }}') || 0;
+                var spreadValue = clientSpread * 0.01;
+
+                function fetchUsdBrlRate() {
+                    if (document.getElementById('deposit_currency').value !== 'BRL') {
+                        return;
+                    }
+                    depositFeeStatus.textContent = 'Buscando cotação...';
+                    depositFeeStatus.className = 'ms-auto small text-muted';
+
+                    fetch('{{ route('admin.wallet.usd-brl-rate', [], false) }}', {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                        .then(function (r) { return r.json(); })
+                        .then(function (data) {
+                            if (data && data.success && data.rate) {
+                                var base = parseFloat(data.rate);
+                                var finalRate = base + spreadValue;
+                                depositFeeInput.value = finalRate.toFixed(4);
+                                depositFeeStatus.textContent = 'Base ' + base.toFixed(4) + ' + spread ' + spreadValue.toFixed(2);
+                                depositFeeStatus.className = 'ms-auto small text-success';
+                            } else {
+                                depositFeeStatus.textContent = 'Falha ao obter cotação. Edite manualmente.';
+                                depositFeeStatus.className = 'ms-auto small text-danger';
+                            }
+                        })
+                        .catch(function () {
+                            depositFeeStatus.textContent = 'Erro ao consultar cotação. Edite manualmente.';
+                            depositFeeStatus.className = 'ms-auto small text-danger';
+                        });
+                }
+
+                if (depositModalEl) {
+                    depositModalEl.addEventListener('shown.bs.modal', fetchUsdBrlRate);
+                }
+                document.getElementById('deposit_currency').addEventListener('change', function () {
+                    if (this.value === 'BRL') fetchUsdBrlRate();
+                });
+
+                var selectAll = document.getElementById('entrada_select_all');
+                if (selectAll) {
+                    selectAll.addEventListener('change', toggleAllEntradaRows);
+                }
+
+                document.querySelectorAll('.entrada-select-item').forEach(function (item) {
+                    item.addEventListener('change', function (e) {
+                        if (this.disabled) {
+                            this.checked = false;
+                            return;
+                        }
+                        updateBulkRateControlsVisibility();
+                    });
+                });
+
+                updateBulkRateControlsVisibility();
+
+                // ===== Cotação global da página =====
+                // Busca a taxa USD/BRL no Investing + spread do cliente e aplica nos modais
+                // de Comprar Dólar (taxa de compra) e Fechar em Dólar (taxa de conversão).
+                window.WALLET_RATE = { base: null, final: null, spread: spreadValue };
+
+                function applyRateToTarget(input, statusEl, base, finalRate) {
+                    if (!input) return;
+                    input.value = finalRate.toFixed(4);
+                    if (statusEl) {
+                        statusEl.textContent = 'Base ' + base.toFixed(4) + ' + spread ' + spreadValue.toFixed(2);
+                        statusEl.className = 'ms-auto small text-success';
+                    }
+                    // Dispara input para sincronizar BRL/USD nos modais.
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+
+                function fetchGlobalRate() {
+                    var comprarTaxa = document.getElementById('comprar_taxa');
+                    var comprarStatus = document.getElementById('comprar_taxa_status');
+                    var fecharTaxa = document.getElementById('fechar_taxa');
+                    var fecharStatus = document.getElementById('fechar_taxa_status');
+                    var vendaTaxa = document.getElementById('venda_ant_taxa');
+                    var vendaStatus = document.getElementById('venda_ant_taxa_status');
+                    var bulkRateInput = document.querySelector('#bulk_rate_form input[name="exchange_rate"]');
+
+                    [comprarStatus, fecharStatus, vendaStatus].forEach(function (el) {
+                        if (el) { el.textContent = 'Buscando cotação...'; el.className = 'ms-auto small text-muted'; }
+                    });
+
+                    fetch('{{ route('admin.wallet.usd-brl-rate', [], false) }}', {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                        .then(function (r) { return r.json(); })
+                        .then(function (data) {
+                            if (data && data.success && data.rate) {
+                                var base = parseFloat(data.rate);
+                                var finalRate = base + spreadValue;
+                                window.WALLET_RATE.base = base;
+                                window.WALLET_RATE.final = finalRate;
+                                applyRateToTarget(comprarTaxa, comprarStatus, base, finalRate);
+                                applyRateToTarget(fecharTaxa, fecharStatus, base, finalRate);
+                                applyRateToTarget(vendaTaxa, vendaStatus, base, finalRate);
+                                if (bulkRateInput) bulkRateInput.value = finalRate.toFixed(4);
+                            } else {
+                                [comprarStatus, fecharStatus, vendaStatus].forEach(function (el) {
+                                    if (el) { el.textContent = 'Falha ao obter cotação. Edite manualmente.'; el.className = 'ms-auto small text-danger'; }
+                                });
+                            }
+                        })
+                        .catch(function () {
+                            [comprarStatus, fecharStatus, vendaStatus].forEach(function (el) {
+                                if (el) { el.textContent = 'Erro ao consultar cotação. Edite manualmente.'; el.className = 'ms-auto small text-danger'; }
+                            });
+                        });
+                }
+
+                // Carrega ao abrir a tela e quando os modais forem reabertos.
+                fetchGlobalRate();
+                ['comprarDolarModal', 'fecharDolarModal', 'venderDolarAntecipadoModal'].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el) el.addEventListener('shown.bs.modal', fetchGlobalRate);
+                });
+
+                // ===== Export PDF assíncrono =====
+                var pdfBtn = document.getElementById('btn-export-pdf');
+                if (pdfBtn) {
+                    pdfBtn.addEventListener('click', function () {
+                        var btn = this;
+                        var startUrl   = btn.dataset.url;
+                        var pollUrl    = btn.dataset.pollUrl;
+                        var downloadUrl = btn.dataset.downloadUrl;
+                        var params     = JSON.parse(btn.dataset.params || '{}');
+
+                        btn.disabled = true;
+                        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>PDF...';
+
+                        var cleanParams = {};
+                        Object.keys(params).forEach(function (k) {
+                            if (params[k] !== null && params[k] !== undefined && params[k] !== '') {
+                                cleanParams[k] = params[k];
+                            }
+                        });
+                        var body = new URLSearchParams(Object.assign({ _token: '{{ csrf_token() }}' }, cleanParams));
+
+                        fetch(startUrl, { method: 'POST', body: body })
+                            .then(function (r) { return r.json(); })
+                            .then(function (data) {
+                                if (!data.key) throw new Error('Erro ao iniciar exportação.');
+                                pollForPdf(data.key, pollUrl, downloadUrl, btn);
+                            })
+                            .catch(function (err) {
+                                alert('Erro ao iniciar exportação: ' + err.message);
+                                btn.disabled = false;
+                                btn.innerHTML = '<i class="ri-file-pdf-2-line"></i>';
+                            });
+                    });
+                }
+
+                function pollForPdf(key, pollUrl, downloadUrl, btn) {
+                    var url = pollUrl.replace(':key', key);
+                    fetch(url)
+                        .then(function (r) { return r.json(); })
+                        .then(function (data) {
+                            if (data.status === 'done') {
+                                var link = document.createElement('a');
+                                link.href = downloadUrl.replace(':key', key);
+                                link.download = '';
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                btn.disabled = false;
+                                btn.innerHTML = '<i class="ri-file-pdf-2-line"></i>';
+                            } else if (data.status === 'failed') {
+                                alert('Falha ao gerar PDF: ' + (data.error || 'erro desconhecido'));
+                                btn.disabled = false;
+                                btn.innerHTML = '<i class="ri-file-pdf-2-line"></i>';
+                            } else {
+                                setTimeout(function () { pollForPdf(key, pollUrl, downloadUrl, btn); }, 2000);
+                            }
+                        })
+                        .catch(function () {
+                            setTimeout(function () { pollForPdf(key, pollUrl, downloadUrl, btn); }, 3000);
+                        });
+                }
+
+                // Atualiza a página ao submeter os formulários dos modais
+                document.querySelectorAll('#depositModal form, #withdrawModal form').forEach(function (form) {
+                    form.addEventListener('submit', function (e) {
+                        e.preventDefault();
+                        var formEl = this;
+                        var submitBtn = formEl.querySelector('[type="submit"]');
+                        var isDepositForm = formEl.closest('#depositModal') !== null;
+
+                        // Bloqueia o botão durante a submissão
+                        submitBtn.disabled = true;
+                        var originalText = submitBtn.textContent;
+                        submitBtn.textContent = isDepositForm ? 'Processando...' : 'Enviando...';
+
+                        var formData = new FormData(formEl);
+                        fetch(formEl.action, {
+                            method: 'POST',
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': formEl.querySelector('[name=_token]').value
+                            },
+                            body: formData
+                        })
+                            .then(function (response) {
+                                if (response.ok) {
+                                    location.reload();
+                                } else {
+                                    return response.json().then(function (data) {
+                                        alert(data.message || 'Erro ao processar a operação.');
+                                        // Desbloqueia se houver erro
+                                        submitBtn.disabled = false;
+                                        submitBtn.textContent = originalText;
+                                    });
+                                }
+                            })
+                            .catch(function () {
+                                alert('Erro ao processar a operação.');
+                                // Desbloqueia se houver erro
+                                submitBtn.disabled = false;
+                                submitBtn.textContent = originalText;
+                            });
+                    });
+                });
+            });
+        </script>
+
+        <form method="GET" class="mb-3">
+            <div class="d-flex flex-wrap align-items-end gap-2">
+                <div>
+                    <label class="form-label">De</label>
+                    <input type="date" name="date_from" class="form-control" style="width: 150px"
+                        value="{{ request('date_from') }}">
+                </div>
+                <div>
+                    <label class="form-label">Até</label>
+                    <input type="date" name="date_to" class="form-control" style="width: 150px"
+                        value="{{ request('date_to') }}">
+                </div>
+                <div>
+                    <label class="form-label">Origem</label>
+                    <select name="origin" class="form-select" style="width: 170px">
+                        <option value="" @selected(!request('origin'))>Todos</option>
+                        <option value="manual" @selected(request('origin') === 'manual')>Inserido à mão</option>
+                        <option value="pix" @selected(request('origin') === 'pix')>Vindo do Pix</option>
+                    </select>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Filtrar</button>
+                    <a class="btn btn-outline-success" title="Exportar para Excel (.xlsx) usando o template oficial"
+                        href="{{ route('admin.wallet.client.export-xlsx', array_merge(['client' => $client->id], request()->only(['date_from', 'date_to', 'currency', 'payment_method', 'type', 'origin']))) }}">
+                        <i class="ri-file-excel-2-line"></i>
+                    </a>
+                    <button type="button" id="btn-export-pdf" class="btn btn-outline-danger"
+                        title="Exportar para PDF (processado em background)"
+                        data-url="{{ route('admin.wallet.client.export-pdf-async', $client) }}"
+                        data-poll-url="{{ route('admin.wallet.export-pdf-poll', ':key') }}"
+                        data-download-url="{{ route('admin.wallet.export-pdf-download', ':key') }}"
+                        data-params="{{ json_encode(request()->only(['date_from', 'date_to', 'currency', 'payment_method', 'type', 'origin'])) }}">
+                        <i class="ri-file-pdf-2-line"></i>
+                    </button>
+                </div>
+                <div class="d-flex gap-2 ms-auto">
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal"
+                        data-bs-target="#depositModal">Depositar</button>
+                    <button type="button" class="btn btn-danger" data-bs-toggle="modal"
+                        data-bs-target="#withdrawModal">Sacar</button>
+                    <button type="button" id="btn-fullscreen" class="btn btn-outline-secondary" title="Tela cheia (Esc para sair)">
+                        <i class="ri-fullscreen-line"></i>
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        @php
+            $filtered = $transactions;
+            if (request('currency')) {
+                $filtered = $filtered->where('currency', request('currency'));
+            }
+            if (request('payment_method')) {
+                $filtered = $filtered->where('payment_method', request('payment_method'));
+            }
+            if (request('type')) {
+                $filtered = $filtered->where('type', request('type'));
+            }
+            if (request('origin') === 'manual') {
+                $filtered = $filtered->filter(fn ($tx) => !$tx->whatsappPixExtraction);
+            } elseif (request('origin') === 'pix') {
+                $filtered = $filtered->filter(fn ($tx) => (bool) $tx->whatsappPixExtraction);
+            }
+            $filteredTotals = [
+                'BRL' => $filtered->where('currency', 'BRL')->sum('amount'),
+                'USD' => $filtered->where('currency', 'USD')->sum('amount'),
+            ];
+        @endphp
+
+        @if(request('currency') || request('payment_method') || request('type') || request('origin'))
+            <div class="row mb-2">
+                <div class="col-xl-12">
+                    <div class="card border border-primary">
+                        <div class="card-body p-2">
+                            <div class="row text-center">
+                                <div class="col">
+                                    <span class="fw-bold">Total BRL:</span> R$
+                                    {{ number_format($filteredTotals['BRL'], 2, ',', '.') }}
+                                </div>
+                                <div class="col">
+                                    <span class="fw-bold">Total USD:</span> US$
+                                    {{ number_format($filteredTotals['USD'], 2, ',', '.') }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @php
+            $entradaBrl = $filtered->filter(function ($tx) {
+                return $tx->type === 'deposit' && $tx->currency === 'BRL' && $tx->amount > 0;
+            });
+
+            $saidaUsd = $filtered->filter(function ($tx) {
+                return $tx->currency === 'USD' && $tx->amount < 0;
+            });
+
+            $entradaUsd = $filtered->filter(function ($tx) {
+                return $tx->currency === 'USD' && $tx->amount > 0;
+            });
+        @endphp
+
+        <div class="row mt-3 d-none" id="entrada_selection_row">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm mb-0">
+                    <div class="card-header bg-primary-subtle border-0 d-flex align-items-center gap-2">
+                        <i class="ri-checkbox-multiple-line text-primary"></i>
+                        <h6 class="mb-0 text-uppercase text-primary">Seleção da Entrada</h6>
+                        <span class="text-muted small ms-auto">linhas marcadas na tabela abaixo</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3 text-center text-md-start">
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <div class="text-muted text-uppercase small mb-1">Selecionado</div>
+                                <div class="fs-5 fw-bold" id="entrada_selected_total_old">R$ 0,00</div>
+                            </div>
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <div class="text-muted text-uppercase small mb-1">Taxa média</div>
+                                <div class="fs-5 fw-bold text-info" id="entrada_selected_avg_rate">—</div>
+                            </div>
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <div class="text-muted text-uppercase small mb-1"
+                                    title="Taxa média ponderada apenas das entradas que já têm compra de dólar registrada">
+                                    Taxa média compra
+                                </div>
+                                <div class="fs-5 fw-bold text-success" id="entrada_selected_avg_compra_rate">—</div>
+                            </div>
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <div class="text-muted text-uppercase small mb-1">Valor U$</div>
+                                <div class="fs-5 fw-bold" id="entrada_selected_usd_total">—</div>
+                            </div>
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <div class="text-muted text-uppercase small mb-1">Disp. p/ compra</div>
+                                <div class="fs-5 fw-bold text-warning" id="entrada_selected_disp_compra">—</div>
+                            </div>
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <div class="text-muted text-uppercase small mb-1">Disp. p/ venda</div>
+                                <div class="fs-5 fw-bold text-danger" id="entrada_selected_disp_venda">—</div>
+                            </div>
+                        </div>
+
+                        <div id="entrada_red_summary" class="alert alert-danger-subtle border border-danger-subtle py-2 px-3 mt-3 mb-0 d-none">
+                            <div class="row g-3 text-center text-md-start small">
+                                <div class="col-6 col-md-3">
+                                    <div class="text-uppercase text-muted">Entradas selecionadas</div>
+                                    <div class="fw-bold" id="entrada_selected_total">R$ 0,00</div>
+                                </div>
+                                <div class="col-6 col-md-2">
+                                    <div class="text-uppercase text-muted">Vermelhos</div>
+                                    <div class="fw-bold" id="red_count">0</div>
+                                </div>
+                                <div class="col-6 col-md-2">
+                                    <div class="text-uppercase text-muted">Total R$ vendido</div>
+                                    <div class="fw-bold" id="red_total_brl">R$ 0,00</div>
+                                </div>
+                                <div class="col-6 col-md-2">
+                                    <div class="text-uppercase text-muted">USD estimado vendido</div>
+                                    <div class="fw-bold" id="red_total_usd">US$ 0,0000</div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="text-uppercase text-muted">Taxa de equilíbrio p/ compra</div>
+                                    <div class="fw-bold" id="red_break_even">—</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-lg-4">
+                <div class="card h-100">
+                    <div class="card-header border-0">
+
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+
+                            {{-- ESQUERDA --}}
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <h5 class="mb-0 text-uppercase">Entrada</h5>
+                            </div>
+
+                            {{-- DIREITA --}}
+                            <form id="bulk_rate_form" method="POST" action="{{ route('admin.wallet.update-rate-bulk') }}"
+                                novalidate>
+
+                                @csrf
+                                @method('PATCH')
+
+                                <input type="hidden" name="client_id" value="{{ $client->id }}">
+
+                                <div id="bulk_rate_controls"
+                                    class="d-flex flex-wrap gap-2 justify-content-start justify-content-md-end d-none">
+
+                                    <button type="button" class="btn btn-sm btn-success" id="btn-comprar-dolar"
+                                        title="Pré-compra: dono compra USD a uma taxa (custo)" data-bs-toggle="modal"
+                                        data-bs-target="#comprarDolarModal">
+
+                                        <i class="ri-arrow-down-circle-line me-1"></i>
+                                        Comprar DÓLAR
+                                    </button>
+
+                                    <button type="button" class="btn btn-sm btn-danger" id="btn-vender-dolar-ant"
+                                        title="Vende USD ao cliente na taxa informada (cria Entrada U$ imediatamente)"
+                                        data-bs-toggle="modal" data-bs-target="#venderDolarAntecipadoModal">
+
+                                        <i class="ri-arrow-up-circle-line me-1"></i>
+                                        Vender DÓLAR
+                                    </button>
+
+                                </div>
+                            </form>
+
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive" id="tabela_entrada_brl_scroll">
+                            <table class="table table-hover mb-0" id="tabela_entrada_brl">
+                                <thead class="table-success">
+                                    <tr>
+                                        <th style="width: 40px">
+                                            <input type="checkbox" id="entrada_select_all">
+                                        </th>
+                                        <th>Data</th>
+                                        <th style="width: 80px" class="text-end">Valor R$</th>
+                                        <th style="width: 80px" class="text-end">Taxa</th>
+                                        <th class="text-end">Valor U$</th>
+                                        <th style="width: 50px">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($entradaBrl as $tx)
+                                        @php
+                                            $taxa = $tx->exchange_rate;
+                                            $valorConvertido = null;
+                                            $isLocked = in_array($tx->status, ['fechado', 'finalizado'], true);
+                                            $brlPre = (float) ($tx->brl_pre_purchased ?? 0);
+                                            $brlSold = (float) ($tx->brl_pre_sold ?? 0);
+                                            $brlLivreCompra = max(0, (float) $tx->amount - $brlPre);
+                                            $brlLivreVenda = max(0, (float) $tx->amount - $brlSold);
+                                            $hasPre = $brlPre > 0.005;
+                                            $hasSold = $brlSold > 0.005;
+                                            $bothComplete = $hasPre && $hasSold
+                                                && abs($brlPre - (float) $tx->amount) < 0.01
+                                                && abs($brlSold - (float) $tx->amount) < 0.01;
+
+                                            $lotesPre = $prePurchasesByDeposit[$tx->id] ?? collect();
+                                            $lotesSell = $preSellsByDeposit[$tx->id] ?? collect();
+                                            $taxaMediaPre = $lotesPre->sum('brl_remaining') > 0
+                                                ? $lotesPre->sum('brl_remaining') / max(0.0001, $lotesPre->sum('usd_remaining'))
+                                                : null;
+                                            $taxaMediaSell = $lotesSell->sum('brl_remaining') > 0
+                                                ? $lotesSell->sum('brl_remaining') / max(0.0001, $lotesSell->sum('usd_remaining'))
+                                                : null;
+                                            $usdSell = (float) $lotesSell->sum('usd_remaining');
+
+                                            if ($tx->converted_currency === 'USD' && $tx->converted_amount !== null) {
+                                                $valorConvertido = $tx->converted_amount;
+                                            } elseif ($taxa && $taxa > 0) {
+                                                $valorConvertido = $tx->amount / $taxa;
+                                            }
+
+                                            // Cor da linha — prioridade:
+                                            //   completo (compra+venda cobrindo tudo) → azul "pronto p/ fechar"
+                                            //   só compra → verde
+                                            //   só venda → vermelho
+                                            //   ambos parciais → amarelo
+                                            //   sem nada → padrão
+                                            $rowClass = '';
+                                            if ($isLocked) {
+                                                $rowClass = 'table-light';
+                                            } elseif ($bothComplete) {
+                                                $rowClass = 'table-info-pronto';
+                                            } elseif ($hasPre && $hasSold) {
+                                                $rowClass = 'table-warning';
+                                            } elseif ($hasPre) {
+                                                $rowClass = 'table-pre-purchased';
+                                            } elseif ($hasSold) {
+                                                $rowClass = 'table-pre-sold';
+                                            }
+                                        @endphp
+                                        @php
+                                            $detalhesData = [
+                                                'id'               => $tx->id,
+                                                'data'             => $tx->created_at->format('d/m/Y H:i'),
+                                                'valor'            => number_format($tx->amount, 2, ',', '.'),
+                                                'brl_pre'          => number_format($brlPre, 2, ',', '.'),
+                                                'brl_sold'         => number_format($brlSold, 2, ',', '.'),
+                                                'brl_livre_compra' => number_format($brlLivreCompra, 2, ',', '.'),
+                                                'brl_livre_venda'  => number_format($brlLivreVenda, 2, ',', '.'),
+                                                'lotes_compra'     => $lotesPre->map(fn($l) => [
+                                                    'brl'    => number_format($l->brl_amount, 2, ',', '.'),
+                                                    'taxa'   => number_format($l->exchange_rate, 4, ',', '.'),
+                                                    'usd'    => number_format($l->usd_amount, 2, ',', '.'),
+                                                    'status' => $l->status,
+                                                ])->values()->toArray(),
+                                                'lotes_venda'      => $lotesSell->map(fn($l) => [
+                                                    'brl'    => number_format($l->brl_amount, 2, ',', '.'),
+                                                    'taxa'   => number_format($l->sell_rate, 4, ',', '.'),
+                                                    'usd'    => number_format($l->usd_amount, 2, ',', '.'),
+                                                    'status' => $l->status,
+                                                ])->values()->toArray(),
+                                            ];
+                                        @endphp
+                                        <tr class="{{ $rowClass }}" data-locked="{{ $isLocked ? '1' : '0' }}"
+                                            data-pre-purchased="{{ number_format($brlPre, 2, '.', '') }}"
+                                            data-pre-sold="{{ number_format($brlSold, 2, '.', '') }}"
+                                            data-brl-livre-compra="{{ number_format($brlLivreCompra, 2, '.', '') }}"
+                                            data-brl-livre-venda="{{ number_format($brlLivreVenda, 2, '.', '') }}"
+                                            data-is-red-row="{{ $rowClass === 'table-pre-sold' ? '1' : '0' }}"
+                                            data-sold-brl="{{ number_format($brlSold, 2, '.', '') }}"
+                                            data-sold-usd="{{ number_format($usdSell, 4, '.', '') }}"
+                                            data-sold-rate="{{ $taxaMediaSell ? number_format($taxaMediaSell, 6, '.', '') : '' }}"
+                                            data-compra-brl="{{ number_format($lotesPre->sum('brl_remaining'), 2, '.', '') }}"
+                                            data-compra-usd="{{ number_format($lotesPre->sum('usd_remaining'), 6, '.', '') }}"
+                                            data-compra-rate="{{ $taxaMediaPre ? number_format($taxaMediaPre, 6, '.', '') : '' }}"
+                                            data-rate="{{ $taxa ? number_format($taxa, 6, '.', '') : '' }}"
+                                            data-usd-equiv="{{ $valorConvertido !== null ? number_format($valorConvertido, 6, '.', '') : '' }}">
+                                            <td>
+                                                {{-- <input type="checkbox" class="entrada-select-item" form="bulk_rate_form"
+                                                    name="transaction_ids[]" value="{{ $tx->id }}" @if($isLocked) disabled
+                                                    @endif> --}}
+                                                <input type="checkbox" class="entrada-select-item" form="bulk_rate_form"
+                                                    name="transaction_ids[]" value="{{ $tx->id }}"
+                                                    data-amount="{{ number_format($tx->amount, 2, '.', '') }}" @if($isLocked)
+                                                    disabled @endif>
+                                            </td>
+                                            <td>
+                                                <div>{{ $tx->created_at->format('d/m/Y H:i') }}</div>
+                                                @if($hasPre)
+                                                    <span class="badge bg-success-subtle text-success border border-success-subtle"
+                                                        title="Comprou R$ {{ number_format($brlPre, 2, ',', '.') }} @ {{ $taxaMediaPre ? number_format($taxaMediaPre, 4, ',', '.') : '' }}">
+                                                        <i class="ri-arrow-down-circle-line"></i>
+                                                        C: {{ number_format($brlPre, 2, ',', '.') }}
+                                                        @if($taxaMediaPre)<small>@
+                                                        {{ number_format($taxaMediaPre, 4, ',', '.') }}</small>@endif
+                                                    </span>
+                                                @endif
+                                                @if($hasSold)
+                                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle"
+                                                        title="Vendeu R$ {{ number_format($brlSold, 2, ',', '.') }} @ {{ $taxaMediaSell ? number_format($taxaMediaSell, 4, ',', '.') : '' }}">
+                                                        <i class="ri-arrow-up-circle-line"></i>
+                                                        V: {{ number_format($brlSold, 2, ',', '.') }}
+                                                        @if($taxaMediaSell)<small>@
+                                                        {{ number_format($taxaMediaSell, 4, ',', '.') }}</small>@endif
+                                                    </span>
+                                                @endif
+                                                @if($bothComplete)
+                                                    <span class="badge bg-info text-white"
+                                                        title="Pronto para fechar — compra e venda já registradas">
+                                                        <i class="ri-check-double-line"></i> pronto
+                                                    </span>
+                                                @endif
+                                            </td>
+                                            <td class="fw-bold text-success text-end">{{ number_format($tx->amount, 2, ',', '.') }}</td>
+                                            <td class="text-end">{{ $taxa ? number_format($taxa, 4, ',', '.') : '-' }}</td>
+                                            <td class="text-end">{{ $valorConvertido !== null ? number_format($valorConvertido, 2, ',', '.') : '-' }}
+                                            </td>
+                                            <td>
+                                                @php
+                                                    $snaps = collect($reversalsByAnchor[$tx->id] ?? []);
+                                                    $buySnaps = $snaps->where('type', 'pre_purchase');
+                                                    $sellSnaps = $snaps->where('type', 'pre_sell');
+                                                    $closeSnaps = $snaps->where('type', 'fechamento');
+                                                    $canDelete = Auth::user()->hasModule('wallet.delete');
+                                                    $hasAnyAction = (!$isLocked && $canDelete) || ($canDelete && $snaps->isNotEmpty());
+                                                @endphp
+
+                                                {{-- Forms ocultos referenciados pelo dropdown via atributo form="id" --}}
+                                                @if(!$isLocked && $canDelete)
+                                                    <form id="form-del-{{ $tx->id }}" method="POST"
+                                                        action="{{ route('admin.wallet.rollback-deposit', $tx) }}"
+                                                        onsubmit="const m=prompt('Motivo do rollback (opcional):','');if(m===null)return false;this.querySelector('input[name=reason]').value=m;return confirm('Confirmar rollback completo do depósito #{{ $tx->id }}?');">
+                                                        @csrf
+                                                        <input type="hidden" name="reason" value="">
+                                                    </form>
+                                                @endif
+                                                @if($canDelete && $buySnaps->isNotEmpty())
+                                                    <form id="form-buy-{{ $tx->id }}" method="POST"
+                                                        action="{{ route('admin.wallet.operations.reverse-many') }}"
+                                                        onsubmit="const m=prompt('Motivo do cancelamento da COMPRA (opcional):','');if(m===null)return false;this.querySelector('input[name=reason]').value=m;return confirm('Cancelar a pré-compra deste depósito? Todos os lotes da compra serão revertidos.');">
+                                                        @csrf
+                                                        <input type="hidden" name="reason" value="">
+                                                        @foreach($buySnaps as $s)
+                                                            <input type="hidden" name="snapshot_ids[]" value="{{ $s->id }}">
+                                                        @endforeach
+                                                    </form>
+                                                @endif
+                                                @if($canDelete && $sellSnaps->isNotEmpty())
+                                                    <form id="form-sell-{{ $tx->id }}" method="POST"
+                                                        action="{{ route('admin.wallet.operations.reverse-many') }}"
+                                                        onsubmit="const m=prompt('Motivo do cancelamento da VENDA (opcional):','');if(m===null)return false;this.querySelector('input[name=reason]').value=m;return confirm('Cancelar a pré-venda deste depósito? Todos os lotes da venda serão revertidos.');">
+                                                        @csrf
+                                                        <input type="hidden" name="reason" value="">
+                                                        @foreach($sellSnaps as $s)
+                                                            <input type="hidden" name="snapshot_ids[]" value="{{ $s->id }}">
+                                                        @endforeach
+                                                    </form>
+                                                @endif
+                                                @if($canDelete && $buySnaps->isNotEmpty() && $sellSnaps->isNotEmpty())
+                                                    <form id="form-both-{{ $tx->id }}" method="POST"
+                                                        action="{{ route('admin.wallet.operations.reverse-many') }}"
+                                                        onsubmit="const m=prompt('Motivo do cancelamento (compra + venda) (opcional):','');if(m===null)return false;this.querySelector('input[name=reason]').value=m;return confirm('Cancelar a COMPRA e a VENDA deste depósito? Todos os lotes serão revertidos.');">
+                                                        @csrf
+                                                        <input type="hidden" name="reason" value="">
+                                                        @foreach($buySnaps->merge($sellSnaps) as $s)
+                                                            <input type="hidden" name="snapshot_ids[]" value="{{ $s->id }}">
+                                                        @endforeach
+                                                    </form>
+                                                @endif
+                                                @if($canDelete && $closeSnaps->isNotEmpty())
+                                                    <form id="form-close-{{ $tx->id }}" method="POST"
+                                                        action="{{ route('admin.wallet.operations.reverse-many') }}"
+                                                        onsubmit="const m=prompt('Motivo da reversão do FECHAMENTO (opcional):','');if(m===null)return false;this.querySelector('input[name=reason]').value=m;return confirm('Reverter o fechamento deste depósito? O caixa (lotes/lucro) será desfeito.');">
+                                                        @csrf
+                                                        <input type="hidden" name="reason" value="">
+                                                        @foreach($closeSnaps as $s)
+                                                            <input type="hidden" name="snapshot_ids[]" value="{{ $s->id }}">
+                                                        @endforeach
+                                                    </form>
+                                                @endif
+
+                                                <div class="dropdown">
+                                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                                                        type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                        <i class="ri-more-2-fill"></i>
+                                                    </button>
+                                                    <ul class="dropdown-menu dropdown-menu-end">
+                                                        <li>
+                                                            <button type="button"
+                                                                class="dropdown-item"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#detalhesOperacaoModal"
+                                                                data-detalhes="{{ json_encode($detalhesData) }}">
+                                                                <i class="ri-information-line me-1 text-info"></i>Ver detalhes
+                                                            </button>
+                                                        </li>
+                                                        @if($tx->whatsappPixExtraction)
+                                                            @php
+                                                                $extracao = $tx->whatsappPixExtraction;
+                                                                $comprovanteData = [
+                                                                    'imagemUrl'    => route('admin.whatsapp.extracoes.imagem', $extracao),
+                                                                    'mimetype'     => $extracao->mimetype,
+                                                                    'nome'         => $extracao->pix_nome,
+                                                                    'valor'        => $extracao->pix_valor,
+                                                                    'data'         => $extracao->pix_data,
+                                                                    'numero'       => $extracao->numero_transacao,
+                                                                    'status'       => $extracao->status,
+                                                                    'extracoesUrl' => route('admin.whatsapp.extracoes', array_filter([
+                                                                        'group_id' => $extracao->whatsapp_group_id,
+                                                                        'search'   => $extracao->numero_transacao,
+                                                                    ])),
+                                                                ];
+                                                            @endphp
+                                                            <li>
+                                                                <button type="button"
+                                                                    class="dropdown-item"
+                                                                    data-bs-toggle="modal"
+                                                                    data-bs-target="#comprovantePixModal"
+                                                                    data-comprovante="{{ json_encode($comprovanteData) }}">
+                                                                    <i class="ri-image-line me-1 text-primary"></i>Ver comprovante
+                                                                </button>
+                                                            </li>
+                                                        @endif
+                                                        @if($hasAnyAction)
+                                                            <li><hr class="dropdown-divider"></li>
+                                                            @if(!$isLocked && $canDelete)
+                                                                <li>
+                                                                    <button class="dropdown-item text-danger" type="submit"
+                                                                        form="form-del-{{ $tx->id }}"
+                                                                        title="Apaga o depósito com rollback (soft-delete e reconciliação)">
+                                                                        <i class="ri-delete-bin-line me-1"></i>Apagar depósito
+                                                                    </button>
+                                                                </li>
+                                                            @endif
+                                                            @if($canDelete && ($buySnaps->isNotEmpty() || $sellSnaps->isNotEmpty() || $closeSnaps->isNotEmpty()))
+                                                                @if(!$isLocked && $canDelete)
+                                                                    <li>
+                                                                        <hr class="dropdown-divider">
+                                                                    </li>
+                                                                @endif
+                                                                @if($buySnaps->isNotEmpty())
+                                                                    <li>
+                                                                        <button class="dropdown-item" type="submit"
+                                                                            form="form-buy-{{ $tx->id }}"
+                                                                            title="Cancela a pré-compra (todos os lotes) deste depósito">
+                                                                            <i class="ri-arrow-go-back-line me-1 text-success"></i>Cancelar
+                                                                            compra
+                                                                        </button>
+                                                                    </li>
+                                                                @endif
+                                                                @if($sellSnaps->isNotEmpty())
+                                                                    <li>
+                                                                        <button class="dropdown-item" type="submit"
+                                                                            form="form-sell-{{ $tx->id }}"
+                                                                            title="Cancela a pré-venda (todos os lotes) deste depósito">
+                                                                            <i class="ri-arrow-go-back-line me-1 text-danger"></i>Cancelar
+                                                                            venda
+                                                                        </button>
+                                                                    </li>
+                                                                @endif
+                                                                @if($buySnaps->isNotEmpty() && $sellSnaps->isNotEmpty())
+                                                                    <li>
+                                                                        <button class="dropdown-item" type="submit"
+                                                                            form="form-both-{{ $tx->id }}"
+                                                                            title="Cancela compra e venda deste depósito de uma vez">
+                                                                            <i class="ri-arrow-go-back-line text-success"></i><i
+                                                                                class="ri-arrow-go-back-line me-1 text-danger"></i>Cancelar
+                                                                            ambos
+                                                                        </button>
+                                                                    </li>
+                                                                @endif
+                                                                @if($closeSnaps->isNotEmpty())
+                                                                    <li>
+                                                                        <button class="dropdown-item" type="submit"
+                                                                            form="form-close-{{ $tx->id }}"
+                                                                            title="Reverte o fechamento (desfaz caixa, lotes e lucro)">
+                                                                            <i
+                                                                                class="ri-arrow-go-back-line me-1 text-secondary"></i>Reverter
+                                                                            fechamento
+                                                                        </button>
+                                                                    </li>
+                                                                @endif
+                                                            @endif
+                                                        @endif
+                                                    </ul>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="6" class="text-center">Sem registros.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                                @php
+                                    $totalEntradaBrlFoot = $entradaBrl->sum('amount');
+                                    $totalEntradaUsdEquivFoot = $entradaBrl->sum(function($t) {
+                                        if ($t->converted_currency === 'USD' && $t->converted_amount !== null) {
+                                            return (float) $t->converted_amount;
+                                        }
+                                        return ((float) $t->exchange_rate > 0) ? (float) $t->amount / (float) $t->exchange_rate : 0.0;
+                                    });
+                                @endphp
+                                <tfoot class="table-group-divider fw-bold small">
+                                    <tr>
+                                        <td></td>
+                                        <td class="text-muted">Total</td>
+                                        <td class="text-end">{{ number_format($totalEntradaBrlFoot, 2, ',', '.') }}</td>
+                                        <td></td>
+                                        <td class="text-end">{{ number_format($totalEntradaUsdEquivFoot, 2, ',', '.') }}</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <script>
+                document.addEventListener('DOMContentLoaded', function () {
+
+                    const checkboxes = document.querySelectorAll('.entrada-select-item');
+                    const selectAll = document.getElementById('entrada_select_all');
+                    const selectionRow = document.getElementById('entrada_selection_row');
+                    const totalBadge = document.getElementById('entrada_selected_total');
+                    const totalValorBadge = document.getElementById('entrada_selected_total_old');
+                    const avgRateBadge = document.getElementById('entrada_selected_avg_rate');
+                    const avgCompraRateBadge = document.getElementById('entrada_selected_avg_compra_rate');
+                    const usdTotalBadge = document.getElementById('entrada_selected_usd_total');
+                    const dispCompraBadge = document.getElementById('entrada_selected_disp_compra');
+                    const dispVendaBadge = document.getElementById('entrada_selected_disp_venda');
+                    const redSummary = document.getElementById('entrada_red_summary');
+                    const redCountEl = document.getElementById('red_count');
+                    const redTotalBrlEl = document.getElementById('red_total_brl');
+                    const redTotalUsdEl = document.getElementById('red_total_usd');
+                    const redBreakEvenEl = document.getElementById('red_break_even');
+
+                    function formatBRL(value) {
+                        return value.toLocaleString('pt-BR', {
+                            style: 'currency',
+                            currency: 'BRL'
+                        });
+                    }
+
+                    function updateSelectedTotal() {
+                        let total = 0;
+                        let redCount = 0;
+                        let redBrl = 0;
+                        let redUsd = 0;
+                        let rateBrlSum = 0;
+                        let rateUsdSum = 0;
+                        let compraBrlSum = 0;
+                        let compraUsdSum = 0;
+                        let usdTotal = 0;
+                        let dispCompra = 0;
+                        let dispVenda = 0;
+
+                        checkboxes.forEach(cb => {
+                            if (cb.checked && !cb.disabled) {
+                                const amount = parseFloat(cb.dataset.amount || 0);
+                                total += amount;
+
+                                const row = cb.closest('tr');
+                                const isRedRow = row && row.getAttribute('data-is-red-row') === '1';
+                                if (isRedRow) {
+                                    redCount += 1;
+                                    redBrl += parseFloat(row.getAttribute('data-sold-brl') || 0);
+                                    redUsd += parseFloat(row.getAttribute('data-sold-usd') || 0);
+                                }
+
+                                const rate = row ? parseFloat(row.getAttribute('data-rate')) : NaN;
+                                const usdEquiv = row ? parseFloat(row.getAttribute('data-usd-equiv')) : NaN;
+
+                                // Taxa média ponderada pelo valor (R$ total / US$ total), não a média
+                                // simples dos valores da coluna Taxa — senão uma entrada pequena pesa
+                                // igual a uma grande na conta.
+                                if (rate > 0 && usdEquiv > 0) {
+                                    rateBrlSum += amount;
+                                    rateUsdSum += usdEquiv;
+                                }
+
+                                if (usdEquiv > 0) {
+                                    usdTotal += usdEquiv;
+                                }
+
+                                // Taxa média de compra: só das entradas que já têm dólar comprado
+                                // (badge "C: ... @ ..."), ponderada pelo R$ efetivamente comprado —
+                                // é diferente da Taxa média acima, que usa a taxa nominal do depósito.
+                                const compraBrl = row ? parseFloat(row.getAttribute('data-compra-brl')) : NaN;
+                                const compraUsd = row ? parseFloat(row.getAttribute('data-compra-usd')) : NaN;
+                                if (compraBrl > 0 && compraUsd > 0) {
+                                    compraBrlSum += compraBrl;
+                                    compraUsdSum += compraUsd;
+                                }
+
+                                dispCompra += row ? (parseFloat(row.getAttribute('data-brl-livre-compra')) || 0) : 0;
+                                dispVenda += row ? (parseFloat(row.getAttribute('data-brl-livre-venda')) || 0) : 0;
+                            }
+                        });
+
+                        if (selectionRow) {
+                            selectionRow.classList.toggle('d-none', total <= 0);
+                        }
+
+                        if (total > 0) {
+                            totalBadge.classList.remove('d-none');
+                            totalBadge.textContent = `${formatBRL(total)}`;
+                        } else {
+                            totalBadge.classList.add('d-none');
+                        }
+
+                        if (totalValorBadge) {
+                            totalValorBadge.textContent = total > 0 ? formatBRL(total) : '—';
+                        }
+
+                        if (avgRateBadge) {
+                            if (rateUsdSum > 0) {
+                                const avgRate = rateBrlSum / rateUsdSum;
+                                avgRateBadge.textContent = avgRate.toLocaleString('pt-BR', {
+                                    minimumFractionDigits: 4,
+                                    maximumFractionDigits: 4
+                                });
+                            } else {
+                                avgRateBadge.textContent = '—';
+                            }
+                        }
+
+                        if (avgCompraRateBadge) {
+                            if (compraUsdSum > 0) {
+                                const avgCompraRate = compraBrlSum / compraUsdSum;
+                                avgCompraRateBadge.textContent = avgCompraRate.toLocaleString('pt-BR', {
+                                    minimumFractionDigits: 4,
+                                    maximumFractionDigits: 4
+                                });
+                            } else {
+                                avgCompraRateBadge.textContent = '—';
+                            }
+                        }
+
+                        if (usdTotalBadge) {
+                            if (usdTotal > 0) {
+                                usdTotalBadge.textContent = 'US$ ' + usdTotal.toLocaleString('pt-BR', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                });
+                            } else {
+                                usdTotalBadge.textContent = '—';
+                            }
+                        }
+
+                        if (dispCompraBadge) {
+                            dispCompraBadge.textContent = total > 0 ? formatBRL(dispCompra) : '—';
+                        }
+
+                        if (dispVendaBadge) {
+                            dispVendaBadge.textContent = total > 0 ? formatBRL(dispVenda) : '—';
+                        }
+
+                        if (redSummary) {
+                            if (redCount > 0 && redBrl > 0 && redUsd > 0) {
+                                const avgRate = redBrl / redUsd;
+
+                                redSummary.classList.remove('d-none');
+                                if (redCountEl) redCountEl.textContent = String(redCount);
+                                if (redTotalBrlEl) redTotalBrlEl.textContent = formatBRL(redBrl);
+                                if (redTotalUsdEl) {
+                                    redTotalUsdEl.textContent = 'US$ ' + redUsd.toLocaleString('pt-BR', {
+                                        minimumFractionDigits: 4,
+                                        maximumFractionDigits: 4
+                                    });
+                                }
+                                if (redBreakEvenEl) {
+                                    redBreakEvenEl.textContent = avgRate.toLocaleString('pt-BR', {
+                                        minimumFractionDigits: 4,
+                                        maximumFractionDigits: 4
+                                    });
+                                }
+                            } else {
+                                redSummary.classList.add('d-none');
+                            }
+                        }
+                    }
+
+                    checkboxes.forEach(cb => {
+                        cb.addEventListener('change', updateSelectedTotal);
+                    });
+
+                    if (selectAll) {
+                        selectAll.addEventListener('change', function () {
+                            checkboxes.forEach(cb => {
+                                if (!cb.disabled) {
+                                    cb.checked = selectAll.checked;
+                                }
+                            });
+
+                            updateSelectedTotal();
+                        });
+                    }
+
+                    // Seleção por clique-e-arraste (estilo Excel): clica num checkbox
+                    // e, mantendo o botão pressionado, arrasta sobre as demais linhas
+                    // para marcá-las (ou desmarcá-las) todas de uma vez.
+                    let dragSelecting = false;
+                    let dragSelectValue = false;
+
+                    function setCheckboxState(cb, value) {
+                        if (cb.disabled || cb.checked === value) return;
+                        cb.checked = value;
+                        cb.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+
+                    checkboxes.forEach(cb => {
+                        cb.addEventListener('mousedown', function (e) {
+                            if (cb.disabled) return;
+                            dragSelecting = true;
+                            dragSelectValue = !cb.checked;
+                            setCheckboxState(cb, dragSelectValue);
+                            document.body.classList.add('wallet-drag-selecting');
+                            e.preventDefault();
+                        });
+
+                        // O toggle já é feito manualmente no mousedown; bloqueia o
+                        // default do navegador para o click não desfazer a marcação
+                        // (isso acontecia em cliques parados, sem arrastar).
+                        cb.addEventListener('click', function (e) {
+                            e.preventDefault();
+                        });
+
+                        cb.addEventListener('mouseenter', function () {
+                            if (!dragSelecting) return;
+                            setCheckboxState(cb, dragSelectValue);
+                        });
+                    });
+
+                    document.addEventListener('mouseup', function () {
+                        if (!dragSelecting) return;
+                        dragSelecting = false;
+                        document.body.classList.remove('wallet-drag-selecting');
+                    });
+
+                    updateSelectedTotal();
+                });
+            </script>
+
+            <div class="col-lg-4">
+                <div class="card h-100">
+                    <div class="card-header border-0">
+                        <h5 class="mb-0 text-uppercase">Saída U$</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover mb-0" id="tabela_saida_usd">
+                                <thead class="table-danger">
+                                    <tr>
+                                        <th>Data</th>
+                                        <th class="text-end">Valor U$</th>
+                                        <th>Descrição</th>
+                                        @if(Auth::user()->hasModule('wallet.delete'))
+                                            <th>Ações</th>
+                                        @endif
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($saidaUsd as $tx)
+                                        <tr>
+                                            <td>{{ $tx->created_at->format('d/m/Y H:i') }}</td>
+                                            <td class="fw-bold text-danger text-end">{{ number_format(abs($tx->amount), 2, ',', '.') }}
+                                            </td>
+                                            <td>{{ $tx->description ?? '-' }}</td>
+                                            @if(Auth::user()->hasModule('wallet.delete'))
+                                                <td>
+                                                    @if($tx->type === 'withdraw' && $tx->currency === 'USD')
+                                                        <form id="form-saque-{{ $tx->id }}" method="POST"
+                                                            action="{{ route('admin.wallet.rollback-withdraw', $tx) }}"
+                                                            onsubmit="const m=prompt('Motivo da reversão do saque (opcional):','');if(m===null)return false;this.querySelector('input[name=reason]').value=m;return confirm('Reverter este saque em USD? O registro será removido e o saldo será recomposto.');">
+                                                            @csrf
+                                                            <input type="hidden" name="reason" value="">
+                                                        </form>
+                                                        <div class="dropdown">
+                                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                                                                data-bs-toggle="dropdown" aria-expanded="false">
+                                                                <i class="ri-more-2-fill"></i>
+                                                            </button>
+                                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                                <li>
+                                                                    <button class="dropdown-item" type="submit"
+                                                                        form="form-saque-{{ $tx->id }}"
+                                                                        title="Reverte este saque (remove o registro e recompõe o saldo)">
+                                                                        <i class="ri-arrow-go-back-line me-1 text-danger"></i>Reverter saque
+                                                                    </button>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                    @else
+                                                        <span class="text-muted">-</span>
+                                                    @endif
+                                                </td>
+                                            @endif
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="{{ Auth::user()->hasModule('wallet.delete') ? 4 : 3 }}"
+                                                class="text-center">Sem registros.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                                @php
+                                    $totalSaidaUsdFoot = $saidaUsd->sum(fn($t) => abs((float) $t->amount));
+                                @endphp
+                                <tfoot class="table-group-divider fw-bold small">
+                                    <tr>
+                                        <td class="text-muted">Total</td>
+                                        <td class="text-end">{{ number_format($totalSaidaUsdFoot, 2, ',', '.') }}</td>
+                                        <td></td>
+                                        @if(Auth::user()->hasModule('wallet.delete'))
+                                            <td></td>
+                                        @endif
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card h-100">
+                    <div class="card-header border-0 d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                        <h5 class="mb-0 text-uppercase">Entrada U$</h5>
+                        <small class="text-muted">Operações finalizadas — visão do cliente</small>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover mb-0" id="tabela_entrada_usd">
+                                <thead class="table-primary">
+                                    <tr>
+                                        <th>Data</th>
+                                        <th class="text-end">Valor U$</th>
+                                        <th class="text-end">Taxa venda</th>
+                                        <th>Descrição</th>
+                                        @if($canViewPnl)
+                                            <th class="text-center" style="width: 36px">
+                                                <i class="ri-information-line"
+                                                    title="PnL deste fechamento (apenas para o admin)"></i>
+                                            </th>
+                                        @endif
+                                        @if(Auth::user()->hasModule('wallet.delete'))
+                                            <th>Ações</th>
+                                        @endif
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($entradaUsd as $tx)
+                                        @php
+                                            $lotesSellUsd = collect($preSellsByUsdTx[$tx->id] ?? []);
+                                            $usdDetalhesData = [
+                                                'type'      => 'entrada_usd',
+                                                'data'      => $tx->created_at->format('d/m/Y H:i'),
+                                                'usd_total' => number_format($tx->amount, 2, ',', '.'),
+                                                'taxa'      => $tx->exchange_rate ? number_format($tx->exchange_rate, 4, ',', '.') : null,
+                                                'fontes'    => $lotesSellUsd->map(fn($l) => [
+                                                    'deposito_data' => $l->sourceTransaction?->created_at?->format('d/m/Y H:i') ?? '-',
+                                                    'deposito_id'   => $l->source_transaction_id,
+                                                    'brl'  => number_format($l->brl_amount, 2, ',', '.'),
+                                                    'taxa' => number_format($l->sell_rate, 4, ',', '.'),
+                                                    'usd'  => number_format($l->usd_amount, 2, ',', '.'),
+                                                ])->values()->toArray(),
+                                            ];
+                                        @endphp
+                                        <tr>
+                                            <td>{{ $tx->created_at->format('d/m/Y H:i') }}</td>
+                                            <td class="fw-bold text-success text-end">
+                                                {{ number_format($tx->amount, 2, ',', '.') }}
+                                            </td>
+                                            <td class="text-end">
+                                                @if($tx->exchange_rate)
+                                                    {{ number_format($tx->exchange_rate, 4, ',', '.') }}
+                                                @else
+                                                    <span class="text-muted">—</span>
+                                                @endif
+                                            </td>
+                                            <td>{{ $tx->description ?? '-' }}</td>
+                                            @if($canViewPnl)
+                                                <td class="text-center">
+                                                    @php
+                                                        $pnlBrl = $tx->realized_pnl_brl;
+                                                        $pnlUsd = $tx->realized_pnl_usd;
+                                                    @endphp
+                                                    @if($pnlBrl !== null || $pnlUsd !== null)
+                                                        @php
+                                                            $vBrl = (float) ($pnlBrl ?? 0);
+                                                            $vUsd = (float) ($pnlUsd ?? 0);
+                                                            $color = $vBrl > 0 ? 'text-success' : ($vBrl < 0 ? 'text-danger' : 'text-muted');
+                                                            $sign = $vBrl > 0 ? '+' : '';
+                                                            $tip = 'PnL: ' . $sign . 'R$ ' . number_format($vBrl, 2, ',', '.') .
+                                                                ' (' . $sign . 'US$ ' . number_format($vUsd, 4, ',', '.') . ')';
+                                                        @endphp
+                                                        <i class="ri-information-line {{ $color }}" data-bs-toggle="tooltip"
+                                                            data-bs-placement="left" title="{{ $tip }}"></i>
+                                                    @else
+                                                        <span class="text-muted">—</span>
+                                                    @endif
+                                                </td>
+                                            @endif
+                                            @if(Auth::user()->hasModule('wallet.delete'))
+                                                <td>
+                                                    @php
+                                                        $isUsdDepositReversible = $tx->type === 'deposit'
+                                                            && $tx->currency === 'USD'
+                                                            && in_array((string) ($tx->payment_method ?? ''), ['efetivo', 'usdt'], true);
+                                                        $usdSnaps = collect($reversalsByAnchor[$tx->id] ?? [])
+                                                            ->filter(fn($snap) => in_array($snap->type, ['deposit_usd'], true));
+                                                    @endphp
+                                                    @if($isUsdDepositReversible && $usdSnaps->isNotEmpty())
+                                                        <form id="form-usd-{{ $tx->id }}" method="POST"
+                                                            action="{{ route('admin.wallet.operations.reverse-many') }}"
+                                                            onsubmit="const m=prompt('Motivo da reversão da entrada USD (opcional):','');if(m===null)return false;this.querySelector('input[name=reason]').value=m;return confirm('Reverter esta entrada USD?');">
+                                                            @csrf
+                                                            <input type="hidden" name="reason" value="">
+                                                            @foreach($usdSnaps as $s)
+                                                                <input type="hidden" name="snapshot_ids[]" value="{{ $s->id }}">
+                                                            @endforeach
+                                                        </form>
+                                                    @endif
+                                                    <div class="dropdown">
+                                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                                                            data-bs-toggle="dropdown" aria-expanded="false">
+                                                            <i class="ri-more-2-fill"></i>
+                                                        </button>
+                                                        <ul class="dropdown-menu dropdown-menu-end">
+                                                            <li>
+                                                                <button type="button"
+                                                                    class="dropdown-item"
+                                                                    data-bs-toggle="modal"
+                                                                    data-bs-target="#detalhesOperacaoModal"
+                                                                    data-detalhes="{{ json_encode($usdDetalhesData) }}">
+                                                                    <i class="ri-information-line me-1 text-info"></i>Ver detalhes
+                                                                </button>
+                                                            </li>
+                                                            @if($isUsdDepositReversible && $usdSnaps->isNotEmpty())
+                                                                <li><hr class="dropdown-divider"></li>
+                                                                <li>
+                                                                    <button class="dropdown-item" type="submit"
+                                                                        form="form-usd-{{ $tx->id }}"
+                                                                        title="Reverte esta entrada (depósito) em USD">
+                                                                        <i class="ri-arrow-go-back-line me-1 text-danger"></i>Reverter entrada
+                                                                    </button>
+                                                                </li>
+                                                            @endif
+                                                        </ul>
+                                                    </div>
+                                                </td>
+                                            @endif
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="{{ ($canViewPnl ? 5 : 4) + (Auth::user()->hasModule('wallet.delete') ? 1 : 0) }}"
+                                                class="text-center">Sem registros.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                                @php
+                                    $totalEntradaUsdFoot = $entradaUsd->sum('amount');
+                                @endphp
+                                <tfoot class="table-group-divider fw-bold small">
+                                    <tr>
+                                        <td class="text-muted">Total</td>
+                                        <td class="text-end">{{ number_format($totalEntradaUsdFoot, 2, ',', '.') }}</td>
+                                        <td></td>
+                                        <td></td>
+                                        @if($canViewPnl)
+                                            <td></td>
+                                        @endif
+                                        @if(Auth::user()->hasModule('wallet.delete'))
+                                            <td></td>
+                                        @endif
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <style>
+        .wallet-compact {
+            zoom: 0.9;
+        }
+
+        .wallet-compact .table th,
+        .wallet-compact .table td {
+            font-size: 0.85rem !important;
+            padding: 0.18rem 0.35rem !important;
+        }
+
+        .wallet-compact .table td.fw-bold,
+        .wallet-compact .table td.text-success,
+        .wallet-compact .table td.text-danger {
+            text-align: right !important;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Cores de status */
+        .table-warning {
+            background-color: #fff3cd !important;
+        }
+
+        .table-warning:hover {
+            background-color: #ffe69c !important;
+        }
+
+        .table-success {
+            background-color: #d1f2eb !important;
+        }
+
+        .table-success:hover {
+            background-color: #b6e9dd !important;
+        }
+
+        .table-danger {
+            background-color: #f8d7da !important;
+        }
+
+        .table-danger:hover {
+            background-color: #f5c6cb !important;
+        }
+
+        .table-light {
+            background-color: #f8f9fa !important;
+            /* opacity: 0.7; */
+        }
+
+        /* Input desabilitado em linha finalizada */
+        .table-light input:disabled {
+            background-color: #e9ecef !important;
+            color: #6c757d !important;
+            cursor: not-allowed !important;
+            opacity: 0.5;
+            pointer-events: none !important;
+        }
+
+        .table-light input:disabled::placeholder {
+            color: #adb5bd !important;
+        }
+
+        .table-light input[type="checkbox"]:disabled {
+            cursor: not-allowed !important;
+            opacity: 0.3;
+            pointer-events: none !important;
+        }
+
+        /* Seleção por clique-e-arraste (estilo Excel) na coluna de checkbox das entradas */
+        .entrada-select-item {
+            cursor: pointer;
+        }
+
+        body.wallet-drag-selecting {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body.wallet-drag-selecting .entrada-select-item {
+            cursor: grabbing;
+        }
+
+        /* Linha de depósito que possui pré-compra parcial pelo dono */
+        .table-pre-purchased {
+            background-color: #d4edda !important;
+        }
+
+        .table-pre-purchased:hover {
+            background-color: #c3e6cb !important;
+        }
+
+        /* Pré-venda registrada */
+        .table-pre-sold {
+            background-color: #f8d7da !important;
+        }
+
+        .table-pre-sold:hover {
+            background-color: #f5c6cb !important;
+        }
+
+        /* Pré-compra E pré-venda completas (pronto p/ fechar) */
+        .table-info-pronto {
+            background-color: #cfe9fb !important;
+            border-left: 3px solid #0d6efd !important;
+        }
+
+        .table-info-pronto:hover {
+            background-color: #b6dffb !important;
+        }
+
+        /* Badges nas linhas: separador visual */
+        td .badge {
+            margin-left: 4px;
+            font-weight: 500;
+        }
+
+        td .badge small {
+            font-weight: 400;
+            opacity: .85;
+            margin-left: 2px;
+        }
+
+        /* Separadores horizontais sutis (substitui table-bordered) */
+        .wallet-compact .table tbody tr {
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .wallet-compact .table thead th {
+            border-bottom-width: 2px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        .wallet-compact tfoot td {
+            border-top: 2px solid rgba(0, 0, 0, 0.12) !important;
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+
+        /* Seleção estilo Excel */
+        .wallet-compact .table thead th.xls-th-selectable {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .wallet-compact .table thead th.xls-th-selectable:hover {
+            filter: brightness(0.93);
+        }
+
+        .wallet-compact .table tbody td.xls-selectable {
+            cursor: cell;
+            user-select: none;
+        }
+
+        .xls-selected {
+            background-color: rgba(19, 102, 219, 0.13) !important;
+            box-shadow: inset 0 0 0 1px rgba(19, 102, 219, 0.55);
+            position: relative;
+            z-index: 1;
+        }
+
+        #xls-copy-toast {
+            position: fixed;
+            bottom: 32px;
+            right: 22px;
+            background: #198754;
+            color: #fff;
+            padding: 7px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            z-index: 9999;
+            pointer-events: none;
+            transition: opacity .3s;
+            opacity: 0;
+        }
+
+        #xls-status-bar {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            /* left é definido dinamicamente pelo JS para respeitar o aside */
+            background: #e9ecef;
+            border-top: 1px solid #ced4da;
+            padding: 4px 20px;
+            font-size: 12px;
+            color: #495057;
+            display: none;
+            gap: 0;
+            align-items: center;
+            z-index: 998;
+            user-select: none;
+        }
+
+        #xls-status-bar span {
+            padding: 0 14px;
+            border-right: 1px solid #ced4da;
+            line-height: 1.6;
+        }
+
+        #xls-status-bar span:first-child {
+            padding-left: 0;
+        }
+
+        #xls-status-bar span:last-child {
+            border-right: none;
+        }
+
+        /* Modo tela cheia — esconde tudo exceto o conteúdo da carteira */
+        body.wallet-fullscreen #page-topbar,
+        body.wallet-fullscreen .app-menu.navbar-menu,
+        body.wallet-fullscreen .footer,
+        body.wallet-fullscreen .page-title-box,
+        body.wallet-fullscreen #back-to-top {
+            display: none !important;
+        }
+
+        body.wallet-fullscreen .main-content {
+            margin-left: 0 !important;
+        }
+
+        body.wallet-fullscreen .page-content {
+            padding: 10px 16px 10px !important;
+        }
+    </style>
+    <!-- Modal Vender DÓLAR ANTECIPADO (cria lote de pré-venda — fixa a taxa cobrada do cliente) -->
+    <div class="modal fade" id="venderDolarAntecipadoModal" tabindex="-1" aria-labelledby="venderDolarAntecipadoLabel"
+        aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="venderDolarAntecipadoForm" method="POST" action="{{ route('admin.wallet.pre-sell-dollar') }}">
+                    @csrf
+                    <input type="hidden" name="client_id" value="{{ $client->id }}">
+                    <div id="vender_ant_transaction_ids_container"></div>
+                    <div class="modal-header bg-danger-subtle">
+                        <h5 class="modal-title" id="venderDolarAntecipadoLabel">
+                            <i class="ri-arrow-up-circle-line me-1"></i>Vender DÓLAR (pré-venda)
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info py-2 small mb-3">
+                            Esta operação <strong>não altera o saldo do cliente</strong>. Apenas reserva R$
+                            dos depósitos selecionados (FIFO) e fixa a <strong>taxa que será cobrada</strong>
+                            do cliente no fechamento. O lucro/prejuízo aparece quando o R$ for fechado.
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label d-flex justify-content-between">
+                                <span>Taxa de venda ao cliente</span>
+                                <small class="ms-auto small" id="venda_ant_taxa_status"></small>
+                            </label>
+                            <input type="number" step="0.0001" min="0.0001" name="sell_rate" id="venda_ant_taxa"
+                                class="form-control" required>
+                            <small class="text-muted d-block mt-1">
+                                Cotação base do Investing + spread do cliente
+                                (<strong>{{ $client->spread_points }}</strong> pts).
+                                <span id="venda_ant_disponivel" class="ms-2">Disp. seleção: R$ <span
+                                        id="venda_ant_disp_valor">0,00</span></span>
+                            </small>
+                        </div>
+
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label">Valor a vender (R$)</label>
+                                <input type="number" step="0.01" min="0.01" name="amount" id="venda_ant_brl"
+                                    class="form-control" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">USD que será entregue</label>
+                                <input type="number" step="0.0001" min="0.0001" id="venda_ant_usd" class="form-control"
+                                    required>
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mt-1">
+                            <div class="col-12">
+                                <label for="venda_ant_payment_method" class="form-label">Tipo de envio</label>
+                                <select name="payment_method" id="venda_ant_payment_method" class="form-select" required>
+                                    <option value="usdt" selected>USDT</option>
+                                    <option value="efetivo">Efetivo</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3 mt-3">
+                            <label class="form-label">Observação (opcional)</label>
+                            <input type="text" name="description" id="venda_ant_descricao" class="form-control"
+                                placeholder="Ex.: vendi dólar antecipado, etc.">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="ri-check-line me-1"></i>Confirmar pré-venda
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Modal Vender DÓLAR antecipado — espelho do Comprar.
+        document.addEventListener('DOMContentLoaded', function () {
+            var btn = document.getElementById('btn-vender-dolar-ant');
+            var modal = document.getElementById('venderDolarAntecipadoModal');
+            var form = document.getElementById('venderDolarAntecipadoForm');
+            var taxa = document.getElementById('venda_ant_taxa');
+            var brl = document.getElementById('venda_ant_brl');
+            var usd = document.getElementById('venda_ant_usd');
+            var desc = document.getElementById('venda_ant_descricao');
+            var dispEl = document.getElementById('venda_ant_disp_valor');
+            var paymentMethod = document.getElementById('venda_ant_payment_method');
+
+            var disp = 0; var sync = false;
+
+            function updateDesc() {
+                if (!desc) return;
+
+                var b = parseFloat(brl.value);
+                var t = parseFloat(taxa.value);
+
+                var metodo = paymentMethod ? paymentMethod.options[paymentMethod.selectedIndex].text : '';
+
+                desc.value = 'Venda DÓLAR (R$ ' +
+                    (b > 0 ? b : 0).toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }) +
+                    ' @ ' + (t > 0 ? t.toFixed(4) : 'N/A') +
+                    ') ' + metodo;
+            }
+            function recalcUsd() {
+                if (sync) return;
+                var t = parseFloat(taxa.value), b = parseFloat(brl.value);
+                if (t > 0 && b > 0) { sync = true; usd.value = (b / t).toFixed(4); sync = false; }
+                updateDesc();
+            }
+            function recalcBrl() {
+                if (sync) return;
+                var t = parseFloat(taxa.value), u = parseFloat(usd.value);
+                if (t > 0 && u > 0) { sync = true; brl.value = (u * t).toFixed(2); sync = false; }
+                updateDesc();
+            }
+            if (paymentMethod) {
+                paymentMethod.addEventListener('change', updateDesc);
+            }
+            if (brl) brl.addEventListener('input', recalcUsd);
+            if (usd) usd.addEventListener('input', recalcBrl);
+            if (taxa) taxa.addEventListener('input', recalcUsd);
+
+            if (btn) {
+                btn.addEventListener('click', function () {
+                    var checked = Array.from(document.querySelectorAll('.entrada-select-item:checked'));
+                    disp = 0;
+                    var hidden = document.getElementById('vender_ant_transaction_ids_container');
+                    if (hidden) hidden.innerHTML = '';
+
+                    if (checked.length > 0) {
+                        checked.forEach(function (cb) {
+                            var row = cb.closest('tr');
+                            disp += parseFloat(row.getAttribute('data-brl-livre-venda')) || 0;
+                            if (hidden) {
+                                var i = document.createElement('input');
+                                i.type = 'hidden'; i.name = 'transaction_ids[]'; i.value = cb.value;
+                                hidden.appendChild(i);
+                            }
+                        });
+                    } else {
+                        document.querySelectorAll('.entrada-select-item').forEach(function (cb) {
+                            if (cb.disabled) return;
+                            disp += parseFloat(cb.closest('tr').getAttribute('data-brl-livre-venda')) || 0;
+                        });
+                    }
+                    disp = Math.round(disp * 100) / 100;
+                    dispEl.textContent = disp.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+                    var bulkRateInput = document.querySelector('#bulk_rate_form input[name="exchange_rate"]');
+                    var sug = bulkRateInput ? parseFloat(bulkRateInput.value) : 0;
+                    if (sug > 0 && (!taxa.value || parseFloat(taxa.value) <= 0)) {
+                        taxa.value = sug.toFixed(4);
+                    }
+
+                    brl.max = disp.toFixed(2);
+                    brl.value = disp.toFixed(2);
+                    recalcUsd();
+                });
+            }
+            if (form) {
+                form.addEventListener('submit', function (e) {
+                    var t = parseFloat(taxa.value), b = parseFloat(brl.value);
+                    if (!(t > 0)) { e.preventDefault(); alert('Informe uma taxa válida.'); return; }
+                    if (!(b > 0)) { e.preventDefault(); alert('Informe o valor em R$.'); return; }
+                    if (disp > 0 && b > disp + 0.005) {
+                        e.preventDefault();
+                        alert('Valor maior que o disponível para pré-venda (R$ ' +
+                            disp.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + ').');
+                    }
+                });
+            }
+        });
+    </script>
+
+    <!-- Modal Comprar Dólar (pré-compra pelo dono — não altera saldo do cliente) -->
+    <div class="modal fade" id="comprarDolarModal" tabindex="-1" aria-labelledby="comprarDolarModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="comprarDolarForm" method="POST" action="{{ route('admin.wallet.pre-purchase-dollar') }}">
+                    @csrf
+                    <input type="hidden" name="client_id" value="{{ $client->id }}">
+                    <div id="comprar_transaction_ids_container"></div>
+                    <div class="modal-header bg-success-subtle">
+                        <h5 class="modal-title" id="comprarDolarModalLabel">
+                            <i class="ri-shopping-cart-2-line me-1"></i>Comprar DÓLAR (pré-compra)
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info py-2 small mb-3">
+                            Esta operação <strong>não altera o saldo do cliente</strong>. Apenas reserva
+                            R$ dos depósitos selecionados (FIFO) e registra que o dono comprou USD a essa taxa.
+                            O lucro/prejuízo será calculado quando o cliente fechar o BRL no fechamento real.
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label d-flex justify-content-between">
+                                <span>Taxa de compra</span>
+                                <small class="ms-auto small" id="comprar_taxa_status"></small>
+                            </label>
+                            <input type="number" step="0.000001" min="0.000001" name="exchange_rate" id="comprar_taxa"
+                                class="form-control" required>
+                            <small class="text-muted d-block mt-1">
+                                Cotação base do Investing + spread do cliente
+                                (<strong>{{ $client->spread_points }}</strong> pts = R$
+                                {{ number_format($client->spread_points * 0.01, 2, ',', '.') }}).
+                                <span id="comprar_disponivel" class="ms-2">Disp. seleção: R$ <span
+                                        id="comprar_disp_valor">0,00</span></span>
+                            </small>
+                        </div>
+
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label">Valor a comprar (R$)</label>
+                                <input type="number" step="0.01" min="0.01" name="amount" id="comprar_brl"
+                                    class="form-control" required>
+                                <small class="text-muted">Será reservado dos depósitos abertos (FIFO).</small>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">USD comprado</label>
+                                <input type="number" step="0.01" min="0.01" id="comprar_usd" class="form-control" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3 mt-3">
+                            <label class="form-label">Observação (opcional)</label>
+                            <input type="text" name="description" id="comprar_descricao" class="form-control"
+                                placeholder="Ex.: comprei dólar antecipado, USDT, etc.">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="ri-check-line me-1"></i>Confirmar compra
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Modal Comprar Dólar — sincronização BRL/USD/Taxa e cálculo do disponível na seleção.
+        document.addEventListener('DOMContentLoaded', function () {
+            var comprarBtn = document.getElementById('btn-comprar-dolar');
+            var comprarModal = document.getElementById('comprarDolarModal');
+            var comprarForm = document.getElementById('comprarDolarForm');
+            var comprarTaxa = document.getElementById('comprar_taxa');
+            var comprarBrl = document.getElementById('comprar_brl');
+            var comprarUsd = document.getElementById('comprar_usd');
+            var comprarDescricao = document.getElementById('comprar_descricao');
+            var comprarDispValor = document.getElementById('comprar_disp_valor');
+
+            var dispBrlSelecao = 0;
+            var sync = false;
+
+            function updateComprarDescricao() {
+                if (!comprarDescricao) return;
+                var b = parseFloat(comprarBrl.value);
+                var t = parseFloat(comprarTaxa.value);
+                var brlFmt = (b > 0 ? b : 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                var taxaFmt = (t > 0 ? t.toFixed(4) : 'N/A');
+                comprarDescricao.value = 'Compra DÓLAR (R$ ' + brlFmt + ' @ ' + taxaFmt + ')';
+            }
+
+            function recalcUsd() {
+                if (sync) return;
+                var t = parseFloat(comprarTaxa.value);
+                var b = parseFloat(comprarBrl.value);
+                if (t > 0 && b > 0) {
+                    sync = true;
+                    comprarUsd.value = (b / t).toFixed(2);
+                    sync = false;
+                }
+                updateComprarDescricao();
+            }
+
+            function recalcBrl() {
+                if (sync) return;
+                var t = parseFloat(comprarTaxa.value);
+                var u = parseFloat(comprarUsd.value);
+                if (t > 0 && u > 0) {
+                    sync = true;
+                    comprarBrl.value = (u * t).toFixed(2);
+                    sync = false;
+                }
+                updateComprarDescricao();
+            }
+
+            if (comprarBrl) comprarBrl.addEventListener('input', recalcUsd);
+            if (comprarUsd) comprarUsd.addEventListener('input', recalcBrl);
+            if (comprarTaxa) comprarTaxa.addEventListener('input', recalcUsd);
+
+            if (comprarBtn) {
+                comprarBtn.addEventListener('click', function () {
+                    var checked = Array.from(document.querySelectorAll('.entrada-select-item:checked'));
+                    dispBrlSelecao = 0;
+
+                    // Popular hidden inputs transaction_ids[] com a seleção atual
+                    // (back-end usa esses IDs como pool da pré-compra; sem seleção cai em FIFO global).
+                    var hiddenContainer = document.getElementById('comprar_transaction_ids_container');
+                    if (hiddenContainer) hiddenContainer.innerHTML = '';
+
+                    if (checked.length > 0) {
+                        checked.forEach(function (cb) {
+                            var row = cb.closest('tr');
+                            var livre = parseFloat(row.getAttribute('data-brl-livre-compra')) || 0;
+                            dispBrlSelecao += livre;
+
+                            if (hiddenContainer) {
+                                var input = document.createElement('input');
+                                input.type = 'hidden';
+                                input.name = 'transaction_ids[]';
+                                input.value = cb.value;
+                                hiddenContainer.appendChild(input);
+                            }
+                        });
+                    } else {
+                        // Sem seleção: pega TODOS os depósitos abertos (livre).
+                        document.querySelectorAll('#bulk_rate_form ~ * .entrada-select-item, .entrada-select-item').forEach(function (cb) {
+                            if (cb.disabled) return;
+                            var row = cb.closest('tr');
+                            var livre = parseFloat(row.getAttribute('data-brl-livre-compra')) || 0;
+                            dispBrlSelecao += livre;
+                        });
+                    }
+
+                    dispBrlSelecao = Math.round(dispBrlSelecao * 100) / 100;
+                    comprarDispValor.textContent = dispBrlSelecao.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+                    var bulkRateInput = document.querySelector('#bulk_rate_form input[name="exchange_rate"]');
+                    var taxaSugerida = bulkRateInput ? parseFloat(bulkRateInput.value) : 0;
+                    if (taxaSugerida > 0) comprarTaxa.value = taxaSugerida;
+
+                    comprarBrl.max = dispBrlSelecao.toFixed(2);
+                    comprarBrl.value = dispBrlSelecao.toFixed(2);
+                    recalcUsd();
+                    updateComprarDescricao();
+                });
+            }
+
+            if (comprarForm) {
+                comprarForm.addEventListener('submit', function (e) {
+                    var t = parseFloat(comprarTaxa.value);
+                    var b = parseFloat(comprarBrl.value);
+                    if (!(t > 0)) { e.preventDefault(); alert('Informe uma taxa válida.'); return; }
+                    if (!(b > 0)) { e.preventDefault(); alert('Informe o valor em R$.'); return; }
+                    if (dispBrlSelecao > 0 && b > dispBrlSelecao + 0.005) {
+                        e.preventDefault();
+                        alert('Valor maior que o disponível (R$ ' +
+                            dispBrlSelecao.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + ').');
+                    }
+                });
+            }
+        });
+    </script>
+    <!-- Modal Fechar em Dólar -->
+    <div class="modal fade" id="fecharDolarModal" tabindex="-1" aria-labelledby="fecharDolarModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="fecharDolarForm" method="POST" action="{{ route('admin.wallet.fechamento-dolar') }}">
+                    @csrf
+                    <input type="hidden" name="client_id" value="{{ $client->id }}">
+                    <input type="hidden" name="exchange_rate" id="fechar_exchange_rate">
+                    <input type="hidden" name="transaction_ids" id="fechar_transaction_ids">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="fecharDolarModalLabel">Fechar em dólar</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="fechar_data" class="form-label">Data</label>
+                            <input type="datetime-local" name="date" id="fechar_data" class="form-control" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="fechar_taxa" class="form-label d-flex justify-content-between">
+                                <span>Taxa de conversão</span>
+                                <small class="ms-auto small" id="fechar_taxa_status"></small>
+                            </label>
+                            <input type="number" step="0.000001" min="0.000001" id="fechar_taxa" class="form-control"
+                                required>
+                            <small class="text-muted d-block mt-1">
+                                Cotação base do Investing + spread do cliente
+                                (<strong>{{ $client->spread_points }}</strong> pts = R$
+                                {{ number_format($client->spread_points * 0.01, 2, ',', '.') }}).
+                                <span id="fechar_disponivel" class="ms-2"></span>
+                            </small>
+                        </div>
+
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label for="fechar_brl" class="form-label">Valor a converter (R$)</label>
+                                <input type="number" step="0.01" min="0.01" name="amount" id="fechar_brl"
+                                    class="form-control" required>
+                                <small class="text-muted">
+                                    Se for menor que o total selecionado, o registro mais antigo será
+                                    quebrado em dois (parte finalizada + sobra).
+                                </small>
+                            </div>
+                            <div class="col-6">
+                                <label for="fechar_usd" class="form-label">Valor convertido (US$)</label>
+                                <input type="number" step="0.01" min="0.01" id="fechar_usd" class="form-control" required>
+                                <small class="text-muted">
+                                    Pode editar — atualiza R$ usando a taxa.
+                                </small>
+                            </div>
+                        </div>
+
+                        @if($canViewPnl)
+                            {{-- Preview de PnL: visão do admin separando lucro da compra e da venda --}}
+                            <div class="alert alert-secondary mt-3 mb-2 py-2 small" id="fechar_pnl_preview">
+                                <div class="fw-bold mb-1"><i class="ri-eye-line me-1"></i>Resumo da operação (admin):</div>
+                                <div class="row g-1">
+                                    <div class="col-6">
+                                        <div class="d-flex justify-content-between">
+                                            <span class="text-muted"><i class="ri-arrow-down-circle-line text-success"></i>
+                                                Comprou:</span>
+                                            <span><strong id="prev_compra_usd">—</strong> @ <span
+                                                    id="prev_compra_taxa">—</span></span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span class="text-muted">Custo R$:</span>
+                                            <span id="prev_compra_brl">—</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="d-flex justify-content-between">
+                                            <span class="text-muted"><i class="ri-arrow-up-circle-line text-danger"></i>
+                                                Venderá:</span>
+                                            <span><strong id="prev_venda_usd">—</strong> @ <span
+                                                    id="prev_venda_taxa">—</span></span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span class="text-muted">Receita R$:</span>
+                                            <span id="prev_venda_brl">—</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <hr class="my-1">
+                                <div class="d-flex justify-content-between fw-bold">
+                                    <span>Lucro estimado:</span>
+                                    <span id="prev_pnl">—</span>
+                                </div>
+                            </div>
+                        @endif
+
+                        <div class="mb-3 mt-3">
+                            <label for="fechar_descricao" class="form-label">Descrição (vista pelo cliente)</label>
+                            <input type="text" name="description" id="fechar_descricao" class="form-control"
+                                value="Fechamento Tx" required>
+                            <small class="text-muted">
+                                A "Entrada U$" do cliente mostra apenas a taxa de venda — sem custo.
+                            </small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">Confirmar Fechamento</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fechar em dólar: preencher modal com dados das linhas selecionadas + sincronização BRL/USD/Taxa
+        document.addEventListener('DOMContentLoaded', function () {
+            var fecharBtn = document.getElementById('btn-fechar-dolar');
+            var fecharModal = document.getElementById('fecharDolarModal');
+            var fecharForm = document.getElementById('fecharDolarForm');
+            var fecharData = document.getElementById('fechar_data');
+            var fecharTaxa = document.getElementById('fechar_taxa');
+            var fecharBrl = document.getElementById('fechar_brl');
+            var fecharUsd = document.getElementById('fechar_usd');
+            var fecharDescricao = document.getElementById('fechar_descricao');
+            var fecharExchangeRate = document.getElementById('fechar_exchange_rate');
+            var fecharTransactionIds = document.getElementById('fechar_transaction_ids');
+            var fecharDisponivel = document.getElementById('fechar_disponivel');
+
+            var totalDisponivelBrl = 0;
+            var syncing = false; // evita loop entre os listeners
+
+            function parseNumber(v) {
+                if (typeof v !== 'string') v = String(v);
+                v = v.replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+                var n = parseFloat(v);
+                return isNaN(n) ? 0 : n;
+            }
+
+            function updateFecharDescricao() {
+                var brl = parseFloat(fecharBrl.value);
+                var taxa = parseFloat(fecharTaxa.value);
+
+                fecharDescricao.value = 'Fechamento Tx (R$ ' +
+                    (brl > 0 ? brl : totalDisponivelBrl).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) +
+                    ' @ ' + (taxa > 0 ? taxa.toFixed(4) : 'N/A') + ')';
+            }
+
+            function recalcFromBrl() {
+                if (syncing) return;
+                var taxa = parseFloat(fecharTaxa.value);
+                var brl = parseFloat(fecharBrl.value);
+                if (taxa > 0 && brl > 0) {
+                    syncing = true;
+                    fecharUsd.value = (brl / taxa).toFixed(2);
+                    syncing = false;
+                }
+                updateFecharDescricao();
+            }
+
+            function recalcFromUsd() {
+                if (syncing) return;
+                var taxa = parseFloat(fecharTaxa.value);
+                var usd = parseFloat(fecharUsd.value);
+                if (taxa > 0 && usd > 0) {
+                    syncing = true;
+                    fecharBrl.value = (usd * taxa).toFixed(2);
+                    syncing = false;
+                }
+                updateFecharDescricao();
+            }
+
+            function onTaxaChange() {
+                // Ao mudar a taxa, recalcula USD a partir do BRL atual.
+                recalcFromBrl();
+                updateFecharDescricao();
+            }
+
+            fecharBrl.addEventListener('input', recalcFromBrl);
+            fecharUsd.addEventListener('input', recalcFromUsd);
+            fecharTaxa.addEventListener('input', onTaxaChange);
+
+            if (fecharBtn && fecharModal) {
+                fecharBtn.addEventListener('click', function () {
+                    var checked = Array.from(document.querySelectorAll('.entrada-select-item:checked'));
+                    if (checked.length === 0) {
+                        alert('Selecione pelo menos uma entrada para fechar.');
+                        return;
+                    }
+
+                    // Pega taxa do controle de "Aplicar taxa" (acima da tabela), com fallback.
+                    var bulkRateInput = document.querySelector('#bulk_rate_form input[name="exchange_rate"]');
+                    var taxaSugerida = bulkRateInput ? parseFloat(bulkRateInput.value) : 0;
+
+                    var totalBrl = 0;
+                    var maxData = null;
+                    // Acumula pré-compra/venda das linhas selecionadas para o preview.
+                    var totalPreCompraBrl = 0, totalPreVendaBrl = 0;
+                    var pondCompraBrl = 0, pondCompraUsd = 0; // para taxa média compra
+                    var pondVendaBrl = 0, pondVendaUsd = 0;   // para taxa média venda
+
+                    checked.forEach(function (cb) {
+                        var row = cb.closest('tr');
+                        var valorTxt = row.querySelector('.fw-bold.text-success').textContent;
+                        var valor = parseNumber(valorTxt);
+                        totalBrl += valor;
+
+                        var preBrl = parseFloat(row.getAttribute('data-pre-purchased')) || 0;
+                        var sldBrl = parseFloat(row.getAttribute('data-pre-sold')) || 0;
+                        totalPreCompraBrl += preBrl;
+                        totalPreVendaBrl += sldBrl;
+                        // Estimativa pela taxa média via badge "C: x @ y" / "V: x @ y"
+                        var badges = row.querySelectorAll('.badge');
+                        badges.forEach(function (b) {
+                            var m = b.textContent.match(/([CV]):\s*([\d.,]+)\s*@\s*([\d.,]+)/);
+                            if (!m) return;
+                            var v = parseNumber(m[2]);
+                            var tx = parseNumber(m[3]);
+                            if (tx <= 0) return;
+                            if (m[1] === 'C') { pondCompraBrl += v; pondCompraUsd += v / tx; }
+                            else { pondVendaBrl += v; pondVendaUsd += v / tx; }
+                        });
+
+                        // Pega a data
+                        var dataStr = row.querySelector('td:nth-child(2)').textContent.trim();
+                        var match = dataStr.match(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})/);
+                        if (match) {
+                            var dt = new Date(match[3] + '-' + match[2] + '-' + match[1] + 'T' + match[4] + ':' + match[5]);
+                            if (!maxData || dt > maxData) maxData = dt;
+                        }
+
+                        if (!taxaSugerida || taxaSugerida <= 0) {
+                            var rowRate = parseFloat(row.getAttribute('data-rate'));
+                            if (rowRate > 0) taxaSugerida = rowRate;
+                        }
+                    });
+
+                    totalDisponivelBrl = Math.round(totalBrl * 100) / 100;
+                    fecharDisponivel.textContent =
+                        'Disponível: R$ ' + totalDisponivelBrl.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+                    fecharBrl.max = totalDisponivelBrl.toFixed(2);
+                    fecharBrl.value = totalDisponivelBrl.toFixed(2);
+                    fecharTaxa.value = (taxaSugerida && taxaSugerida > 0) ? taxaSugerida : '';
+
+                    // Guarda totais para o preview de PnL.
+                    window._fecharPreview = {
+                        totalBrl: totalDisponivelBrl,
+                        preCompraBrl: Math.round(totalPreCompraBrl * 100) / 100,
+                        preVendaBrl: Math.round(totalPreVendaBrl * 100) / 100,
+                        pondCompraBrl: pondCompraBrl, pondCompraUsd: pondCompraUsd,
+                        pondVendaBrl: pondVendaBrl, pondVendaUsd: pondVendaUsd
+                    };
+
+                    recalcFromBrl();
+                    if ({{ $canViewPnl ? 'true' : 'false' }}) {
+                        updatePnlPreview();
+                    }
+
+                    fecharTransactionIds.value = checked.map(function (cb) { return cb.value; }).join(',');
+
+                    if (maxData) {
+                        var tzOffset = maxData.getTimezoneOffset() * 60000;
+                        fecharData.value = new Date(maxData - tzOffset).toISOString().slice(0, 16);
+                    } else {
+                        fecharData.value = '';
+                    }
+
+                    updateFecharDescricao();
+                });
+            }
+
+            // Calcula preview de lucro = (receita venda) - (custo compra), em R$ e US$.
+            function updatePnlPreview() {
+                var p = window._fecharPreview;
+                if (!p) return;
+                var newRate = parseFloat(fecharTaxa.value) || 0;
+                var brlFechar = parseFloat(fecharBrl.value) || p.totalBrl;
+
+                // R$ que tem compra registrada (limitado pelo R$ a fechar)
+                var brlComCompra = Math.min(p.preCompraBrl, brlFechar);
+                var brlSemCompra = Math.max(0, brlFechar - brlComCompra);
+                // R$ que tem venda registrada
+                var brlComVenda = Math.min(p.preVendaBrl, brlFechar);
+                var brlSemVenda = Math.max(0, brlFechar - brlComVenda);
+
+                // USD comprado: lotes (taxa média) + residual à newRate
+                var taxaMediaCompra = p.pondCompraUsd > 0 ? (p.pondCompraBrl / p.pondCompraUsd) : newRate;
+                var taxaMediaVenda = p.pondVendaUsd > 0 ? (p.pondVendaBrl / p.pondVendaUsd) : newRate;
+
+                var usdLoteCompra = (taxaMediaCompra > 0 && brlComCompra > 0)
+                    ? Math.min(p.pondCompraUsd, brlComCompra / taxaMediaCompra) : 0;
+                var usdLoteVenda = (taxaMediaVenda > 0 && brlComVenda > 0)
+                    ? Math.min(p.pondVendaUsd, brlComVenda / taxaMediaVenda) : 0;
+
+                var usdResCompra = (newRate > 0 && brlSemCompra > 0) ? brlSemCompra / newRate : 0;
+                var usdResVenda = (newRate > 0 && brlSemVenda > 0) ? brlSemVenda / newRate : 0;
+
+                var totalUsdComprado = usdLoteCompra + usdResCompra;
+                var totalUsdVendido = usdLoteVenda + usdResVenda;
+                var custoBrl = (usdLoteCompra * taxaMediaCompra) + (usdResCompra * newRate);
+                var receitaBrl = (usdLoteVenda * taxaMediaVenda) + (usdResVenda * newRate);
+
+                var pnlBrl = receitaBrl - custoBrl;
+                // PnL em USD: lucro do dono em dólares = USD comprado - USD entregue
+                var pnlUsd = totalUsdComprado - totalUsdVendido;
+
+                var fmt = function (v, d) {
+                    return v.toLocaleString('pt-BR', { minimumFractionDigits: d || 2, maximumFractionDigits: d || 2 });
+                };
+                var setText = function (id, t) { var el = document.getElementById(id); if (el) el.textContent = t; };
+
+                setText('prev_compra_usd', 'US$ ' + fmt(totalUsdComprado));
+                setText('prev_compra_taxa', (taxaMediaCompra > 0 ? fmt(taxaMediaCompra, 4) : '—'));
+                setText('prev_compra_brl', 'R$ ' + fmt(custoBrl));
+                setText('prev_venda_usd', 'US$ ' + fmt(totalUsdVendido));
+                setText('prev_venda_taxa', (taxaMediaVenda > 0 ? fmt(taxaMediaVenda, 4) : '—'));
+                setText('prev_venda_brl', 'R$ ' + fmt(receitaBrl));
+
+                var pnlEl = document.getElementById('prev_pnl');
+                if (pnlEl) {
+                    var sign = pnlBrl >= 0 ? '+' : '';
+                    pnlEl.textContent = sign + 'R$ ' + fmt(pnlBrl) + '  (' + sign + 'US$ ' + fmt(pnlUsd) + ')';
+                    pnlEl.className = pnlBrl >= 0 ? 'text-success' : 'text-danger';
+                }
+            }
+
+            // Recalcula preview quando muda valor/taxa.
+            if ({{ $canViewPnl ? 'true' : 'false' }}) {
+                fecharBrl.addEventListener('input', updatePnlPreview);
+                fecharUsd.addEventListener('input', updatePnlPreview);
+                fecharTaxa.addEventListener('input', updatePnlPreview);
+            }
+
+            fecharForm.addEventListener('submit', function (e) {
+                var taxa = parseFloat(fecharTaxa.value);
+                var brl = parseFloat(fecharBrl.value);
+
+                if (!(taxa > 0)) {
+                    e.preventDefault();
+                    alert('Informe uma taxa válida.');
+                    return;
+                }
+                if (!(brl > 0)) {
+                    e.preventDefault();
+                    alert('Informe o valor em R$ a converter.');
+                    return;
+                }
+                if (totalDisponivelBrl > 0 && brl > totalDisponivelBrl + 0.005) {
+                    e.preventDefault();
+                    alert('O valor em R$ não pode ser maior que o total disponível selecionado (R$ ' +
+                        totalDisponivelBrl.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + ').');
+                    return;
+                }
+
+                // Copia a taxa para o hidden enviado ao backend.
+                fecharExchangeRate.value = taxa;
+            });
+        });
+    </script>
+
+    <!-- Modal Detalhes da Operação -->
+    <div class="modal fade" id="detalhesOperacaoModal" tabindex="-1" aria-labelledby="detalhesOperacaoLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title mb-0" id="detalhesOperacaoLabel">Detalhes da Entrada</h5>
+                        <small class="text-muted" id="detalhesOperacaoSub"></small>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body" id="detalhesOperacaoBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="comprovantePixModal" tabindex="-1" aria-labelledby="comprovantePixLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title mb-0" id="comprovantePixLabel">Comprovante PIX</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body" id="comprovantePixBody"></div>
+                <div class="modal-footer">
+                    <a href="#" id="comprovantePixExtracoesLink" target="_blank" class="btn btn-outline-primary btn-sm">
+                        <i class="ri-external-link-line align-middle me-1"></i>Ver na extração do grupo
+                    </a>
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var modal = document.getElementById('comprovantePixModal');
+            if (!modal) return;
+
+            modal.addEventListener('show.bs.modal', function (e) {
+                var btn = e.relatedTarget;
+                if (!btn) return;
+                var d;
+                try { d = JSON.parse(btn.getAttribute('data-comprovante') || '{}'); } catch (_) { return; }
+
+                var bodyEl = document.getElementById('comprovantePixBody');
+                var linkEl = document.getElementById('comprovantePixExtracoesLink');
+
+                var isPdf = (d.mimetype || '').indexOf('pdf') !== -1;
+                var preview = isPdf
+                    ? '<div class="text-center mb-3"><iframe src="' + d.imagemUrl + '" style="width:100%;height:60vh;border:1px solid #dee2e6;border-radius:.375rem"></iframe></div>'
+                    : '<div class="text-center mb-3"><img src="' + d.imagemUrl + '" class="img-fluid rounded border" style="max-height:60vh"></div>';
+
+                function row(label, value) {
+                    if (!value) return '';
+                    return '<div class="col-6 col-md-4"><div class="text-muted small">' + label + '</div><div class="fw-bold">' + value + '</div></div>';
+                }
+
+                bodyEl.innerHTML = preview +
+                    '<div class="row g-2">' +
+                    row('Pagador', d.nome) +
+                    row('Valor', d.valor) +
+                    row('Data/Hora', d.data) +
+                    row('Nº transação', d.numero) +
+                    row('Status', d.status) +
+                    '</div>';
+
+                if (linkEl) linkEl.href = d.extracoesUrl || '#';
+            });
+        });
+    </script>
+
+    <div id="xls-copy-toast">✓ Copiado</div>
+    <div id="xls-status-bar"></div>
+
+    <script>
+    (function () {
+        // ===== Modal Detalhes da Operação =====
+        document.addEventListener('DOMContentLoaded', function () {
+            var modal = document.getElementById('detalhesOperacaoModal');
+            if (!modal) return;
+
+            modal.addEventListener('show.bs.modal', function (e) {
+                var btn = e.relatedTarget;
+                if (!btn) return;
+                var d;
+                try { d = JSON.parse(btn.getAttribute('data-detalhes') || '{}'); } catch (_) { return; }
+
+                var labelEl = document.getElementById('detalhesOperacaoLabel');
+                var subEl   = document.getElementById('detalhesOperacaoSub');
+                var bodyEl  = document.getElementById('detalhesOperacaoBody');
+
+                if (d.type === 'entrada_usd') {
+                    if (labelEl) labelEl.textContent = 'Entrada U$  —  US$ ' + d.usd_total;
+                    if (subEl)   subEl.textContent   = 'Registrada em ' + d.data;
+                } else {
+                    if (labelEl) labelEl.textContent = 'Entrada #' + d.id + '  —  R$ ' + d.valor;
+                    if (subEl)   subEl.textContent   = 'Registrada em ' + d.data;
+                }
+                if (bodyEl)  bodyEl.innerHTML    = buildDetalhesHtml(d);
+            });
+
+            function br(v) { return parseFloat((v || '0').replace(/\./g, '').replace(',', '.')) || 0; }
+
+            function badge(status) {
+                var map = { open: 'bg-success', partial: 'bg-warning text-dark', closed: 'bg-secondary' };
+                var labels = { open: 'aberto', partial: 'parcial', closed: 'fechado' };
+                return '<span class="badge ' + (map[status] || 'bg-light text-dark') + '">' + (labels[status] || status) + '</span>';
+            }
+
+            function card(label, value, cls) {
+                return '<div class="col-6 col-md-3">' +
+                    '<div class="border rounded p-2 text-center h-100">' +
+                    '<div class="text-muted small mb-1">' + label + '</div>' +
+                    '<div class="fw-bold ' + (cls || '') + '">' + value + '</div>' +
+                    '</div></div>';
+            }
+
+            function lotesTable(lotes, cols, headCls) {
+                if (!lotes || lotes.length === 0) return '';
+                var html = '<div class="table-responsive mt-2"><table class="table table-sm table-bordered mb-0">';
+                html += '<thead class="' + headCls + '"><tr>' +
+                    cols.map(function (c) { return '<th' + (c.end ? ' class="text-end"' : '') + '>' + c.h + '</th>'; }).join('') +
+                    '</tr></thead><tbody>';
+                lotes.forEach(function (l) {
+                    html += '<tr>' + cols.map(function (c) {
+                        var val = typeof c.fn === 'function' ? c.fn(l) : l[c.key] || '';
+                        return '<td' + (c.end ? ' class="text-end"' : '') + '>' + val + '</td>';
+                    }).join('') + '</tr>';
+                });
+                html += '</tbody></table></div>';
+                return html;
+            }
+
+            function fmt(num) {
+                return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+
+            function buildEntradaUsdHtml(d) {
+                var html = '';
+
+                html += '<div class="row g-2 mb-4">';
+                html += card('Total recebido (U$)', 'US$ ' + d.usd_total, 'text-success');
+                html += card('Taxa de venda', d.taxa ? d.taxa : '—', 'text-muted');
+                html += card('Depósitos R$ de origem', d.fontes.length + ' depósito' + (d.fontes.length !== 1 ? 's' : ''), '');
+                html += '</div>';
+
+                html += '<h6 class="text-primary mb-1"><i class="ri-links-line me-1"></i>Depósitos R$ que originaram esta entrada</h6>';
+                if (d.fontes && d.fontes.length) {
+                    html += '<div class="table-responsive"><table class="table table-sm table-hover table-primary mb-0"><thead><tr>';
+                    html += '<th>#</th>';
+                    html += '<th>Data depósito</th>';
+                    html += '<th class="text-end">R$ usado</th>';
+                    html += '<th class="text-end">Taxa</th>';
+                    html += '<th class="text-end">USD gerado</th>';
+                    html += '</tr></thead><tbody>';
+                    d.fontes.forEach(function(f) {
+                        html += '<tr>';
+                        html += '<td class="text-muted small">' + f.deposito_id + '</td>';
+                        html += '<td>' + f.deposito_data + '</td>';
+                        html += '<td class="text-end">R$ ' + f.brl + '</td>';
+                        html += '<td class="text-end">' + f.taxa + '</td>';
+                        html += '<td class="text-end fw-bold text-success">US$ ' + f.usd + '</td>';
+                        html += '</tr>';
+                    });
+                    html += '</tbody></table></div>';
+                } else {
+                    html += '<p class="text-muted small mb-0 ps-1">Nenhum depósito de origem encontrado.</p>';
+                }
+
+                return html;
+            }
+
+            function buildDetalhesHtml(d) {
+                if (d.type === 'entrada_usd') return buildEntradaUsdHtml(d);
+                var html = '';
+                var total    = br(d.valor);
+                var vendido  = br(d.brl_sold);
+                var restante = total - vendido;
+
+                // Cards de resumo
+                html += '<div class="row g-2 mb-4">';
+                html += card('Total depositado', 'R$ ' + d.valor, '');
+                html += card('Vendido ao cliente', 'R$ ' + d.brl_sold, vendido > 0 ? 'text-danger' : 'text-muted');
+                html += card('Restante', 'R$ ' + fmt(restante), restante > 0 ? 'text-warning' : 'text-muted');
+                html += card('Comprado pelo dono', 'R$ ' + d.brl_pre, br(d.brl_pre) > 0 ? 'text-success' : 'text-muted');
+                html += '</div>';
+
+                // Pré-compra
+                html += '<div class="mb-3">';
+                html += '<h6 class="text-success mb-1"><i class="ri-arrow-down-circle-line me-1"></i>Pré-compra — dono comprou USD</h6>';
+                if (d.lotes_compra && d.lotes_compra.length) {
+                    html += lotesTable(d.lotes_compra, [
+                        { h: 'R$ reservado', key: null, fn: function(l) { return 'R$ ' + l.brl; } },
+                        { h: 'Taxa compra',  key: 'taxa', end: true },
+                        { h: 'USD comprado', key: null, fn: function(l) { return '<span class="text-success fw-bold">US$ ' + l.usd + '</span>'; }, end: true },
+                        { h: 'Status',       key: null, fn: function(l) { return badge(l.status); }, end: true },
+                    ], 'table-success');
+                } else {
+                    html += '<p class="text-muted small mb-0 ps-1">Nenhuma pré-compra registrada neste depósito.</p>';
+                }
+                html += '</div>';
+
+                // Pré-venda
+                html += '<div class="mb-1">';
+                html += '<h6 class="text-danger mb-1"><i class="ri-arrow-up-circle-line me-1"></i>Pré-venda — taxa acordada com o cliente</h6>';
+                if (d.lotes_venda && d.lotes_venda.length) {
+                    html += lotesTable(d.lotes_venda, [
+                        { h: 'R$ vendido',     key: null, fn: function(l) { return 'R$ ' + l.brl; } },
+                        { h: 'Taxa venda',     key: 'taxa', end: true },
+                        { h: 'USD a entregar', key: null, fn: function(l) { return '<span class="text-danger fw-bold">US$ ' + l.usd + '</span>'; }, end: true },
+                        { h: 'Status',         key: null, fn: function(l) { return badge(l.status); }, end: true },
+                    ], 'table-danger');
+                } else {
+                    html += '<p class="text-muted small mb-0 ps-1">Nenhuma pré-venda registrada neste depósito.</p>';
+                }
+                html += '</div>';
+
+                return html;
+            }
+        });
+    })();
+
+    (function () {
+        var SEL = 'xls-selected';
+        var anchor = null;
+        var isDragging = false;
+        var dragTable = null;
+
+        function allTables() {
+            return document.querySelectorAll('.wallet-compact .table');
+        }
+
+        function clearSelection() {
+            document.querySelectorAll('.' + SEL).forEach(function (el) {
+                el.classList.remove(SEL);
+            });
+        }
+
+        function tableRows(table) {
+            return Array.from(table.querySelectorAll('tbody tr'));
+        }
+
+        function selectRange(table, r1, c1, r2, c2) {
+            clearSelection();
+            var rows = tableRows(table);
+            var minR = Math.min(r1, r2), maxR = Math.max(r1, r2);
+            var minC = Math.min(c1, c2), maxC = Math.max(c1, c2);
+            for (var r = minR; r <= maxR; r++) {
+                if (!rows[r]) continue;
+                var cells = Array.from(rows[r].children);
+                for (var c = minC; c <= maxC; c++) {
+                    if (cells[c]) cells[c].classList.add(SEL);
+                }
+            }
+        }
+
+        function selectColumn(table, colIdx, add) {
+            if (!add) clearSelection();
+            tableRows(table).forEach(function (row) {
+                var td = row.children[colIdx];
+                if (td) td.classList.add(SEL);
+            });
+        }
+
+        // Converte número no formato pt-BR ("1.234,56") para float
+        function parseBrNumber(text) {
+            // Pega só a primeira linha (ignora texto de badges dentro da célula)
+            var t = (text || '').trim().split('\n')[0].trim();
+            // Remove símbolos de moeda e espaços
+            t = t.replace(/[R$U$\s]/g, '').replace(/^\+/, '');
+            if (!t || t === '-' || t === '—' || t === '') return null;
+            var sign = t.startsWith('-') ? -1 : 1;
+            t = t.replace(/^-/, '');
+            // pt-BR: ponto = milhar, vírgula = decimal
+            t = t.replace(/\./g, '').replace(',', '.');
+            var val = parseFloat(t);
+            return isNaN(val) ? null : val * sign;
+        }
+
+        function formatBr(val, decimals) {
+            return val.toLocaleString('pt-BR', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
+        }
+
+        function updateStatusBar() {
+            var bar = document.getElementById('xls-status-bar');
+            if (!bar) return;
+
+            var selected = document.querySelectorAll('.' + SEL);
+            if (selected.length === 0) {
+                bar.style.display = 'none';
+                return;
+            }
+
+            var brl  = { sum: 0, count: 0 };
+            var usd  = { sum: 0, count: 0 };
+            var taxa = { sum: 0, count: 0 };
+
+            selected.forEach(function (td) {
+                var row    = td.parentElement;
+                var colIdx = Array.from(row.children).indexOf(td);
+                var table  = td.closest('table');
+                var th     = table ? table.querySelectorAll('thead th')[colIdx] : null;
+                var header = (th ? th.innerText : '').trim().toUpperCase();
+                var val    = parseBrNumber(td.innerText);
+                if (val === null) return;
+
+                if (header.includes('R$')) {
+                    brl.sum += val; brl.count++;
+                } else if (header.includes('U$')) {
+                    usd.sum += val; usd.count++;
+                } else if (header.includes('TAXA')) {
+                    taxa.sum += val; taxa.count++;
+                }
+            });
+
+            var parts = [];
+            parts.push('<span><strong>Qtd:</strong> ' + selected.length + '</span>');
+
+            if (brl.count > 0) {
+                parts.push('<span><strong>R$</strong> ' + formatBr(brl.sum, 2) + '</span>');
+            }
+            if (usd.count > 0) {
+                parts.push('<span><strong>U$</strong> ' + formatBr(usd.sum, 2) + '</span>');
+            }
+            if (taxa.count > 0 && brl.count === 0 && usd.count === 0) {
+                parts.push('<span><strong>Taxa média:</strong> ' + formatBr(taxa.sum / taxa.count, 4) + '</span>');
+            }
+
+            bar.innerHTML = parts.join('');
+
+            var contentArea = document.querySelector('.page-content');
+            bar.style.left = contentArea ? contentArea.getBoundingClientRect().left + 'px' : '0';
+            bar.style.display = 'flex';
+        }
+
+        function toggleFullscreen(force) {
+            var active = (force !== undefined) ? force : !document.body.classList.contains('wallet-fullscreen');
+            document.body.classList.toggle('wallet-fullscreen', active);
+            var icon = document.querySelector('#btn-fullscreen i');
+            if (icon) icon.className = active ? 'ri-fullscreen-exit-line' : 'ri-fullscreen-line';
+            // Recalcula left do status bar porque o layout mudou
+            var bar = document.getElementById('xls-status-bar');
+            if (bar && bar.style.display !== 'none') {
+                var contentArea = document.querySelector('.page-content');
+                bar.style.left = contentArea ? contentArea.getBoundingClientRect().left + 'px' : '0';
+            }
+        }
+
+        function showToast() {
+            var el = document.getElementById('xls-copy-toast');
+            if (!el) return;
+            el.style.opacity = '1';
+            clearTimeout(el._t);
+            el._t = setTimeout(function () { el.style.opacity = '0'; }, 1800);
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            allTables().forEach(function (table) {
+                Array.from(table.querySelectorAll('thead th')).forEach(function (th, colIdx) {
+                    th.classList.add('xls-th-selectable');
+                    th.addEventListener('mousedown', function (e) {
+                        if (e.target.closest('input, button, a, label')) return;
+                        selectColumn(table, colIdx, e.ctrlKey || e.metaKey);
+                        updateStatusBar();
+                        e.preventDefault();
+                    });
+                });
+
+                tableRows(table).forEach(function (row, rowIdx) {
+                    Array.from(row.children).forEach(function (td, colIdx) {
+                        td.classList.add('xls-selectable');
+
+                        td.addEventListener('mousedown', function (e) {
+                            if (e.target.closest('input, button, a, label, .dropdown')) return;
+                            if (e.button !== 0) return;
+
+                            if (e.shiftKey && anchor && anchor.table === table) {
+                                selectRange(table, anchor.rowIdx, anchor.colIdx, rowIdx, colIdx);
+                            } else if (e.ctrlKey || e.metaKey) {
+                                td.classList.toggle(SEL);
+                                anchor = { table: table, rowIdx: rowIdx, colIdx: colIdx };
+                            } else {
+                                clearSelection();
+                                td.classList.add(SEL);
+                                anchor = { table: table, rowIdx: rowIdx, colIdx: colIdx };
+                                isDragging = true;
+                                dragTable = table;
+                            }
+                            updateStatusBar();
+                            e.preventDefault();
+                        });
+
+                        td.addEventListener('mouseover', function () {
+                            if (!isDragging || dragTable !== table || !anchor) return;
+                            selectRange(table, anchor.rowIdx, anchor.colIdx, rowIdx, colIdx);
+                            updateStatusBar();
+                        });
+                    });
+                });
+            });
+
+            document.addEventListener('mouseup', function () {
+                isDragging = false;
+                dragTable = null;
+            });
+
+            var fsBtn = document.getElementById('btn-fullscreen');
+            if (fsBtn) {
+                fsBtn.addEventListener('click', function () { toggleFullscreen(); });
+            }
+
+            document.addEventListener('mousedown', function (e) {
+                if (!e.target.closest('.wallet-compact .table')) {
+                    clearSelection();
+                    anchor = null;
+                    updateStatusBar();
+                }
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') {
+                    if (document.body.classList.contains('wallet-fullscreen')) {
+                        toggleFullscreen(false);
+                    }
+                    clearSelection();
+                    anchor = null;
+                    updateStatusBar();
+                    return;
+                }
+
+                if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+                    var selected = document.querySelectorAll('.' + SEL);
+                    if (selected.length === 0) return;
+
+                    var rowMap = new Map();
+                    selected.forEach(function (td) {
+                        var row = td.parentElement;
+                        if (!rowMap.has(row)) rowMap.set(row, []);
+                        rowMap.get(row).push(td);
+                    });
+
+                    var lines = [];
+                    rowMap.forEach(function (cells, row) {
+                        var siblings = Array.from(row.children);
+                        cells.sort(function (a, b) {
+                            return siblings.indexOf(a) - siblings.indexOf(b);
+                        });
+                        lines.push(cells.map(function (td) {
+                            return td.innerText.trim().replace(/\s+/g, ' ');
+                        }).join('\t'));
+                    });
+
+                    navigator.clipboard.writeText(lines.join('\n')).then(showToast);
+                    e.preventDefault();
+                }
+            });
+        });
+    })();
+    </script>
