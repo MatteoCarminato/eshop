@@ -59,19 +59,46 @@ class ClientBankService
         return $brl['id'];
     }
 
-    public function getStatements(string $token, string $walletId): array
+    /**
+     * Busca o extrato, paginando até a API não devolver mais itens.
+     * Sem filtro de data, a API só devolve os ~500 lançamentos mais recentes,
+     * então comprovantes de PIX mais antigos nunca eram encontrados.
+     */
+    public function getStatements(string $token, string $walletId, ?Carbon $initialDate = null, ?Carbon $endDate = null): array
     {
-        $response = Http::withToken($token)
-            ->timeout(15)
-            ->get("{$this->baseUrl}/api/statements/clients", [
-                'WalletId' => $walletId,
-            ]);
+        $query = ['WalletId' => $walletId];
 
-        if (!$response->successful()) {
-            throw new \RuntimeException("ClientBank statements falhou: HTTP {$response->status()}");
+        if ($initialDate && $endDate) {
+            $query['TypeFilterDateStatement'] = 'DateTransaction';
+            $query['InitialDate']             = $initialDate->toDateString();
+            $query['EndDate']                 = $endDate->toDateString();
         }
 
-        return $response->json('itens', []);
+        $items    = [];
+        $size     = 100;
+        $maxPages = 50; // salvaguarda contra loop infinito (5.000 itens)
+
+        for ($page = 1; $page <= $maxPages; $page++) {
+            $response = Http::withToken($token)
+                ->timeout(15)
+                ->get("{$this->baseUrl}/api/statements/clients", $query + [
+                    'Page' => $page,
+                    'Size' => $size,
+                ]);
+
+            if (!$response->successful()) {
+                throw new \RuntimeException("ClientBank statements falhou: HTTP {$response->status()}");
+            }
+
+            $pageItems = $response->json('itens', []);
+            $items     = array_merge($items, $pageItems);
+
+            if (count($pageItems) < $size) {
+                break;
+            }
+        }
+
+        return $items;
     }
 
     /**
@@ -83,10 +110,20 @@ class ClientBankService
         try {
             $token    = $this->login();
             $walletId = $this->getBrlWalletId($token);
-            $items    = $this->getStatements($token, $walletId);
 
             $valorFloat = $this->parseValor($valorStr);
             $dataAi     = Carbon::createFromFormat('d/m/Y H:i', $dataHora);
+
+            // Busca já filtrada pela data do comprovante (com folga de 1 dia para
+            // cobrir fuso horário e a tolerância de horário usada no match abaixo),
+            // em vez de depender da janela padrão da API (últimos ~500 lançamentos,
+            // que às vezes não alcança comprovantes de mais de 1-2 semanas atrás).
+            $items = $this->getStatements(
+                $token,
+                $walletId,
+                $dataAi->copy()->subDay(),
+                $dataAi->copy()->addDay()
+            );
 
             return $this->findInStatements($items, $nome, $valorFloat, $dataAi);
         } catch (\Throwable $e) {
