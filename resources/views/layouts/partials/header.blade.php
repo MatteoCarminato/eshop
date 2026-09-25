@@ -38,6 +38,17 @@
             </div>
 
             <div class="d-flex align-items-center">
+                @if ($canViewWhatsappStatus)
+                    <a href="{{ route('admin.whatsapp.index') }}" id="wpp-header-icon"
+                        class="btn btn-icon btn-topbar material-shadow-none d-none rounded-circle position-relative"
+                        data-bs-toggle="tooltip" data-bs-placement="bottom" title="WhatsApp">
+                        <i class="ri-whatsapp-line fs-18"></i>
+                        <span id="wpp-header-icon-dot"
+                            class="position-absolute top-0 start-100 translate-middle p-1 border border-light rounded-circle bg-warning">
+                            <span class="visually-hidden">Status do WhatsApp</span>
+                        </span>
+                    </a>
+                @endif
                 <div class="dropdown ms-sm-3 header-item topbar-user">
                     <button type="button" class="btn material-shadow-none" id="page-header-user-dropdown"
                         data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -68,18 +79,6 @@
             </div>
         </div>
 
-        @if ($canViewWhatsappStatus)
-            <div id="wpp-header-alert" class="alert alert-warning py-2 px-3 mb-0 rounded-0 d-none" role="alert">
-                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                    <div class="d-flex align-items-center gap-2">
-                        <i class="ri-whatsapp-line fs-18"></i>
-                        <span id="wpp-header-alert-text" class="fw-medium">WhatsApp desconectado. Reconecte para voltar a
-                            enviar mensagens.</span>
-                    </div>
-                    <a href="{{ route('admin.whatsapp.index') }}" class="btn btn-sm btn-warning">Abrir conexão</a>
-                </div>
-            </div>
-        @endif
     </div>
 </header>
 
@@ -88,12 +87,22 @@
         (function () {
             const statusUrl = '{{ route('admin.whatsapp.status') }}';
             const statusGruposUrl = '{{ route('admin.whatsapp.grupos-instance.status') }}';
-            const alertEl = document.getElementById('wpp-header-alert');
-            const textEl = document.getElementById('wpp-header-alert-text');
+            const iconEl = document.getElementById('wpp-header-icon');
+            const dotEl = document.getElementById('wpp-header-icon-dot');
 
-            if (!alertEl || !textEl) {
+            if (!iconEl || !dotEl) {
                 return;
             }
+
+            const tooltip = window.bootstrap ? new bootstrap.Tooltip(iconEl) : null;
+
+            const setTooltipTitle = (text) => {
+                iconEl.setAttribute('title', text);
+                iconEl.setAttribute('data-bs-original-title', text);
+                if (tooltip) {
+                    tooltip.setContent({ '.tooltip-inner': text });
+                }
+            };
 
             const fetchState = async (url) => {
                 try {
@@ -120,21 +129,26 @@
                     fetchState(statusGruposUrl),
                 ]);
 
+                iconEl.classList.remove('d-none');
+                dotEl.classList.remove('bg-warning', 'bg-danger', 'bg-success');
+
                 // Se qualquer uma das instancias estiver conectada, nao ha o que avisar.
                 if (main.state === 'connected' || grupos.state === 'connected') {
-                    alertEl.classList.add('d-none');
+                    dotEl.classList.add('bg-success');
+                    setTooltipTitle('WhatsApp conectado.');
                     return;
                 }
 
                 if (main.error && grupos.error) {
-                    textEl.textContent = 'Nao foi possivel verificar o WhatsApp agora. Confira a conexao para relogar se necessario.';
+                    dotEl.classList.add('bg-danger');
+                    setTooltipTitle('Nao foi possivel verificar o WhatsApp agora. Confira a conexao para relogar se necessario.');
                 } else if (main.state === 'disconnected' || grupos.state === 'disconnected') {
-                    textEl.textContent = 'WhatsApp desconectado. Reconecte para voltar a enviar mensagens.';
+                    dotEl.classList.add('bg-danger');
+                    setTooltipTitle('WhatsApp desconectado. Reconecte para voltar a enviar mensagens.');
                 } else {
-                    textEl.textContent = 'WhatsApp aguardando autenticacao. Abra a conexao para escanear o QR novamente.';
+                    dotEl.classList.add('bg-warning');
+                    setTooltipTitle('WhatsApp aguardando autenticacao. Abra a conexao para escanear o QR novamente.');
                 }
-
-                alertEl.classList.remove('d-none');
             };
 
             checkWhatsappStatus();
