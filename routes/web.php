@@ -51,6 +51,19 @@ Route::middleware('auth')->group(function () {
         ->name('clients.addToGroups')
         ->middleware('module:clients.manage');
 
+    // Catálogo: Produtos & Marcas
+    Route::resource('brands', \App\Http\Controllers\BrandController::class)
+        ->middleware('module:brands.view');
+    Route::resource('products', \App\Http\Controllers\ProductController::class)
+        ->middleware('module:products.view');
+
+    Route::post('brands/sync', [\App\Http\Controllers\CatalogSyncController::class, 'syncBrands'])
+        ->name('brands.sync')
+        ->middleware('module:brands.manage');
+    Route::post('products/sync', [\App\Http\Controllers\CatalogSyncController::class, 'syncProducts'])
+        ->name('products.sync')
+        ->middleware('module:products.manage');
+
     // Carteira/Admin Wallet
     Route::prefix('admin/wallet')->name('admin.wallet.')->group(function () {
         Route::middleware('module:wallet.view')->group(function () {

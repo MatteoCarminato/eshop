@@ -5,19 +5,19 @@
         <!-- Dark Logo-->
         <a href="index.html" class="logo logo-dark">
             <span class="logo-sm">
-                <img src="{{ asset('assets/images/logo-eshop.png') }}" alt="" height="22">
+                <img src="{{ asset('assets/images/logo-horizontal.jpg') }}" alt="Orbita" height="22">
             </span>
             <span class="logo-lg">
-                <img src="{{ asset('assets/images/logo-eshop.png') }}" alt="" height="40">
+                <img src="{{ asset('assets/images/logo-horizontal.jpg') }}" alt="Orbita" height="40">
             </span>
         </a>
         <!-- Light Logo-->
         <a href="index.html" class="logo logo-light">
             <span class="logo-sm">
-                <img src="{{ asset('assets/images/logo-eshop.png') }}" alt="" height="22">
+                <img src="{{ asset('assets/images/logo-horizontal.jpg') }}" alt="Orbita" height="22">
             </span>
             <span class="logo-lg">
-                <img src="{{ asset('assets/images/logo-eshop.png') }}" alt="" height="40">
+                <img src="{{ asset('assets/images/logo-horizontal.jpg') }}" alt="Orbita" height="40">
             </span>
         </a>
         <button type="button" class="btn btn-sm p-0 fs-20 header-item float-end btn-vertical-sm-hover"
@@ -102,6 +102,33 @@
                             </ul>
                         </div>
                     </li> <!-- end Dashboard Menu -->
+                @endif
+
+                @if (auth()->user()->hasModule('products.view') || auth()->user()->hasModule('products.manage') || auth()->user()->hasModule('brands.view') || auth()->user()->hasModule('brands.manage'))
+                    <li class="nav-item">
+                        <a class="nav-link menu-link" href="#sidebarCatalog" data-bs-toggle="collapse" role="button"
+                            aria-expanded="false" aria-controls="sidebarCatalog">
+                            <i data-feather="box"></i> <span>Catálogo</span>
+                        </a>
+                        <div class="collapse menu-dropdown" id="sidebarCatalog">
+                            <ul class="nav nav-sm flex-column">
+                                @if (auth()->user()->hasModule('products.view'))
+                                    <li class="nav-item">
+                                        <a href="{{ route('products.index') }}" class="nav-link">
+                                            Produtos
+                                        </a>
+                                    </li>
+                                @endif
+                                @if (auth()->user()->hasModule('brands.view'))
+                                    <li class="nav-item">
+                                        <a href="{{ route('brands.index') }}" class="nav-link">
+                                            Marcas
+                                        </a>
+                                    </li>
+                                @endif
+                            </ul>
+                        </div>
+                    </li> <!-- end Catalog Menu -->
                 @endif
 
                 @if (auth()->user()->hasModule('groups.view') || auth()->user()->hasModule('groups.manage'))

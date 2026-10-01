@@ -114,6 +114,25 @@ return [
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
         ],
 
+        // Conexão somente-leitura com o ERP (Consoft) para sincronizar Produto/Marca.
+        // Mesmo servidor MySQL do ERP — usar apenas para SELECT (ver docs/Erp-Sync.md).
+        'erp' => [
+            'driver' => 'mysql',
+            'url' => null,
+            'host' => env('ERP_DB_HOST', '127.0.0.1'),
+            'port' => env('ERP_DB_PORT', '3306'),
+            'database' => env('ERP_DB_DATABASE', 'cec_consulta'),
+            'username' => env('ERP_DB_USERNAME'),
+            'password' => env('ERP_DB_PASSWORD'),
+            'unix_socket' => '',
+            'charset' => env('ERP_DB_CHARSET', 'utf8mb4'),
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => false,
+            'engine' => null,
+        ],
+
     ],
 
     /*

@@ -64,4 +64,10 @@ return [
         'temperature' => env('OPENAI_TEMPERATURE', 0.7),
     ],
 
+    // API pública somente-leitura consumida pelo frontend Orbita (Next.js),
+    // autenticada via header X-Orbita-Token. Ver routes/api.php.
+    'orbita' => [
+        'token' => env('ORBITA_API_TOKEN'),
+    ],
+
 ];

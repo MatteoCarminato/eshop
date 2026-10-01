@@ -63,3 +63,8 @@ Schedule::job(new ProcessWhatsappScheduledMessagesJob())
     ->dailyAt('07:30')
     ->timezone('America/Sao_Paulo')
     ->name('whatsapp-scheduled-messages');
+
+Schedule::command('erp:sync-catalog')
+    ->everyThirtyMinutes()
+    ->withoutOverlapping()
+    ->name('erp-sync-catalog');

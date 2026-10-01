@@ -41,6 +41,28 @@ return [
             'description' => 'Criar, editar e excluir clientes.',
         ],
 
+        'products.view' => [
+            'label' => 'Visualizar produtos',
+            'group' => 'Catálogo',
+            'description' => 'Acesso à listagem e detalhes de produtos.',
+        ],
+        'products.manage' => [
+            'label' => 'Gerenciar produtos',
+            'group' => 'Catálogo',
+            'description' => 'Criar, editar, excluir produtos e sincronizar com o ERP.',
+        ],
+
+        'brands.view' => [
+            'label' => 'Visualizar marcas',
+            'group' => 'Catálogo',
+            'description' => 'Acesso à listagem e detalhes de marcas.',
+        ],
+        'brands.manage' => [
+            'label' => 'Gerenciar marcas',
+            'group' => 'Catálogo',
+            'description' => 'Criar, editar, excluir marcas e sincronizar com o ERP.',
+        ],
+
         'groups.view' => [
             'label' => 'Visualizar grupos',
             'group' => 'Grupos',
