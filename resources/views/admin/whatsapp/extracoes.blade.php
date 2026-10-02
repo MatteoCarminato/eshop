@@ -90,7 +90,9 @@
                             $data          = $item->ai_data ?? [];
                             $isPdf         = str_contains($item->mimetype ?? '', 'pdf');
                             $imgUrl        = route('admin.whatsapp.extracoes.imagem', $item);
-                            $walletClient  = $item->transaction?->client ?? $item->group?->client;
+                            $walletClient  = $item->status === 'confirmed'
+                                ? ($item->transaction?->client ?? $item->group?->client)
+                                : null;
                             $walletUrl     = $walletClient
                                 ? route('admin.wallet.client', $walletClient) . '?origin=pix' . ($item->transaction ? '#tx-' . $item->transaction->id : '')
                                 : null;
