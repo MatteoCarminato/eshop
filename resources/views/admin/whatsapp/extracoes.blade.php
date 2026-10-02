@@ -87,9 +87,13 @@
                 <div class="row g-3">
                     @foreach ($extractions as $item)
                         @php
-                            $data    = $item->ai_data ?? [];
-                            $isPdf   = str_contains($item->mimetype ?? '', 'pdf');
-                            $imgUrl  = route('admin.whatsapp.extracoes.imagem', $item);
+                            $data          = $item->ai_data ?? [];
+                            $isPdf         = str_contains($item->mimetype ?? '', 'pdf');
+                            $imgUrl        = route('admin.whatsapp.extracoes.imagem', $item);
+                            $walletClient  = $item->transaction?->client ?? $item->group?->client;
+                            $walletUrl     = $walletClient
+                                ? route('admin.wallet.client', $walletClient) . '?origin=pix' . ($item->transaction ? '#tx-' . $item->transaction->id : '')
+                                : null;
                         @endphp
                         <div class="col-12">
                             <div class="card shadow-sm">
@@ -115,6 +119,11 @@
                                                 {{ $item->group?->name ?? $item->whatsapp_group_id }}<br>
                                                 {{ $item->created_at->format('d/m/Y H:i') }}
                                             </div>
+                                            @if ($walletUrl)
+                                                <a href="{{ $walletUrl }}" target="_blank" class="btn btn-outline-primary btn-sm mt-2">
+                                                    <i class="ri-wallet-3-line align-middle me-1"></i>Ver na carteira
+                                                </a>
+                                            @endif
                                         </div>
 
                                         {{-- Dados extraídos pela IA --}}

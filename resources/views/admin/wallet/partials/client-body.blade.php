@@ -865,9 +865,12 @@
                                                     'usd'    => number_format($l->usd_amount, 2, ',', '.'),
                                                     'status' => $l->status,
                                                 ])->values()->toArray(),
+                                                'comprovante_url'  => $tx->whatsappPixExtraction
+                                                    ? route('admin.whatsapp.extracoes.imagem', $tx->whatsappPixExtraction)
+                                                    : null,
                                             ];
                                         @endphp
-                                        <tr class="{{ $rowClass }}" data-locked="{{ $isLocked ? '1' : '0' }}"
+                                        <tr id="tx-{{ $tx->id }}" class="{{ $rowClass }}" data-locked="{{ $isLocked ? '1' : '0' }}"
                                             data-pre-purchased="{{ number_format($brlPre, 2, '.', '') }}"
                                             data-pre-sold="{{ number_format($brlSold, 2, '.', '') }}"
                                             data-brl-livre-compra="{{ number_format($brlLivreCompra, 2, '.', '') }}"
@@ -2608,6 +2611,23 @@
         });
     </script>
 
+    <style>
+        tr.tx-highlight > td {
+            background-color: #cfe2ff !important;
+            box-shadow: inset 0 0 0 3px #0d6efd;
+            transition: background-color 0.4s ease, box-shadow 0.4s ease;
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (!window.location.hash || window.location.hash.indexOf('#tx-') !== 0) return;
+            var row = document.querySelector(window.location.hash);
+            if (!row) return;
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            row.classList.add('tx-highlight');
+        });
+    </script>
+
     <div id="xls-copy-toast">✓ Copiado</div>
     <div id="xls-status-bar"></div>
 
@@ -2715,6 +2735,11 @@
                 var total    = br(d.valor);
                 var vendido  = br(d.brl_sold);
                 var restante = total - vendido;
+
+                if (d.comprovante_url) {
+                    html += '<div class="mb-3"><a href="' + d.comprovante_url + '" target="_blank" class="btn btn-outline-primary btn-sm">' +
+                        '<i class="ri-image-line me-1"></i>Ver comprovante PIX</a></div>';
+                }
 
                 // Cards de resumo
                 html += '<div class="row g-2 mb-4">';

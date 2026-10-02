@@ -582,7 +582,7 @@ class WhatsappController extends Controller
 
     public function extracoes(Request $request)
     {
-        $query = WhatsappPixExtraction::with('group')->latest();
+        $query = WhatsappPixExtraction::with(['group.client', 'transaction.client'])->latest();
 
         if ($status = $request->input('status')) {
             $query->where('status', $status);
