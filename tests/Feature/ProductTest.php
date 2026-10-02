@@ -3,10 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Product;
+use App\Models\ProductImage;
 use App\Models\Role;
 use App\Models\RoleModule;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -178,6 +181,17 @@ class ProductTest extends TestCase
         $response->assertViewHas('product', $product);
     }
 
+    public function test_edit_and_show_pages_render_with_existing_photo_and_gallery()
+    {
+        $this->actingAsAuthorized();
+        $product = Product::factory()->create(['image_url' => 'https://exemplo.com/capa.jpg']);
+        ProductImage::create(['product_id' => $product->id, 'url' => 'https://exemplo.com/galeria-1.jpg', 'sort_order' => 0]);
+        ProductImage::create(['product_id' => $product->id, 'url' => 'https://exemplo.com/galeria-2.jpg', 'sort_order' => 1]);
+
+        $this->get(route('products.edit', $product))->assertStatus(200);
+        $this->get(route('products.show', $product))->assertStatus(200);
+    }
+
     public function test_it_can_update_a_product()
     {
         $this->actingAsAuthorized();
@@ -308,6 +322,101 @@ class ProductTest extends TestCase
         ]);
 
         $response->assertSessionHasErrors('brand_id');
+    }
+
+    public function test_it_can_upload_a_main_photo_when_creating_a_product()
+    {
+        Storage::fake('do_spaces');
+        $this->actingAsAuthorized();
+
+        $response = $this->post(route('products.store'), [
+            'name' => 'Produto Com Foto',
+            'price' => 100,
+            'image' => UploadedFile::fake()->image('capa.jpg'),
+        ]);
+
+        $response->assertRedirect(route('products.index'));
+        $product = Product::where('name', 'Produto Com Foto')->firstOrFail();
+        $this->assertNotNull($product->image_url);
+        Storage::disk('do_spaces')->assertExists(
+            Str::after($product->image_url, Storage::disk('do_spaces')->url(''))
+        );
+
+        // Nome do arquivo = md5 (32 chars hex) + "-" + slug do nome do produto,
+        // pra URL da imagem carregar palavras-chave reais (SEO).
+        $filename = basename($product->image_url);
+        $this->assertMatchesRegularExpression('/^[a-f0-9]{32}-produto-com-foto\.jpg$/', $filename);
+    }
+
+    public function test_uploaded_main_photo_takes_priority_over_image_url_when_both_are_sent()
+    {
+        Storage::fake('do_spaces');
+        $this->actingAsAuthorized();
+        $product = Product::factory()->create(['image_url' => null]);
+
+        $this->put(route('products.update', $product), [
+            'name' => $product->name,
+            'price' => $product->price,
+            'image_url' => 'https://exemplo.com/antiga.jpg',
+            'image' => UploadedFile::fake()->image('nova.jpg'),
+        ]);
+
+        $product->refresh();
+        $this->assertNotSame('https://exemplo.com/antiga.jpg', $product->image_url);
+    }
+
+    public function test_it_can_upload_gallery_photos()
+    {
+        Storage::fake('do_spaces');
+        $this->actingAsAuthorized();
+        $product = Product::factory()->create();
+
+        $response = $this->put(route('products.update', $product), [
+            'name' => $product->name,
+            'price' => $product->price,
+            'gallery' => [
+                UploadedFile::fake()->image('foto1.jpg'),
+                UploadedFile::fake()->image('foto2.jpg'),
+            ],
+        ]);
+
+        $response->assertRedirect(route('products.index'));
+        $this->assertSame(2, $product->images()->count());
+    }
+
+    public function test_it_appends_new_gallery_photos_without_touching_existing_ones()
+    {
+        Storage::fake('do_spaces');
+        $this->actingAsAuthorized();
+        $product = Product::factory()->create();
+        $existing = ProductImage::create(['product_id' => $product->id, 'url' => 'https://exemplo.com/ja-existia.jpg', 'sort_order' => 0]);
+
+        $this->put(route('products.update', $product), [
+            'name' => $product->name,
+            'price' => $product->price,
+            'gallery' => [UploadedFile::fake()->image('nova.jpg')],
+        ]);
+
+        $this->assertSame(2, $product->images()->count());
+        $this->assertDatabaseHas('product_images', ['id' => $existing->id, 'url' => 'https://exemplo.com/ja-existia.jpg']);
+    }
+
+    public function test_it_can_remove_a_gallery_photo_on_update()
+    {
+        Storage::fake('do_spaces');
+        $this->actingAsAuthorized();
+        $product = Product::factory()->create();
+        $toRemove = ProductImage::create(['product_id' => $product->id, 'url' => 'https://exemplo.com/remover.jpg', 'sort_order' => 0]);
+        $toKeep = ProductImage::create(['product_id' => $product->id, 'url' => 'https://exemplo.com/manter.jpg', 'sort_order' => 1]);
+
+        $this->put(route('products.update', $product), [
+            'name' => $product->name,
+            'price' => $product->price,
+            'remove_gallery' => [$toRemove->id],
+        ]);
+
+        $this->assertDatabaseMissing('product_images', ['id' => $toRemove->id]);
+        $this->assertDatabaseHas('product_images', ['id' => $toKeep->id]);
     }
 
     public function test_price_is_required_but_other_price_fields_are_optional()

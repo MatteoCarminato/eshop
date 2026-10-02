@@ -56,7 +56,7 @@
                             @endif
 
                             <!-- Formulário -->
-                            <form action="{{ route('products.store') }}" method="POST" class="needs-validation" novalidate>
+                            <form action="{{ route('products.store') }}" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
                                 @csrf
 
                                 <div class="row gy-4">
@@ -264,11 +264,31 @@
                                     </div>
                                     <!--end col-->
 
-                                    <!-- Imagem -->
+                                    <!-- Foto principal -->
+                                    <div class="col-xxl-6 col-md-6">
+                                        <div>
+                                            <label for="image" class="form-label">
+                                                Foto principal
+                                            </label>
+                                            <input type="file" accept="image/*"
+                                                class="form-control @error('image') is-invalid @enderror"
+                                                id="image" name="image">
+                                            @error('image')
+                                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                            @enderror
+                                            <div class="form-text">
+                                                <i class="ri-information-line"></i> Opcional — é a foto usada nos
+                                                cards de produto da loja. JPG/PNG/WebP, até 5MB.
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!--end col-->
+
+                                    <!-- Imagem (URL alternativa) -->
                                     <div class="col-xxl-6 col-md-6">
                                         <div>
                                             <label for="image_url" class="form-label">
-                                                Imagem (URL)
+                                                ou URL da foto principal
                                             </label>
                                             <div class="form-icon">
                                                 <input type="text"
@@ -281,8 +301,32 @@
                                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                                             @enderror
                                             <div class="form-text">
-                                                <i class="ri-information-line"></i> Campo opcional — informe a URL de
-                                                uma imagem já hospedada
+                                                <i class="ri-information-line"></i> Alternativa ao upload — só usada
+                                                se nenhum arquivo for enviado acima.
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!--end col-->
+
+                                    <!-- Galeria de fotos -->
+                                    <div class="col-12">
+                                        <div>
+                                            <label for="gallery" class="form-label">
+                                                Galeria de fotos
+                                            </label>
+                                            <input type="file" accept="image/*" multiple
+                                                class="form-control @error('gallery') is-invalid @error('gallery.*') is-invalid @enderror @enderror"
+                                                id="gallery" name="gallery[]">
+                                            @error('gallery')
+                                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                            @enderror
+                                            @error('gallery.*')
+                                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                            @enderror
+                                            <div class="form-text">
+                                                <i class="ri-information-line"></i> Opcional — fotos extras mostradas
+                                                ao abrir o produto na loja. Selecione várias de uma vez (até 10,
+                                                5MB cada).
                                             </div>
                                         </div>
                                     </div>

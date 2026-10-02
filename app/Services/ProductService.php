@@ -3,10 +3,13 @@
 namespace App\Services;
 
 use App\Models\Product;
+use App\Models\ProductImage;
 use App\Http\Requests\Product\StoreProductRequest;
 use App\Http\Requests\Product\UpdateProductRequest;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class ProductService
@@ -87,10 +90,19 @@ class ProductService
     public function create(StoreProductRequest $request): Product
     {
         $data = $request->validated();
+        unset($data['image'], $data['gallery']);
 
         $data['slug'] = $this->generateUniqueSlug($data['name']);
 
-        return Product::create($data);
+        if ($request->hasFile('image')) {
+            $data['image_url'] = $this->storeImage($request->file('image'), $data['name']);
+        }
+
+        $product = Product::create($data);
+
+        $this->addGalleryImages($product, $request->file('gallery', []));
+
+        return $product;
     }
 
     /**
@@ -103,12 +115,23 @@ class ProductService
     public function update(UpdateProductRequest $request, Product $product): Product
     {
         $data = $request->validated();
+        unset($data['image'], $data['gallery'], $data['remove_gallery']);
 
         if ($data['name'] !== $product->name) {
             $data['slug'] = $this->generateUniqueSlug($data['name'], $product->id);
         }
 
+        if ($request->hasFile('image')) {
+            $data['image_url'] = $this->storeImage($request->file('image'), $data['name']);
+        }
+
         $product->update($data);
+
+        if ($request->filled('remove_gallery')) {
+            $product->images()->whereIn('id', $request->input('remove_gallery'))->delete();
+        }
+
+        $this->addGalleryImages($product, $request->file('gallery', []));
 
         return $product->fresh();
     }
@@ -123,6 +146,55 @@ class ProductService
     public function delete(Product $product): bool
     {
         return $product->delete();
+    }
+
+    /**
+     * Envia um arquivo de imagem pro DigitalOcean Spaces (mesma convenção
+     * usada em WhatsappWebhookController) e devolve a URL pública.
+     *
+     * Nome do arquivo = md5 (garante unicidade — não é hash do conteúdo, pra
+     * não colidir se o mesmo arquivo for enviado de novo) + slug do nome do
+     * produto, pra URL da imagem carregar palavras-chave reais (bom pra SEO
+     * de busca de imagens) em vez de um UUID sem significado.
+     */
+    private function storeImage(UploadedFile $file, string $productName): string
+    {
+        $hash = md5(Str::uuid()->toString());
+        $slug = Str::slug($productName) ?: 'produto';
+
+        $path = 'eshop-' . app()->environment() . '/products/' . now()->format('Y/m/d') . '/'
+            . "{$hash}-{$slug}." . $file->extension();
+
+        Storage::disk('do_spaces')->put($path, file_get_contents($file->getRealPath()), 'public');
+
+        return Storage::disk('do_spaces')->url($path);
+    }
+
+    /**
+     * Envia e anexa novas fotos à galeria do produto, acrescentando ao final
+     * da ordem existente (nunca mexe nas fotos já cadastradas).
+     *
+     * @param array<int, UploadedFile> $files
+     */
+    private function addGalleryImages(Product $product, array $files): void
+    {
+        if (empty($files)) {
+            return;
+        }
+
+        $nextOrder = (int) $product->images()->max('sort_order') + 1;
+
+        foreach ($files as $file) {
+            if (!$file instanceof UploadedFile) {
+                continue;
+            }
+
+            ProductImage::create([
+                'product_id' => $product->id,
+                'url' => $this->storeImage($file, $product->name),
+                'sort_order' => $nextOrder++,
+            ]);
+        }
     }
 
     /**

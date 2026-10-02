@@ -150,8 +150,39 @@ $product->is_from_erp;      // true quando recno não é nulo
 ### Relacionamentos
 
 ```php
-$product->brand; // App\Models\Brand|null
+$product->brand;  // App\Models\Brand|null
+$product->images; // Illuminate\Database\Eloquent\Collection<ProductImage>, ordenada por sort_order
 ```
+
+### Fotos (foto principal + galeria)
+
+Dois conceitos separados:
+
+- **Foto principal** (`products.image_url`) — a foto usada nos cards de listagem da loja (equivalente a
+  `image` no contrato do Orbita, ver `docs/Orbita-Api.md`). Pode ser definida de duas formas no admin:
+  upload de arquivo (campo `image`, armazenado no DigitalOcean Spaces) ou colando uma URL já hospedada
+  (campo `image_url`, texto livre). Se os dois vierem preenchidos no mesmo request, o **upload tem
+  prioridade** e sobrescreve o valor de `image_url`.
+- **Galeria** (tabela `product_images`, `product_id` + `url` + `sort_order`) — fotos extras mostradas no
+  carrossel ao abrir o produto na loja (`ProductGallery` no Orbita). Upload múltiplo (campo `gallery[]`,
+  até 10 arquivos por vez, sempre **acrescentados** ao final da galeria existente — nunca substituem as
+  fotos já cadastradas). Remoção de uma foto específica da galeria é feita marcando seu checkbox
+  "Remover" na tela de edição (campo `remove_gallery[]`, lista de IDs de `product_images`).
+
+Upload (foto principal e galeria) vai pro disco `do_spaces` (DigitalOcean Spaces, mesma convenção do
+módulo de WhatsApp — ver `WhatsappWebhookController`), em
+`eshop-{env}/products/{Y}/{m}/{d}/{md5}-{slug-do-nome}.{ext}`, com visibilidade pública. O `md5` é de um
+UUID gerado na hora (garante arquivo único mesmo se o mesmo arquivo for reenviado — não é hash do
+conteúdo), e o slug do nome do produto vai concatenado pra URL da imagem carregar palavras-chave reais
+em vez de um identificador sem significado (bom pra SEO de busca de imagens). O arquivo de origem **não é
+apagado do Spaces** quando uma foto é removida da galeria ou substituída — só o registro no banco some
+(órfão aceitável, evita lógica frágil de parse de URL pra apagar objeto remoto). `ProductService` concentra
+toda essa lógica (`storeImage()`, `addGalleryImages()`).
+
+`App\Http\Resources\Orbita\ProductResource` expõe `image` (capa) e `images` (capa + galeria, sem
+duplicar a capa caso ela também tenha sido adicionada à galeria) pro contrato do front Orbita. O `alt`
+de cada imagem é `"{nome do produto} - eShop Cell"`, não só o nome — também pensado pra SEO (texto
+alternativo descritivo, com marca, pra buscadores e leitores de tela).
 
 ## Database
 

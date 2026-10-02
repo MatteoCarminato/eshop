@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
@@ -47,11 +48,11 @@ class Product extends Model
      */
     protected $casts = [
         'recno' => 'integer',
-        'price' => 'decimal:8',
-        'wholesale_price' => 'decimal:8',
-        'web_price' => 'decimal:8',
-        'sale_price' => 'decimal:8',
-        'min_price' => 'decimal:8',
+        'price' => 'decimal:2',
+        'wholesale_price' => 'decimal:2',
+        'web_price' => 'decimal:2',
+        'sale_price' => 'decimal:2',
+        'min_price' => 'decimal:2',
         'stock' => 'decimal:4',
         'active' => 'boolean',
         'featured' => 'boolean',
@@ -91,6 +92,15 @@ class Product extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    /**
+     * Galeria de fotos do produto (além da foto principal em `image_url`),
+     * exibida no detalhe do produto no Orbita. Ordenada por `sort_order`.
+     */
+    public function images(): HasMany
+    {
+        return $this->hasMany(ProductImage::class)->orderBy('sort_order');
     }
 
     /**

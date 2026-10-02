@@ -33,7 +33,24 @@ class ProductResource extends JsonResource
         $usdRate = $catalog->usdRate();
         $priceUsd = $catalog->toUsd((float) $product->price, $usdRate);
 
-        $image = $product->image_url ? ['url' => $product->image_url, 'alt' => $product->name] : null;
+        // Alt com nome do produto + marca da loja — texto alternativo real
+        // em vez de só o nome, melhor pra SEO de busca de imagens.
+        $altText = "{$product->name} - eShop Cell";
+
+        $image = $product->image_url ? ['url' => $product->image_url, 'alt' => $altText] : null;
+
+        // Galeria completa: capa primeiro (se existir), depois as fotos da
+        // galeria (product_images), sem repetir a capa caso ela também
+        // tenha sido adicionada lá.
+        $images = collect();
+        if ($image) {
+            $images->push($image);
+        }
+        foreach ($product->images as $galleryImage) {
+            if (!$image || $galleryImage->url !== $image['url']) {
+                $images->push(['url' => $galleryImage->url, 'alt' => $altText]);
+            }
+        }
 
         return array_filter([
             'id' => (string) $product->id,
@@ -54,7 +71,7 @@ class ProductResource extends JsonResource
             'categorySlug' => $product->category?->slug ?? 'outros',
             'storage' => $product->storage,
             'colorName' => $product->color_name,
-            'images' => $image ? [$image] : [],
+            'images' => $images->values()->all(),
             // "art" (placeholder visual quando não há foto real) não tem equivalente
             // aqui — string vazia faz o componente ProductArt cair no placeholder neutro.
             'art' => '',

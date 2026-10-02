@@ -53,7 +53,8 @@ Query params aceitos: `q`, `category`, `brand`, `model`, `storage`, `color`, `pr
 | `category` / `categorySlug` | `product.category.{name,slug}`, ou `"Outros"` / `"outros"` se não classificado |
 | `storage` | `product.storage` (ex.: `"256GB"`) — omitido se nulo |
 | `colorName` | `product.color_name` (ex.: `"Blue"`) — omitido se nulo; o front resolve o hex do swatch sozinho |
-| `images` / `image` | `[{url: image_url, alt: name}]` quando `image_url` existe, senão vazio |
+| `image` | `{url: image_url, alt: name}` (foto principal) quando `image_url` existe, senão omitido |
+| `images` | capa + galeria (`product_images`, ordenada por `sort_order`), sem duplicar a capa — `[]` se não houver nenhuma foto |
 | `art` | sempre `""` (placeholder neutro — sem classificação de tipo de produto) |
 | `compareAtPrice`, `promotion`, `model` (agrupamento de variante), `colorHex`, `tag`, `rating`, `specs`, `variants`, `gtin`, `mpn` | **omitidos** — sem equivalente no eshop |
 

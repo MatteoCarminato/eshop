@@ -57,7 +57,7 @@
 
                             <!-- Formulário -->
                             <form action="{{ route('products.update', $product) }}" method="POST"
-                                class="needs-validation" novalidate>
+                                enctype="multipart/form-data" class="needs-validation" novalidate>
                                 @csrf
                                 @method('PUT')
 
@@ -268,11 +268,37 @@
                                     </div>
                                     <!--end col-->
 
-                                    <!-- Imagem -->
+                                    <!-- Foto principal -->
+                                    <div class="col-xxl-6 col-md-6">
+                                        <div>
+                                            <label for="image" class="form-label">
+                                                Foto principal
+                                            </label>
+                                            @if ($product->image_url)
+                                                <div class="mb-2">
+                                                    <img src="{{ $product->image_url }}" alt="{{ $product->name }}"
+                                                        class="rounded border" style="height: 80px; width: 80px; object-fit: contain;">
+                                                </div>
+                                            @endif
+                                            <input type="file" accept="image/*"
+                                                class="form-control @error('image') is-invalid @enderror"
+                                                id="image" name="image">
+                                            @error('image')
+                                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                            @enderror
+                                            <div class="form-text">
+                                                <i class="ri-information-line"></i> Opcional — envie um arquivo pra
+                                                substituir a foto atual. JPG/PNG/WebP, até 5MB.
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!--end col-->
+
+                                    <!-- Imagem (URL alternativa) -->
                                     <div class="col-xxl-6 col-md-6">
                                         <div>
                                             <label for="image_url" class="form-label">
-                                                Imagem (URL)
+                                                ou URL da foto principal
                                             </label>
                                             <div class="form-icon">
                                                 <input type="text"
@@ -286,8 +312,51 @@
                                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                                             @enderror
                                             <div class="form-text">
-                                                <i class="ri-information-line"></i> Campo opcional — informe a URL de
-                                                uma imagem já hospedada
+                                                <i class="ri-information-line"></i> Alternativa ao upload — só usada
+                                                se nenhum arquivo for enviado acima.
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!--end col-->
+
+                                    <!-- Galeria de fotos -->
+                                    <div class="col-12">
+                                        <div>
+                                            <label class="form-label d-block">Galeria de fotos</label>
+
+                                            @if ($product->images->isNotEmpty())
+                                                <div class="d-flex flex-wrap gap-3 mb-3">
+                                                    @foreach ($product->images as $galleryImage)
+                                                        <div class="text-center">
+                                                            <img src="{{ $galleryImage->url }}" alt="{{ $product->name }}"
+                                                                class="rounded border d-block mb-1"
+                                                                style="height: 80px; width: 80px; object-fit: contain;">
+                                                            <div class="form-check d-flex justify-content-center gap-1">
+                                                                <input class="form-check-input" type="checkbox"
+                                                                    id="remove_gallery_{{ $galleryImage->id }}"
+                                                                    name="remove_gallery[]" value="{{ $galleryImage->id }}">
+                                                                <label class="form-check-label small text-danger"
+                                                                    for="remove_gallery_{{ $galleryImage->id }}">
+                                                                    Remover
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+
+                                            <input type="file" accept="image/*" multiple
+                                                class="form-control @error('gallery') is-invalid @error('gallery.*') is-invalid @enderror @enderror"
+                                                id="gallery" name="gallery[]">
+                                            @error('gallery')
+                                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                            @enderror
+                                            @error('gallery.*')
+                                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                            @enderror
+                                            <div class="form-text">
+                                                <i class="ri-information-line"></i> Novas fotos são adicionadas à
+                                                galeria (não substituem as existentes). Até 10 por vez, 5MB cada.
                                             </div>
                                         </div>
                                     </div>

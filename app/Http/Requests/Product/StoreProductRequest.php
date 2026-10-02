@@ -45,6 +45,9 @@ class StoreProductRequest extends FormRequest
             'stock' => 'nullable|numeric|min:0',
             'description' => 'nullable|string',
             'image_url' => 'nullable|string|max:2048',
+            'image' => 'nullable|image|max:5120',
+            'gallery' => 'nullable|array|max:10',
+            'gallery.*' => 'image|max:5120',
             'active' => 'nullable|boolean',
             'featured' => 'nullable|boolean',
         ];
@@ -72,6 +75,11 @@ class StoreProductRequest extends FormRequest
             'min_price.numeric' => 'O preço mínimo deve ser um valor numérico.',
             'stock.numeric' => 'O estoque deve ser um valor numérico.',
             'image_url.max' => 'A URL da imagem não pode ter mais de 2048 caracteres.',
+            'image.image' => 'O arquivo da foto principal deve ser uma imagem.',
+            'image.max' => 'A foto principal não pode ter mais de 5MB.',
+            'gallery.max' => 'A galeria aceita no máximo 10 fotos por vez.',
+            'gallery.*.image' => 'Cada arquivo da galeria deve ser uma imagem.',
+            'gallery.*.max' => 'Cada foto da galeria não pode ter mais de 5MB.',
         ];
     }
 
@@ -95,6 +103,8 @@ class StoreProductRequest extends FormRequest
             'stock' => 'estoque',
             'description' => 'descrição',
             'image_url' => 'imagem (URL)',
+            'image' => 'foto principal',
+            'gallery' => 'galeria de fotos',
         ];
     }
 }

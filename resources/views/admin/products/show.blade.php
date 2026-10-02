@@ -45,8 +45,21 @@
                             <div class="row gy-4">
                                 @if ($product->image_url)
                                     <div class="col-12">
+                                        <label class="form-label d-block">Foto principal</label>
                                         <img src="{{ $product->image_url }}" alt="{{ $product->name }}"
                                             class="rounded" style="max-height: 180px;">
+                                    </div>
+                                @endif
+
+                                @if ($product->images->isNotEmpty())
+                                    <div class="col-12">
+                                        <label class="form-label d-block">Galeria de fotos</label>
+                                        <div class="d-flex flex-wrap gap-3">
+                                            @foreach ($product->images as $galleryImage)
+                                                <img src="{{ $galleryImage->url }}" alt="{{ $product->name }}"
+                                                    class="rounded border" style="height: 100px; width: 100px; object-fit: contain;">
+                                            @endforeach
+                                        </div>
                                     </div>
                                 @endif
 

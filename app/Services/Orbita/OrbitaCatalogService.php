@@ -37,7 +37,7 @@ class OrbitaCatalogService
     private function sellableQuery(): Builder
     {
         return Product::query()
-            ->with(['brand', 'category'])
+            ->with(['brand', 'category', 'images'])
             ->where('active', true)
             ->where('price', '>', 0)
             ->where('stock', '>', 0);
