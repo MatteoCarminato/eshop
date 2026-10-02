@@ -90,12 +90,19 @@
                             $data          = $item->ai_data ?? [];
                             $isPdf         = str_contains($item->mimetype ?? '', 'pdf');
                             $imgUrl        = route('admin.whatsapp.extracoes.imagem', $item);
-                            $walletClient  = $item->status === 'confirmed'
-                                ? ($item->transaction?->client ?? $item->group?->client)
+                            $walletSource  = null;
+                            if ($item->status === 'confirmed') {
+                                $walletSource = $item;
+                            } elseif ($item->status === 'duplicate' && !empty($item->duplicateMatch)) {
+                                $walletSource = $item->duplicateMatch['record'];
+                            }
+                            $walletClient  = $walletSource
+                                ? ($walletSource->transaction?->client ?? $walletSource->group?->client)
                                 : null;
                             $walletUrl     = $walletClient
-                                ? route('admin.wallet.client', $walletClient) . '?origin=pix' . ($item->transaction ? '#tx-' . $item->transaction->id : '')
+                                ? route('admin.wallet.client', $walletClient) . '?origin=pix' . ($walletSource->transaction ? '#tx-' . $walletSource->transaction->id : '')
                                 : null;
+                            $imgHref       = ($item->status === 'duplicate' && $walletUrl) ? $walletUrl : $imgUrl;
                         @endphp
                         <div class="col-12">
                             <div class="card shadow-sm">
@@ -105,12 +112,12 @@
                                         {{-- Imagem ou ícone PDF --}}
                                         <div class="col-md-4 col-lg-3 text-center">
                                             @if ($isPdf)
-                                                <a href="{{ $imgUrl }}" target="_blank" class="d-block text-muted">
+                                                <a href="{{ $imgHref }}" target="_blank" class="d-block text-muted">
                                                     <i class="ri-file-pdf-line" style="font-size:5rem;color:#e74c3c;"></i>
                                                     <br><small>Abrir PDF</small>
                                                 </a>
                                             @else
-                                                <a href="{{ $imgUrl }}" target="_blank">
+                                                <a href="{{ $imgHref }}" target="_blank">
                                                     <img src="{{ $imgUrl }}"
                                                          alt="Comprovante"
                                                          class="img-fluid rounded border"

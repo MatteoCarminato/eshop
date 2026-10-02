@@ -628,7 +628,7 @@ class WhatsappController extends Controller
      */
     private function findDuplicateMatch(WhatsappPixExtraction $item): ?array
     {
-        $base = WhatsappPixExtraction::with('group')
+        $base = WhatsappPixExtraction::with(['group.client', 'transaction.client'])
             ->where('status', 'confirmed')
             ->where('id', '!=', $item->id);
 
