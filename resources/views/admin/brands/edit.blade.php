@@ -144,7 +144,7 @@
                                                             <li>RECNO: {{ $brand->recno }}</li>
                                                             @if ($brand->synced_at)
                                                                 <li>Sincronizado em:
-                                                                    {{ $brand->synced_at->format('d/m/Y H:i') }}</li>
+                                                                    {{ $brand->synced_at->displayTz()->format('d/m/Y H:i') }}</li>
                                                             @endif
                                                         </ul>
                                                     </div>
@@ -163,10 +163,10 @@
                                                 <div class="flex-grow-1 ms-2">
                                                     <strong>Informações do Registro:</strong>
                                                     <ul class="mb-0 mt-2">
-                                                        <li>Cadastrado em: {{ $brand->created_at->format('d/m/Y H:i') }}
+                                                        <li>Cadastrado em: {{ $brand->created_at->displayTz()->format('d/m/Y H:i') }}
                                                         </li>
                                                         <li>Última atualização:
-                                                            {{ $brand->updated_at->format('d/m/Y H:i') }}
+                                                            {{ $brand->updated_at->displayTz()->format('d/m/Y H:i') }}
                                                         </li>
                                                         <li>ID: #{{ $brand->id }}</li>
                                                     </ul>

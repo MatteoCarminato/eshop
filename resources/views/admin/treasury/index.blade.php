@@ -151,7 +151,7 @@
                                                 $pnlR = (float) $v->realized_pnl_brl;
                                             @endphp
                                             <tr>
-                                                <td>{{ $v->created_at->format('d/m/Y H:i') }}</td>
+                                                <td>{{ $v->created_at->displayTz()->format('d/m/Y H:i') }}</td>
                                                 <td>{{ optional($v->client)->name ?? '—' }}</td>
                                                 <td class="text-end">{{ number_format($v->usd_amount, 2, ',', '.') }}</td>
                                                 <td class="text-end">{{ number_format($v->sell_rate, 4, ',', '.') }}</td>
@@ -203,7 +203,7 @@
                                                 };
                                             @endphp
                                             <tr>
-                                                <td>{{ optional($l->purchased_at ?? $l->created_at)->format('d/m H:i') }}</td>
+                                                <td>{{ ($l->purchased_at ?? $l->created_at)?->displayTz()->format('d/m H:i') }}</td>
                                                 <td><span class="badge {{ $srcLabel[1] }}">{{ $srcLabel[0] }}</span></td>
                                                 <td class="text-end">{{ number_format($l->usd_remaining, 2, ',', '.') }}</td>
                                                 <td class="text-end">{{ $l->cost_rate > 0 ? number_format($l->cost_rate, 4, ',', '.') : '—' }}</td>

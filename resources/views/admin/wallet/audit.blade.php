@@ -278,7 +278,7 @@
                                                 $statusInfo = $tx->status ? ($statusLabels[$tx->status] ?? ['label' => $tx->status, 'class' => 'bg-secondary-subtle text-secondary']) : null;
                                             @endphp
                                             <tr>
-                                                <td>{{ $tx->created_at->format('d/m/Y H:i') }}</td>
+                                                <td>{{ $tx->created_at->displayTz()->format('d/m/Y H:i') }}</td>
                                                 <td>
                                                     <a href="{{ route('admin.wallet.client', $tx->client_id) }}">
                                                         {{ $tx->client->name ?? ('#' . $tx->client_id) }}

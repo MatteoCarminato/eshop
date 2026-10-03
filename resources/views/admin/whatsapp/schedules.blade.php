@@ -212,7 +212,7 @@
                                                 </td>
                                                 <td>
                                                     @if($schedule->last_run_at)
-                                                        {{ $schedule->last_run_at->timezone('America/Sao_Paulo')->format('d/m/Y H:i') }}
+                                                        {{ $schedule->last_run_at->displayTz()->format('d/m/Y H:i') }}
                                                     @else
                                                         <span class="text-muted">Ainda não executou</span>
                                                     @endif

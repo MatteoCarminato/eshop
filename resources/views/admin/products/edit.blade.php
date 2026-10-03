@@ -428,9 +428,9 @@
                                                     <strong>Informações do Registro:</strong>
                                                     <ul class="mb-0 mt-2">
                                                         <li>Cadastrado em:
-                                                            {{ $product->created_at->format('d/m/Y H:i') }}</li>
+                                                            {{ $product->created_at->displayTz()->format('d/m/Y H:i') }}</li>
                                                         <li>Última atualização:
-                                                            {{ $product->updated_at->format('d/m/Y H:i') }}</li>
+                                                            {{ $product->updated_at->displayTz()->format('d/m/Y H:i') }}</li>
                                                         <li>ID: #{{ $product->id }}</li>
                                                         <li>
                                                             Origem:

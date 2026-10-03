@@ -90,10 +90,10 @@
                                             <div class="flex-grow-1 ms-2">
                                                 <strong>Informações do Registro:</strong>
                                                 <ul class="mb-0 mt-2">
-                                                    <li>Cadastrado em: {{ $client->created_at->format('d/m/Y H:i') }}
+                                                    <li>Cadastrado em: {{ $client->created_at->displayTz()->format('d/m/Y H:i') }}
                                                     </li>
                                                     <li>Última atualização:
-                                                        {{ $client->updated_at->format('d/m/Y H:i') }}
+                                                        {{ $client->updated_at->displayTz()->format('d/m/Y H:i') }}
                                                     </li>
                                                     <li>ID: #{{ $client->id }}</li>
                                                 </ul>

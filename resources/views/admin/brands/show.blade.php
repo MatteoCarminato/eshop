@@ -112,17 +112,17 @@
                                                         <li>RECNO (ERP): {{ $brand->recno }}</li>
                                                         @if ($brand->synced_at)
                                                             <li>Sincronizado do ERP em:
-                                                                {{ $brand->synced_at->format('d/m/Y H:i') }}</li>
+                                                                {{ $brand->synced_at->displayTz()->format('d/m/Y H:i') }}</li>
                                                         @endif
                                                     @else
                                                         <li>Marca criada diretamente no site (sem vínculo com o ERP)
                                                         </li>
                                                     @endif
                                                     <li>Slug: {{ $brand->slug }}</li>
-                                                    <li>Cadastrado em: {{ $brand->created_at->format('d/m/Y H:i') }}
+                                                    <li>Cadastrado em: {{ $brand->created_at->displayTz()->format('d/m/Y H:i') }}
                                                     </li>
                                                     <li>Última atualização:
-                                                        {{ $brand->updated_at->format('d/m/Y H:i') }}
+                                                        {{ $brand->updated_at->displayTz()->format('d/m/Y H:i') }}
                                                     </li>
                                                     <li>ID: #{{ $brand->id }}</li>
                                                 </ul>

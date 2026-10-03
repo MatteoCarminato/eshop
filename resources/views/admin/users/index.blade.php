@@ -72,7 +72,7 @@
                                                 <td class="fw-medium">{{ $employee->name }}</td>
                                                 <td>{{ $employee->email }}</td>
                                                 <td>{{ optional($employee->role)->name ?? 'Sem cargo' }}</td>
-                                                <td>{{ $employee->created_at?->format('d/m/Y H:i') }}</td>
+                                                <td>{{ $employee->created_at?->displayTz()->format('d/m/Y H:i') }}</td>
                                                 <td>
                                                     <div class="hstack gap-2 justify-content-center">
                                                         <a href="{{ route('users.edit', $employee) }}"

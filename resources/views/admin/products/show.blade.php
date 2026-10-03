@@ -151,16 +151,16 @@
                                                 <strong>Informações do Registro:</strong>
                                                 <ul class="mb-0 mt-2">
                                                     <li>ID: #{{ $product->id }}</li>
-                                                    <li>Cadastrado em: {{ $product->created_at->format('d/m/Y H:i') }}
+                                                    <li>Cadastrado em: {{ $product->created_at->displayTz()->format('d/m/Y H:i') }}
                                                     </li>
                                                     <li>Última atualização:
-                                                        {{ $product->updated_at->format('d/m/Y H:i') }}
+                                                        {{ $product->updated_at->displayTz()->format('d/m/Y H:i') }}
                                                     </li>
                                                     @if ($product->recno)
                                                         <li>Origem: ERP — RECNO {{ $product->recno }}</li>
                                                         <li>
                                                             Sincronizado em:
-                                                            {{ $product->synced_at ? $product->synced_at->format('d/m/Y H:i') : '—' }}
+                                                            {{ $product->synced_at ? $product->synced_at->displayTz()->format('d/m/Y H:i') : '—' }}
                                                         </li>
                                                     @else
                                                         <li>Origem: Cadastrado manualmente</li>

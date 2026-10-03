@@ -847,7 +847,7 @@
                                         @php
                                             $detalhesData = [
                                                 'id'               => $tx->id,
-                                                'data'             => $tx->created_at->format('d/m/Y H:i'),
+                                                'data'             => $tx->created_at->displayTz()->format('d/m/Y H:i'),
                                                 'valor'            => number_format($tx->amount, 2, ',', '.'),
                                                 'brl_pre'          => number_format($brlPre, 2, ',', '.'),
                                                 'brl_sold'         => number_format($brlSold, 2, ',', '.'),
@@ -894,7 +894,7 @@
                                                     disabled @endif>
                                             </td>
                                             <td>
-                                                <div>{{ $tx->created_at->format('d/m/Y H:i') }}</div>
+                                                <div>{{ $tx->created_at->displayTz()->format('d/m/Y H:i') }}</div>
                                                 @if($hasPre)
                                                     <span class="badge bg-success-subtle text-success border border-success-subtle"
                                                         title="Comprou R$ {{ number_format($brlPre, 2, ',', '.') }} @ {{ $taxaMediaPre ? number_format($taxaMediaPre, 4, ',', '.') : '' }}">
@@ -1374,7 +1374,7 @@
                                 <tbody>
                                     @forelse($saidaUsd as $tx)
                                         <tr>
-                                            <td>{{ $tx->created_at->format('d/m/Y H:i') }}</td>
+                                            <td>{{ $tx->created_at->displayTz()->format('d/m/Y H:i') }}</td>
                                             <td class="fw-bold text-danger text-end">{{ number_format(abs($tx->amount), 2, ',', '.') }}
                                             </td>
                                             <td>{{ $tx->description ?? '-' }}</td>
@@ -1466,11 +1466,11 @@
                                             $lotesSellUsd = collect($preSellsByUsdTx[$tx->id] ?? []);
                                             $usdDetalhesData = [
                                                 'type'      => 'entrada_usd',
-                                                'data'      => $tx->created_at->format('d/m/Y H:i'),
+                                                'data'      => $tx->created_at->displayTz()->format('d/m/Y H:i'),
                                                 'usd_total' => number_format($tx->amount, 2, ',', '.'),
                                                 'taxa'      => $tx->exchange_rate ? number_format($tx->exchange_rate, 4, ',', '.') : null,
                                                 'fontes'    => $lotesSellUsd->map(fn($l) => [
-                                                    'deposito_data' => $l->sourceTransaction?->created_at?->format('d/m/Y H:i') ?? '-',
+                                                    'deposito_data' => $l->sourceTransaction?->created_at?->displayTz()->format('d/m/Y H:i') ?? '-',
                                                     'deposito_id'   => $l->source_transaction_id,
                                                     'brl'  => number_format($l->brl_amount, 2, ',', '.'),
                                                     'taxa' => number_format($l->sell_rate, 4, ',', '.'),
@@ -1479,7 +1479,7 @@
                                             ];
                                         @endphp
                                         <tr>
-                                            <td>{{ $tx->created_at->format('d/m/Y H:i') }}</td>
+                                            <td>{{ $tx->created_at->displayTz()->format('d/m/Y H:i') }}</td>
                                             <td class="fw-bold text-success text-end">
                                                 {{ number_format($tx->amount, 2, ',', '.') }}
                                             </td>

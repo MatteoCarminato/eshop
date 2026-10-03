@@ -35,9 +35,9 @@
                                 <dt class="col-sm-3">Descrição</dt>
                                 <dd class="col-sm-9">{{ $group->description ?? '—' }}</dd>
                                 <dt class="col-sm-3">Criado em</dt>
-                                <dd class="col-sm-9">{{ $group->created_at->format('d/m/Y H:i') }}</dd>
+                                <dd class="col-sm-9">{{ $group->created_at->displayTz()->format('d/m/Y H:i') }}</dd>
                                 <dt class="col-sm-3">Atualizado em</dt>
-                                <dd class="col-sm-9">{{ $group->updated_at->format('d/m/Y H:i') }}</dd>
+                                <dd class="col-sm-9">{{ $group->updated_at->displayTz()->format('d/m/Y H:i') }}</dd>
                             </dl>
                             <hr>
                             <h5 class="mb-3">Adicionar clientes ao grupo</h5>

@@ -725,7 +725,7 @@ class WalletController extends Controller
         $rowsCount = max(1, $entradasBrl->count(), $saidasUsd->count(), $entradasUsd->count());
 
         $br = fn ($v, $dec = 2) => number_format((float) $v, $dec, ',', '.');
-        $dt = fn ($t) => optional($t->created_at)->format('d/m/Y H:i');
+        $dt = fn ($t) => $t->created_at?->displayTz()->format('d/m/Y H:i');
 
         $templatePath = storage_path('app/templates/extrato_template.xlsx');
         if (!is_file($templatePath)) {
@@ -984,7 +984,7 @@ class WalletController extends Controller
 
         // Helpers de formatação local pt-BR.
         $br = fn ($v, $dec = 2) => number_format((float) $v, $dec, ',', '.');
-        $dt = fn ($t) => optional($t->created_at)->format('d/m/Y H:i');
+        $dt = fn ($t) => $t->created_at?->displayTz()->format('d/m/Y H:i');
 
         $filename = sprintf(
             'extrato_%s_%s.csv',

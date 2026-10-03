@@ -144,6 +144,15 @@ class ClientBankService
     {
         $nomeLower = mb_strtolower($nome);
 
+        // O comprovante traz o horário de Brasília truncado no minuto: o PIX ocorreu em algum
+        // segundo dentro desse minuto. Entre vários candidatos (ex.: mesmo pagador mandando
+        // vários PIX do mesmo valor em minutos seguidos), fica o mais próximo desse intervalo.
+        $minutoInicio = Carbon::createFromFormat('d/m/Y H:i', $dataAi->format('d/m/Y H:i'), 'America/Sao_Paulo')->startOfMinute();
+        $minutoFim    = $minutoInicio->copy()->endOfMinute();
+
+        $melhorId        = null;
+        $melhorDistancia = null;
+
         foreach ($items as $item) {
             // Só entradas (amount positivo)
             if (($item['amount'] ?? 0) <= 0) {
@@ -172,10 +181,19 @@ class ClientBankService
                 continue;
             }
 
-            return $item['id'];
+            $distancia = match (true) {
+                $dataTx->lt($minutoInicio) => $minutoInicio->diffInSeconds($dataTx, true),
+                $dataTx->gt($minutoFim)    => $minutoFim->diffInSeconds($dataTx, true),
+                default                    => 0,
+            };
+
+            if ($melhorDistancia === null || $distancia < $melhorDistancia) {
+                $melhorId        = $item['id'];
+                $melhorDistancia = $distancia;
+            }
         }
 
-        return null;
+        return $melhorId;
     }
 
     /**
@@ -185,6 +203,17 @@ class ClientBankService
     private function nomesCorrespondem(string $nome, string $desc): bool
     {
         if ($nome === '' || $desc === '') {
+            return false;
+        }
+
+        if (str_contains($desc, $nome) || str_contains($nome, $desc)) {
+            return true;
+        }
+
+        // O extrato traz o documento do pagador antes do nome (ex.: "58.634.921 SIRLEIA ..."),
+        // o que inviabiliza a distância de edição contra a descrição inteira.
+        $desc = trim(preg_replace('/^[\d.\-\/\s]+/u', '', $desc));
+        if ($desc === '') {
             return false;
         }
 

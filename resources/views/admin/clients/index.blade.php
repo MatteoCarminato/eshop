@@ -130,7 +130,7 @@
                                                         <span class="text-muted">—</span>
                                                     @endif
                                                 </td>
-                                                <td>{{ $client->created_at->format('d/m/Y H:i') }}</td>
+                                                <td>{{ $client->created_at->displayTz()->format('d/m/Y H:i') }}</td>
                                                 <td>
                                                     <div class="hstack gap-2 justify-content-center">
                                                         <a href="{{ route('clients.show', $client) }}"

@@ -125,7 +125,7 @@
                                             @endif
                                             <div class="mt-2 text-muted" style="font-size:0.75rem;">
                                                 {{ $item->group?->name ?? $item->whatsapp_group_id }}<br>
-                                                {{ $item->created_at->format('d/m/Y H:i') }}
+                                                {{ $item->created_at->displayTz()->format('d/m/Y H:i') }}
                                             </div>
                                             @if ($walletUrl)
                                                 <a href="{{ $walletUrl }}" target="_blank" class="btn btn-outline-primary btn-sm mt-2">
@@ -217,7 +217,7 @@
                                                         <div>
                                                             Grupo: <strong>{{ $orig->group?->name ?? $orig->whatsapp_group_id }}</strong>
                                                             &nbsp;|&nbsp;
-                                                            Enviado em: {{ $orig->created_at->format('d/m/Y H:i') }}
+                                                            Enviado em: {{ $orig->created_at->displayTz()->format('d/m/Y H:i') }}
                                                         </div>
                                                         <div>
                                                             Pagador: {{ $origData['nome_pagador'] ?? $orig->pix_nome ?? '—' }}
@@ -287,7 +287,7 @@
                                                                         </tr>
                                                                         <tr>
                                                                             <th>Enviado em</th>
-                                                                            <td>{{ $cExt->created_at->format('d/m/Y H:i') }}</td>
+                                                                            <td>{{ $cExt->created_at->displayTz()->format('d/m/Y H:i') }}</td>
                                                                         </tr>
                                                                         <tr>
                                                                             <th>Pagador</th>

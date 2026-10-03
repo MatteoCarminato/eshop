@@ -55,7 +55,7 @@
                                     <tbody>
                                         @forelse($transactions as $tx)
                                             <tr>
-                                                <td>{{ $tx->created_at->format('d/m/Y H:i') }}</td>
+                                                <td>{{ $tx->created_at->displayTz()->format('d/m/Y H:i') }}</td>
                                                 <td>{{ __(ucfirst($tx->type)) }}</td>
                                                 <td>{{ $tx->currency }}</td>
                                                 <td class="fw-bold {{ $tx->amount < 0 ? 'text-danger' : 'text-success' }}">
