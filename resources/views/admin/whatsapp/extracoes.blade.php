@@ -102,7 +102,6 @@
                             $walletUrl     = $walletClient
                                 ? route('admin.wallet.client', $walletClient) . '?origin=pix' . ($walletSource->transaction ? '#tx-' . $walletSource->transaction->id : '')
                                 : null;
-                            $imgHref       = ($item->status === 'duplicate' && $walletUrl) ? $walletUrl : $imgUrl;
                         @endphp
                         <div class="col-12">
                             <div class="card shadow-sm">
@@ -112,12 +111,12 @@
                                         {{-- Imagem ou ícone PDF --}}
                                         <div class="col-md-4 col-lg-3 text-center">
                                             @if ($isPdf)
-                                                <a href="{{ $imgHref }}" target="_blank" class="d-block text-muted">
+                                                <a href="{{ $imgUrl }}" target="_blank" class="d-block text-muted">
                                                     <i class="ri-file-pdf-line" style="font-size:5rem;color:#e74c3c;"></i>
                                                     <br><small>Abrir PDF</small>
                                                 </a>
                                             @else
-                                                <a href="{{ $imgHref }}" target="_blank">
+                                                <a href="{{ $imgUrl }}" target="_blank">
                                                     <img src="{{ $imgUrl }}"
                                                          alt="Comprovante"
                                                          class="img-fluid rounded border"
