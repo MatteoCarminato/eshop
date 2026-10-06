@@ -246,7 +246,7 @@
                     <h5 class="modal-title" id="depositGlobalModalLabel">Adicionar valor para cliente</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
-                <form id="depositGlobalForm" method="POST" action="{{ url('admin/wallet/deposit') }}">
+                <form id="depositGlobalForm" method="POST" action="{{ url('admin/wallet/deposit') }}" enctype="multipart/form-data">
                     @csrf
                     <div class="modal-body">
                         <div class="mb-3">
@@ -293,6 +293,16 @@
                                 <option value="pix">Pix</option>
                                 <option value="dinheiro">Dinheiro</option>
                             </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="global_receipt_image" class="form-label">Comprovante (opcional)</label>
+                            <input type="file" name="receipt_image" id="global_receipt_image" class="form-control"
+                                accept="image/jpeg,image/png,image/webp,application/pdf">
+                            <small class="text-muted d-block mt-1">
+                                Anexe pra simular que o comprovante chegou pelo WhatsApp: é enviado de verdade
+                                pro grupo do cliente e entra no mesmo controle de duplicidade das extrações
+                                automáticas — a mesma imagem não pode ser usada duas vezes.
+                            </small>
                         </div>
                     </div>
                     <div class="modal-footer">

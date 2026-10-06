@@ -54,6 +54,13 @@ class WhatsappWebhookController extends Controller
             return response()->json(['ok' => true]);
         }
 
+        // Mídia enviada pelo próprio bot (ex.: comprovante simulado da entrada manual de
+        // depósito, ou respostas automáticas) não é um comprovante recebido de cliente —
+        // processá-la de novo criaria uma extração duplicada e um aviso confuso no grupo.
+        if ($payload['from_me'] ?? false) {
+            return response()->json(['ok' => true]);
+        }
+
         $chatId = $payload['chat_id'] ?? null;
         $media  = $payload['media'] ?? null;
 
@@ -478,8 +485,9 @@ class WhatsappWebhookController extends Controller
             $base->where('id', '!=', $excludeId);
         }
 
-        // 1. Mesma imagem (hash idêntico) — mais confiável
-        if ((clone $base)->where('image_hash', $imageHash)->exists()) {
+        // 1. Mesma imagem (hash idêntico) — mais confiável. Cobre também imagens usadas
+        //    numa entrada manual de depósito simulando o WhatsApp (ver WalletController).
+        if (WhatsappPixExtraction::imageAlreadyUsed($imageHash, $excludeId)) {
             return true;
         }
 
@@ -551,13 +559,6 @@ class WhatsappWebhookController extends Controller
 
     private function extFromMime(string $mimetype): string
     {
-        return match (true) {
-            str_contains($mimetype, 'jpeg') => 'jpg',
-            str_contains($mimetype, 'png')  => 'png',
-            str_contains($mimetype, 'gif')  => 'gif',
-            str_contains($mimetype, 'webp') => 'webp',
-            str_contains($mimetype, 'pdf')  => 'pdf',
-            default                         => 'bin',
-        };
+        return WhatsappPixExtraction::extensionFromMime($mimetype);
     }
 }

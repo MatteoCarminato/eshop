@@ -1411,8 +1411,39 @@ class WalletController extends Controller
             number_format((float) $data['amount'], 2, ',', '.') .
             ' via ' . ($data['payment_method'] ?? '-');
 
-        return $this->reversalService->capture($type, (int) $data['client_id'], [], $label, function () use ($request) {
-            return DB::transaction(function () use ($request) {
+        // Comprovante anexado pra simular que o depósito veio pelo WhatsApp: valida
+        // antes de criar qualquer coisa, pra não deixar lançamento órfão se a imagem
+        // já tiver sido usada ou o cliente não tiver grupo pra receber a simulação.
+        $group = null;
+        $imageBinary = null;
+        $imageHash = null;
+        $imageMimetype = null;
+
+        if ($request->hasFile('receipt_image')) {
+            $group = \App\Models\WhatsappGroup::where('client_id', $data['client_id'])
+                ->where('ai_active', true)
+                ->first();
+
+            if (!$group) {
+                return response()->json([
+                    'message' => 'Esse cliente não tem grupo de WhatsApp vinculado e ativo para simular o envio do comprovante.',
+                ], 422);
+            }
+
+            $file = $request->file('receipt_image');
+            $imageBinary = file_get_contents($file->getRealPath());
+            $imageHash = hash('sha256', $imageBinary);
+            $imageMimetype = $file->getMimeType();
+
+            if (\App\Models\WhatsappPixExtraction::imageAlreadyUsed($imageHash)) {
+                return response()->json([
+                    'message' => 'Esse comprovante (imagem) já foi usado em outro depósito confirmado.',
+                ], 422);
+            }
+        }
+
+        return $this->reversalService->capture($type, (int) $data['client_id'], [], $label, function () use ($request, $group, $imageBinary, $imageHash, $imageMimetype) {
+            return DB::transaction(function () use ($request, $group, $imageBinary, $imageHash, $imageMimetype) {
                 $data = $request->validated();
                 $client = \App\Models\Client::findOrFail($data['client_id']);
             $exchangeRate = null;
@@ -1428,6 +1459,10 @@ class WalletController extends Controller
                 $description = 'Depósito em ' . $data['currency'] . ' via ' . $data['payment_method'];
             }
 
+            $extraction = null;
+            if ($group && $imageBinary) {
+                $extraction = $this->saveSimulatedWhatsappReceipt($group, $client, (float) $data['amount'], $imageBinary, $imageHash, $imageMimetype);
+            }
 
             $this->walletService->updateBalance($data['client_id'], $data['currency'], $data['amount']);
             $this->transactionService->create([
@@ -1441,10 +1476,47 @@ class WalletController extends Controller
                 'converted_amount' => $convertedAmount,
                 'status' => $data['currency'] === 'BRL' ? 'ambos_abertos' : null,
                 'description' => $description,
+                'whatsapp_pix_extraction_id' => $extraction?->id,
             ]);
             return response()->json(['message' => 'Depósito realizado com sucesso.']);
             });
         });
+    }
+
+    /**
+     * Grava o comprovante anexado na entrada manual como se fosse uma extração de
+     * WhatsApp confirmada (mesma trilha de hash/storage usada pelo webhook real), e
+     * manda a imagem pro grupo do cliente pra simular que o aviso chegou por lá.
+     */
+    private function saveSimulatedWhatsappReceipt(\App\Models\WhatsappGroup $group, \App\Models\Client $client, float $amount, string $binary, string $hash, string $mimetype): \App\Models\WhatsappPixExtraction
+    {
+        $env = env('APP_ENV', 'local');
+        $ext = \App\Models\WhatsappPixExtraction::extensionFromMime($mimetype);
+        $filename = now()->format('Ymd_His') . '_' . substr($hash, 0, 8) . '.' . $ext;
+        $path = "eshop-{$env}/whatsapp-pix/" . now()->format('Y/m/d') . '/' . $filename;
+        \Illuminate\Support\Facades\Storage::disk('do_spaces')->put($path, $binary, 'public');
+
+        $valorFormatado = 'R$ ' . number_format($amount, 2, ',', '.');
+        $dataFormatada = now('America/Sao_Paulo')->format('d/m/Y H:i');
+
+        $extraction = \App\Models\WhatsappPixExtraction::create([
+            'whatsapp_group_id' => $group->id,
+            'from' => Auth::user()->name ?? 'Admin',
+            'image_path' => $path,
+            'image_hash' => $hash,
+            'mimetype' => $mimetype,
+            'pix_nome' => $client->name,
+            'pix_valor' => $valorFormatado,
+            'pix_data' => $dataFormatada,
+            'status' => 'confirmed',
+        ]);
+
+        $caption = "PIX CONFIRMADO: \t{$dataFormatada}\n{$client->name}\t{$valorFormatado}";
+        $base64 = base64_encode($binary);
+        (new \App\Services\WhatsappNodeService('whatsapp_node_grupos'))
+            ->sendMedia($group->chat_id, "data:{$mimetype};base64,{$base64}", $mimetype, $caption);
+
+        return $extraction;
     }
 
     /**

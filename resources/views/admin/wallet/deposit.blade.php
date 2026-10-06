@@ -20,7 +20,7 @@
                 <div class="col-lg-12">
                     <div class="card">
                         <div class="card-header border-0">
-                            <form method="POST" action="{{ route('admin.wallet.deposit') }}">
+                            <form method="POST" action="{{ route('admin.wallet.deposit') }}" enctype="multipart/form-data">
                                 @csrf
                                 <div class="mb-3">
                                     <label for="client_id" class="form-label">Cliente</label>
@@ -49,6 +49,16 @@
                                         <option value="pix">Pix</option>
                                         <option value="dinheiro">Dinheiro</option>
                                     </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="receipt_image" class="form-label">Comprovante (opcional)</label>
+                                    <input type="file" name="receipt_image" id="receipt_image" class="form-control"
+                                        accept="image/jpeg,image/png,image/webp,application/pdf">
+                                    <div class="form-text">
+                                        Anexe pra simular que o comprovante chegou pelo WhatsApp: ele é enviado
+                                        de verdade pro grupo do cliente e salvo com o mesmo controle de duplicidade
+                                        das extrações automáticas — a mesma imagem não pode ser usada duas vezes.
+                                    </div>
                                 </div>
                                 <button type="submit" class="btn btn-success">Depositar</button>
                                 <a href="{{ route('admin.wallet.index') }}" class="btn btn-light">Voltar</a>

@@ -19,6 +19,7 @@ class DepositRequest extends FormRequest
             'amount' => 'required|numeric|min:0.01',
             'fee' => 'nullable|numeric|min:0.000001|required_if:currency,BRL',
             'payment_method' => 'required|in:pix,dinheiro,efetivo,usdt',
+            'receipt_image' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:10240',
         ];
     }
 
