@@ -90,7 +90,7 @@
                 @if(session('receiptCheck'))
                     @php
                         $rc = session('receiptCheck');
-                        $matches = $rc['matches'];
+                        $matches = collect($rc['matches']);
                     @endphp
                     <div class="card border-0 shadow-sm mb-4" id="checkResultCard">
                         @if($matches->isEmpty())
