@@ -639,7 +639,7 @@ class WhatsappController extends Controller
             }
         }
 
-        if ($item->numero_transacao) {
+        if (WhatsappPixExtraction::isTxidConfiavel($item->numero_transacao)) {
             $match = (clone $base)->where('numero_transacao', $item->numero_transacao)->first();
             if ($match) {
                 return ['record' => $match, 'reason' => 'numero_transacao'];

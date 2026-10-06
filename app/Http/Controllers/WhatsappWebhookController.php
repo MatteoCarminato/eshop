@@ -394,6 +394,7 @@ class WhatsappWebhookController extends Controller
             'O campo valor deve estar no formato "R$ 0.000,00" (com ponto de milhar quando aplicável).',
             'O campo data_hora deve estar no formato "DD/MM/YYYY HH:MM".',
             'O campo cpf_cnpj deve conter apenas dígitos, sem pontuação.',
+            'ATENÇÃO ao campo numero_transacao — é o "ID da transação" do PIX (EndToEndId): começa com a letra "E" e tem exatamente 32 caracteres. Em muitos comprovantes (ex.: Nubank) ele aparece QUEBRADO EM DUAS LINHAS — junte todas as linhas em um único valor, sem espaços, e nunca devolva só a primeira linha. NUNCA use a "Chave Pix" do destinatário (ex.: um código no formato "7a94b4d4-eec2-...", e-mail, telefone, CPF/CNPJ) como numero_transacao; se não houver ID da transação no documento, mantenha null.',
             'ATENÇÃO ao campo nome_pagador — transcreva o nome EXATAMENTE como está escrito no documento, letra por letra. NUNCA "corrija" ou normalize a grafia para a variante mais comum (ex.: se o documento diz "Willian", responda "Willian", e NÃO "William"; se diz "Marcia", NÃO troque por "Márcia"). Releia o nome extraído e confira letra por letra contra o documento antes de responder.',
         ]);
     }
@@ -482,8 +483,9 @@ class WhatsappWebhookController extends Controller
             return true;
         }
 
-        // 2. Mesmo número de transação exato
-        if ($txid && (clone $base)->where('numero_transacao', $txid)->exists()) {
+        // 2. Mesmo número de transação exato (só quando é um EndToEndId completo; ID cortado
+        //    ou chave PIX do destinatário se repetem entre PIX diferentes)
+        if (WhatsappPixExtraction::isTxidConfiavel($txid) && (clone $base)->where('numero_transacao', $txid)->exists()) {
             return true;
         }
 
