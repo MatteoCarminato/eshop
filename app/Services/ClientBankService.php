@@ -112,7 +112,9 @@ class ClientBankService
             $walletId = $this->getBrlWalletId($token);
 
             $valorFloat = $this->parseValor($valorStr);
-            $dataAi     = Carbon::createFromFormat('d/m/Y H:i', $dataHora);
+            // O comprovante traz o horário local de Brasília; precisamos converter pro
+            // instante UTC real para comparar corretamente com o transactionDate da API.
+            $dataAi = Carbon::createFromFormat('d/m/Y H:i', $dataHora, 'America/Sao_Paulo');
 
             // Busca já filtrada pela data do comprovante (com folga de 1 dia para
             // cobrir fuso horário e a tolerância de horário usada no match abaixo),
@@ -144,11 +146,11 @@ class ClientBankService
     {
         $nomeLower = mb_strtolower($nome);
 
-        // O comprovante traz o horário de Brasília truncado no minuto: o PIX ocorreu em algum
-        // segundo dentro desse minuto. Entre vários candidatos (ex.: mesmo pagador mandando
-        // vários PIX do mesmo valor em minutos seguidos), fica o mais próximo desse intervalo.
-        $minutoInicio = Carbon::createFromFormat('d/m/Y H:i', $dataAi->format('d/m/Y H:i'), 'America/Sao_Paulo')->startOfMinute();
-        $minutoFim    = $minutoInicio->copy()->endOfMinute();
+        // O comprovante traz o horário truncado no minuto: o PIX ocorreu em algum segundo
+        // dentro desse minuto. Entre vários candidatos (ex.: mesmo pagador mandando vários
+        // PIX do mesmo valor em minutos seguidos), fica o mais próximo desse intervalo.
+        $minutoInicio = $dataAi->copy()->startOfMinute();
+        $minutoFim    = $dataAi->copy()->endOfMinute();
 
         $melhorId        = null;
         $melhorDistancia = null;
@@ -170,13 +172,11 @@ class ClientBankService
                 continue;
             }
 
-            // Data e horário (o comprovante só traz HH:MM, sem segundos; toleramos até 3h + 2min
-            // do transactionDate, somando o fuso (3h) à margem de segundos que o transactionDate tem)
+            // Data e horário: o comprovante só traz HH:MM, sem segundos, então toleramos até
+            // 2min além do minuto indicado (folga para o lançamento no extrato não ser
+            // exatamente no mesmo segundo do PIX).
             try {
                 $dataTx = Carbon::parse($item['transactionDate']);
-                if (abs($dataTx->diffInSeconds($dataAi, false)) > 10920) {
-                    continue;
-                }
             } catch (\Throwable) {
                 continue;
             }
@@ -186,6 +186,10 @@ class ClientBankService
                 $dataTx->gt($minutoFim)    => $minutoFim->diffInSeconds($dataTx, true),
                 default                    => 0,
             };
+
+            if ($distancia > 120) {
+                continue;
+            }
 
             if ($melhorDistancia === null || $distancia < $melhorDistancia) {
                 $melhorId        = $item['id'];
