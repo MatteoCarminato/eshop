@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\WhatsappPixExtraction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Smalot\PdfParser\Parser as PdfParser;
@@ -11,6 +12,55 @@ class AiController extends Controller
     public function index()
     {
         return view('admin.ai.index');
+    }
+
+    /**
+     * Confere se a imagem/PDF já apareceu antes em algum comprovante de PIX (mesmo
+     * hash), seja ele vindo de um grupo de WhatsApp real ou de uma entrada manual de
+     * depósito que simulou o envio. Mostra todos os registros batidos, não só os
+     * confirmados, pra dar o histórico completo de onde aquela imagem já foi usada.
+     */
+    public function checkReceipt(Request $request)
+    {
+        $request->validateWithBag('checkReceipt', [
+            'file' => 'required|file|mimes:jpg,jpeg,png,webp,pdf|max:15360',
+        ], [
+            'file.required' => 'Selecione um arquivo para verificar.',
+            'file.mimes' => 'Formato inválido. Aceito: JPG, PNG, WEBP ou PDF.',
+            'file.max' => 'Arquivo muito grande. Máximo 15MB.',
+        ]);
+
+        $file = $request->file('file');
+        $hash = hash('sha256', file_get_contents($file->getRealPath()));
+
+        $matches = WhatsappPixExtraction::with(['group.client', 'transaction.client'])
+            ->where('image_hash', $hash)
+            ->latest()
+            ->get()
+            ->map(function (WhatsappPixExtraction $item) {
+                $client = $item->transaction?->client ?? $item->group?->client;
+
+                return [
+                    'id' => $item->id,
+                    'status' => $item->status,
+                    'pix_nome' => $item->pix_nome,
+                    'pix_valor' => $item->pix_valor,
+                    'pix_data' => $item->pix_data,
+                    'created_at' => $item->created_at->displayTz()->format('d/m/Y H:i'),
+                    'group_name' => $item->group?->name,
+                    'client_name' => $client?->name,
+                    'client_id' => $client?->id,
+                    'transaction_id' => $item->transaction?->id,
+                    'image_url' => route('admin.whatsapp.extracoes.imagem', $item->id),
+                ];
+            });
+
+        return back()->with([
+            'receiptCheck' => [
+                'filename' => $file->getClientOriginalName(),
+                'matches' => $matches,
+            ],
+        ]);
     }
 
     public function analyzeExtract(Request $request)

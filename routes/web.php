@@ -25,6 +25,7 @@ require __DIR__.'/auth.php';
 Route::middleware('auth')->prefix('admin/ai')->name('admin.ai.')->group(function () {
     Route::get('/', [AiController::class, 'index'])->name('index');
     Route::post('/analyze', [AiController::class, 'analyzeExtract'])->name('analyze');
+    Route::post('/check-receipt', [AiController::class, 'checkReceipt'])->name('check-receipt');
 });
 
 Route::middleware('auth')->group(function () {
