@@ -44,6 +44,11 @@ class CatalogSyncController extends Controller
     public function syncProducts(Request $request): RedirectResponse
     {
         try {
+            // Grupos e subgrupos primeiro: o produto resolve
+            // product_group_id/product_subgroup_id a partir deles.
+            $this->syncService->syncGroups();
+            $this->syncService->syncSubgroups();
+
             $result = $this->syncService->syncProducts();
 
             return redirect()->route('products.index')->with(

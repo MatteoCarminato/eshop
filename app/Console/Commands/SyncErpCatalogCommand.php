@@ -10,17 +10,19 @@ class SyncErpCatalogCommand extends Command
 {
     protected $signature = 'erp:sync-catalog
         {--dry-run : não grava nada, apenas mostra o que aconteceria}
-        {--only= : marcas|produtos, padrão: ambos}';
+        {--only= : marcas|grupos|subgrupos|produtos, padrão: todos}';
 
-    protected $description = 'Sincroniza marcas e produtos a partir do ERP Consoft (MARCAS_MAR/PRODUTO_PRO)';
+    protected $description = 'Sincroniza marcas, grupos, subgrupos e produtos a partir do ERP Consoft (MARCAS_MAR/GRUPO/SUB/PRODUTO_PRO)';
 
     public function handle(ErpCatalogSyncService $service): int
     {
         $dryRun = (bool) $this->option('dry-run');
         $only = $this->option('only');
 
-        if ($only !== null && !in_array($only, ['marcas', 'produtos'], true)) {
-            $this->error('Opção --only inválida. Use "marcas" ou "produtos".');
+        $validos = ['marcas', 'grupos', 'subgrupos', 'produtos'];
+
+        if ($only !== null && !in_array($only, $validos, true)) {
+            $this->error('Opção --only inválida. Use ' . implode(', ', array_map(fn ($v) => "\"{$v}\"", $validos)) . '.');
             return self::FAILURE;
         }
 
@@ -34,6 +36,20 @@ class SyncErpCatalogCommand extends Command
                 $this->info("{$prefix}Sincronizando marcas (MARCAS_MAR)...");
                 $result = $service->syncBrands($dryRun);
                 $rows[] = ['Marcas', $result['created'], $result['updated'], $result['skipped']];
+            }
+
+            // Grupos e subgrupos antes de produtos: a resolução de
+            // product_group_id/product_subgroup_id depende deles já estarem gravados.
+            if ($only === null || $only === 'grupos') {
+                $this->info("{$prefix}Sincronizando grupos (GRUPO)...");
+                $result = $service->syncGroups($dryRun);
+                $rows[] = ['Grupos', $result['created'], $result['updated'], $result['skipped']];
+            }
+
+            if ($only === null || $only === 'subgrupos') {
+                $this->info("{$prefix}Sincronizando subgrupos (SUB)...");
+                $result = $service->syncSubgroups($dryRun);
+                $rows[] = ['Subgrupos', $result['created'], $result['updated'], $result['skipped']];
             }
 
             if ($only === null || $only === 'produtos') {

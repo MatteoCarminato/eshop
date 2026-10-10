@@ -22,6 +22,8 @@ class Product extends Model
         'recno',
         'brand_id',
         'category_id',
+        'product_group_id',
+        'product_subgroup_id',
         'name',
         'short_name',
         'price',
@@ -92,6 +94,49 @@ class Product extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    /**
+     * Grupo do ERP (GRUPO/NOMGRU) — ex.: CELULAR, TABLET.
+     */
+    public function productGroup(): BelongsTo
+    {
+        return $this->belongsTo(ProductGroup::class);
+    }
+
+    /**
+     * Subgrupo do ERP (SUB/NOMSGRU) — ex.: TABLET APPLE, MOUNJARO. Não é
+     * filho do grupo: são duas classificações independentes.
+     */
+    public function productSubgroup(): BelongsTo
+    {
+        return $this->belongsTo(ProductSubgroup::class);
+    }
+
+    /**
+     * Filtros por grupo/subgrupo. Separados por id local e por código do ERP
+     * de propósito: um scope que aceitasse "id ou código" no mesmo parâmetro
+     * poderia casar o registro errado em silêncio, já que id e code são
+     * sequências independentes (o id local 5 não é o grupo de código 5).
+     */
+    public function scopeOfGroup($query, int $groupId)
+    {
+        return $query->where('product_group_id', $groupId);
+    }
+
+    public function scopeOfSubgroup($query, int $subgroupId)
+    {
+        return $query->where('product_subgroup_id', $subgroupId);
+    }
+
+    public function scopeOfGroupCode($query, int $code)
+    {
+        return $query->whereHas('productGroup', fn ($q) => $q->where('code', $code));
+    }
+
+    public function scopeOfSubgroupCode($query, int $code)
+    {
+        return $query->whereHas('productSubgroup', fn ($q) => $q->where('code', $code));
     }
 
     /**

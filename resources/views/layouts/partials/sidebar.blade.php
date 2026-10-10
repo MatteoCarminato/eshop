@@ -118,6 +118,11 @@
                                             Produtos
                                         </a>
                                     </li>
+                                    <li class="nav-item">
+                                        <a href="{{ route('products-admin.index') }}" class="nav-link">
+                                            Preços
+                                        </a>
+                                    </li>
                                 @endif
                                 @if (auth()->user()->hasModule('brands.view'))
                                     <li class="nav-item">

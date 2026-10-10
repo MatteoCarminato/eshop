@@ -58,6 +58,21 @@ Route::middleware('auth')->group(function () {
     Route::resource('products', \App\Http\Controllers\ProductController::class)
         ->middleware('module:products.view');
 
+    // Grade densa de produtos × preços (visão administrativa, sem paginação)
+    Route::get('products-admin', [\App\Http\Controllers\ProductAdminController::class, 'index'])
+        ->name('products-admin.index')
+        ->middleware('module:products.view');
+
+    // Tela de exportação da lista de produtos com estoque (copiar pra WhatsApp)
+    Route::get('products-admin/export', [\App\Http\Controllers\ProductAdminController::class, 'export'])
+        ->name('products-admin.export')
+        ->middleware('module:products.view');
+
+    // Edição inline de um preço — ver é products.view, gravar exige manage
+    Route::patch('products-admin/{product}/prices', [\App\Http\Controllers\ProductAdminController::class, 'updatePrices'])
+        ->name('products-admin.prices')
+        ->middleware('module:products.manage');
+
     Route::post('brands/sync', [\App\Http\Controllers\CatalogSyncController::class, 'syncBrands'])
         ->name('brands.sync')
         ->middleware('module:brands.manage');

@@ -2,7 +2,8 @@
 
 ## O que é
 
-Sincroniza as tabelas locais `brands` e `products` a partir do ERP legado
+Sincroniza as tabelas locais `brands`, `product_groups`, `product_subgroups` e
+`products` a partir do ERP legado
 Consoft do cliente, para que o catálogo do site (`App\Models\Brand` /
 `App\Models\Product`) espelhe o que existe no ERP, sem que o site precise
 consultar o ERP em tempo real a cada página.
@@ -25,12 +26,32 @@ Eloquent normais (conexão padrão da aplicação).
 - **`MARCAS_MAR`** (marcas, ~28 linhas): `RECNO` (PK), `IS_DELETED` ('Y'/'N'),
   `CODMARC` (código numérico da marca — é o que `PRODUTO_PRO.MARCPRO`
   referencia, **não** `RECNO`), `NOMMARC` (nome).
-- **`PRODUTO_PRO`** (produtos, ~262 linhas): `RECNO` (PK), `IS_DELETED`,
+- **`GRUPO`** (grupos de produto, 12 linhas): `RECNO` (PK), `IS_DELETED`,
+  `CODGRU` (código do grupo — é o que `PRODUTO_PRO.GRUPRO` referencia,
+  **não** `RECNO`), `NOMGRU` (nome, ex.: CELULAR, TABLET, PERFUME).
+- **`SUB`** (subgrupos de produto, 61 linhas): `RECNO` (PK), `IS_DELETED`,
+  `CODSGRU` (código do subgrupo — é o que `PRODUTO_PRO.SGRUPRO` referencia,
+  **não** `RECNO`), `NOMSGRU` (nome, ex.: TABLET APPLE, MOUNJARO,
+  IPHONE LACRADO).
+- **`PRODUTO_PRO`** (produtos, ~270 linhas): `RECNO` (PK), `IS_DELETED`,
   `ATIVO` ('S'/'N'), `ENVIA_SITE` ('S'/'N' — "enviar para o site"), `MARCPRO`
-  (código da marca, junta com `MARCAS_MAR.CODMARC`), `NOMELONG` (nome
-  completo), `NOMPRO` (nome curto), `PRECO3` (preço principal), `PREATAC`
-  (preço atacado), `PRECOWEB` (preço web), `PREVEN` (preço de venda),
-  `PREMIN` (preço mínimo), `ESTOQUE` (quantidade em estoque).
+  (código da marca, junta com `MARCAS_MAR.CODMARC`), `GRUPRO` (código do
+  grupo, junta com `GRUPO.CODGRU`), `SGRUPRO` (código do subgrupo, junta com
+  `SUB.CODSGRU`), `NOMELONG` (nome completo), `NOMPRO` (nome curto), `PRECO3`
+  (preço principal), `PREATAC` (preço atacado), `PRECOWEB` (preço web),
+  `PREVEN` (preço de venda), `PREMIN` (preço mínimo), `ESTOQUE` (quantidade em
+  estoque).
+
+### Grupo e subgrupo não são hierárquicos
+
+`SUB` **não** tem coluna apontando para `GRUPO` — são duas listas planas e
+independentes. O produto carrega os dois códigos separadamente (`GRUPRO` e
+`SGRUPRO`), então subgrupo não é "filho" de grupo e não existe no ERP a
+informação de qual subgrupo pertence a qual grupo. Filtrar por grupo e por
+subgrupo são dois filtros independentes.
+
+**Atenção ao nome da coluna:** no `PRODUTO_PRO` a coluna do grupo é `GRUPRO`
+(não `GRUPO`). Existe também `GRUESP` ("grupo especial"), que não é usado aqui.
 
 ## Semântica do upsert (idempotente e não-destrutivo)
 
@@ -47,6 +68,17 @@ edições feitas por um admin no site. Ela faz upsert por `recno`:
     sync inicial.
   - Linhas com `IS_DELETED = 'Y'` são ignoradas (contadas como "skipped").
 
+- **Grupos e subgrupos** (`ErpCatalogSyncService::syncGroups()` e
+  `syncSubgroups()`): as duas tabelas têm a mesma forma no ERP (RECNO +
+  código + nome) e o mesmo formato local, então compartilham o upsert
+  `syncClassification()`.
+  - Registro novo: cria com `recno`, `code` (= `CODGRU`/`CODSGRU`), `name`,
+    `slug` (slugificado e deduplicado), `active = true` e `synced_at`.
+  - Registro existente: atualiza **apenas** `code`, `name` e `synced_at` —
+    nunca `slug` nem `active`, igual à regra de marcas.
+  - Linhas com `IS_DELETED = 'Y'`, sem código (`0`) ou sem nome são ignoradas
+    (contadas como "skipped") — sem código não há como ligar produto nenhum.
+
 - **Produtos** (`ErpCatalogSyncService::syncProducts()`):
   - Produto novo: cria com `recno`, `brand_id` (resolvido — ver abaixo),
     `name` (= `NOMELONG`), `short_name` (= `NOMPRO`, `null` se vazio), preços
@@ -54,7 +86,8 @@ edições feitas por um admin no site. Ela faz upsert por `recno`:
     `stock`, `slug` (slugificado e deduplicado a partir de `NOMELONG`),
     `active = (ATIVO === 'S' && ENVIA_SITE === 'S')` e `synced_at = now()`.
   - Produto já existente: atualiza **apenas** `name`, `short_name`, os
-    preços, `stock` e `synced_at`. **Nunca** sobrescreve `slug`,
+    preços, `stock`, `product_group_id`, `product_subgroup_id` e `synced_at`.
+    **Nunca** sobrescreve `slug`,
     `description`, `image_url`, `active`, `featured` nem `brand_id` — se um
     admin reatribuiu manualmente a marca de um produto ou o marcou como
     destaque/inativo pelo admin do site, um re-sync não desfaz isso.
@@ -71,11 +104,24 @@ edições feitas por um admin no site. Ela faz upsert por `recno`:
       preço `0` — não há de onde puxar um valor melhor.
   - Linhas com `IS_DELETED = 'Y'` são ignoradas (contadas como "skipped").
 
-- **Ordem importa**: a sincronização de marcas deve rodar **antes** da de
-  produtos, porque a resolução do `brand_id` de cada produto depende das
-  marcas já estarem gravadas localmente. `syncAll()` já garante essa ordem;
-  ao chamar `syncBrands()`/`syncProducts()` isoladamente (ex.: `--only`),
-  quem dispara é responsável por essa ordem.
+### Grupo/subgrupo são a exceção ao "só na criação"
+
+`product_group_id` e `product_subgroup_id` **são** atualizados a cada sync,
+diferente de `brand_id`/`category_id`. O motivo: não existe tela no admin do
+site para reatribuir grupo ou subgrupo — são classificação crua do ERP, e o
+objetivo delas é justamente espelhar o ERP para filtrar o catálogo. Se um
+produto for reclassificado de CELULAR para TABLET no ERP, o próximo sync move
+o produto. Já marca e categoria podem ter sido corrigidas à mão no site
+(categoria, em particular, nasce de um chute do `ProductClassifierService`
+sobre o nome), por isso continuam intocadas.
+
+- **Ordem importa**: marcas, grupos e subgrupos devem rodar **antes** de
+  produtos, porque a resolução de `brand_id` / `product_group_id` /
+  `product_subgroup_id` de cada produto depende desses registros já estarem
+  gravados localmente. `syncAll()` já garante essa ordem, e o botão
+  "Sincronizar com ERP" da tela de produtos roda grupos e subgrupos antes.
+  Ao chamar os métodos isoladamente (ex.: `--only`), quem dispara é
+  responsável por essa ordem.
 
 ### Resolução de `brand_id` (CODMARC → RECNO → id local)
 
@@ -93,6 +139,16 @@ Se o `MARCPRO` de um produto não tiver correspondência (marca inexistente ou
 ainda não sincronizada), `brand_id` fica `null` na criação — e nunca é
 alterado depois, nem mesmo se a marca aparecer num sync futuro (ver acima).
 
+### Resolução de grupo/subgrupo (código → id local, uma etapa)
+
+Diferente de marcas, as tabelas locais `product_groups`/`product_subgroups`
+guardam o **código** do ERP (`code` = `CODGRU`/`CODSGRU`) além do `recno`. Como
+é o código que o produto referencia, o mapa é direto — `code => id local`,
+montado uma vez por execução — sem o pulo extra por RECNO que marcas precisam.
+
+Código `0` ou sem correspondência deixa o campo `null` (produto sem
+classificação), em vez de barrar o sync do produto.
+
 ## Como rodar manualmente
 
 ```bash
@@ -102,8 +158,10 @@ php artisan erp:sync-catalog --dry-run
 # Sincroniza marcas e produtos de verdade
 php artisan erp:sync-catalog
 
-# Só marcas ou só produtos
+# Uma entidade só
 php artisan erp:sync-catalog --only=marcas
+php artisan erp:sync-catalog --only=grupos
+php artisan erp:sync-catalog --only=subgrupos
 php artisan erp:sync-catalog --only=produtos
 ```
 
