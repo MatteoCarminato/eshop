@@ -116,6 +116,7 @@ class ErpCatalogSyncServiceTest extends TestCase
             'PRECOWEB' => '7999.00',
             'PREVEN' => '7999.000000',
             'PREMIN' => '7000.000000',
+            'UCBASE' => '6850.123400',
             'ESTOQUE' => '10.000000000',
         ], $overrides);
     }
@@ -367,6 +368,43 @@ class ErpCatalogSyncServiceTest extends TestCase
 
         $product = Product::where('recno', 100)->first();
         $this->assertSame(1230.0, (float) $product->web_price);
+    }
+
+    public function test_sync_products_maps_ucbase_to_average_price(): void
+    {
+        $service = $this->makeService(collect(), collect([$this->productRow()]), collect());
+
+        $service->syncProducts();
+
+        $product = Product::where('recno', 100)->first();
+        $this->assertSame(6850.12, (float) $product->average_price);
+    }
+
+    /**
+     * UCBASE é custo médio do estoque, não preço de venda: produto sem
+     * movimento de compra vem vazio e fica `null` — não cai pra PRECO3 nem
+     * pra nenhum outro preço, diferente de `web_price`.
+     */
+    public function test_sync_products_leaves_average_price_null_when_ucbase_is_empty(): void
+    {
+        $service = $this->makeService(collect(), collect([$this->productRow(['UCBASE' => null])]), collect());
+
+        $service->syncProducts();
+
+        $product = Product::where('recno', 100)->first();
+        $this->assertNull($product->average_price);
+        // o preço principal segue vindo do PRECO3, intocado
+        $this->assertSame(7999.0, (float) $product->price);
+    }
+
+    public function test_sync_products_updates_average_price_on_resync(): void
+    {
+        $this->makeService(collect(), collect([$this->productRow()]), collect())->syncProducts();
+
+        $this->makeService(collect(), collect([$this->productRow(['UCBASE' => '7100.000000'])]), collect())
+            ->syncProducts();
+
+        $this->assertSame(7100.0, (float) Product::where('recno', 100)->first()->average_price);
     }
 
     public function test_sync_products_falls_back_price_to_preven_when_preco3_is_zero(): void

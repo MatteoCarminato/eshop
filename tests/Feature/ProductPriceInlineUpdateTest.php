@@ -29,6 +29,7 @@ class ProductPriceInlineUpdateTest extends TestCase
             'web_price' => 1200,
             'sale_price' => 1150,
             'min_price' => 1000,
+            'average_price' => 950,
             'stock' => 5,
             'active' => true,
         ], $overrides));
@@ -73,8 +74,9 @@ class ProductPriceInlineUpdateTest extends TestCase
         $admin = $this->admin();
 
         // Inclui `price` (Varejo), que está oculto na grade mas segue aceito
-        // pelo endpoint — esconder a coluna não é tirá-la do whitelist.
-        foreach (array_keys(\App\Http\Controllers\ProductAdminController::PRICE_COLUMNS) as $i => $column) {
+        // pelo endpoint — esconder a coluna não é tirá-la do whitelist. Já
+        // `average_price` fica fora: é coluna de leitura (ver test abaixo).
+        foreach (array_keys(\App\Http\Controllers\ProductAdminController::editableColumns()) as $i => $column) {
             $valor = 100 + $i;
 
             $this->actingAs($admin)
@@ -182,7 +184,7 @@ class ProductPriceInlineUpdateTest extends TestCase
             ->assertSee('readonly', false);
     }
 
-    public function test_grade_mostra_atacado_como_principal_e_esconde_varejo(): void
+    public function test_grade_mostra_so_medio_atacado_e_web(): void
     {
         $this->product();
 
@@ -191,12 +193,160 @@ class ProductPriceInlineUpdateTest extends TestCase
         $response->assertSee('Atacado')
             ->assertDontSee('Varejo')
             ->assertSee('data-k="wholesale_price"', false)
-            ->assertDontSee('data-k="price"', false);
+            ->assertSee('data-k="web_price"', false)
+            // Varejo (PRECO3), Promo (PREVEN) e Mínimo (PREMIN) ficam fora da
+            // grade — as duas últimas porque o atacado já as grava, então
+            // repetiriam o mesmo número na tela.
+            ->assertDontSee('data-k="price"', false)
+            ->assertDontSee('data-k="sale_price"', false)
+            ->assertDontSee('data-k="min_price"', false);
 
-        // Atacado é a primeira coluna navegável (onde o Alt+Enter cai).
+        // Ordem exata da grade: o Médio antes do atacado, e nada depois do Web.
         $cols = array_keys($response->viewData('cols'));
-        $this->assertSame('wholesale_price', $cols[0]);
-        $this->assertNotContains('price', $cols);
+        $this->assertSame(['average_price', 'wholesale_price', 'web_price'], $cols);
+
+        // O atacado é a primeira coluna NAVEGÁVEL (onde o Alt+Enter cai),
+        // porque o Médio não é digitável.
+        $navegaveis = array_values(array_intersect(
+            array_keys(\App\Http\Controllers\ProductAdminController::editableColumns()),
+            $cols,
+        ));
+        $this->assertSame(['wholesale_price', 'web_price'], $navegaveis);
+    }
+
+    /**
+     * Esconder Promo e Mínimo da grade não é tirá-las do whitelist nem do
+     * espelhamento: o atacado continua gravando as duas.
+     */
+    public function test_promo_e_minimo_seguem_gravaveis_fora_da_grade(): void
+    {
+        $product = $this->product();
+        $admin = $this->admin();
+
+        foreach (['sale_price' => 321, 'min_price' => 322] as $column => $valor) {
+            $this->actingAs($admin)
+                ->patchJson(route('products-admin.prices', $product), ['column' => $column, 'value' => $valor])
+                ->assertOk();
+
+            $this->assertSame((float) $valor, (float) $product->fresh()->{$column}, "coluna {$column}");
+        }
+    }
+
+    // ---- atacado espelha Promo e Mínimo ----------------------------------
+
+    public function test_atacado_grava_promo_e_minimo_junto(): void
+    {
+        $product = $this->product();
+
+        // No ERP, o "A C Atacado" grava PREATAC, PREVEN e PREMIN com o mesmo
+        // valor — a grade espelha isso pra não ficar incoerente na tela.
+        $response = $this->actingAs($this->admin())
+            ->patchJson(route('products-admin.prices', $product), [
+                'column' => 'wholesale_price',
+                'value' => '1234.50',
+            ])->assertOk();
+
+        $response->assertJson([
+            'success' => true,
+            'column' => 'wholesale_price',
+            'value' => '1234.50',
+            'espelhos' => ['sale_price' => '1234.50', 'min_price' => '1234.50'],
+        ]);
+
+        $fresh = $product->fresh();
+        $this->assertSame(1234.5, (float) $fresh->wholesale_price);
+        $this->assertSame(1234.5, (float) $fresh->sale_price);
+        $this->assertSame(1234.5, (float) $fresh->min_price);
+
+        // Web, Varejo e Médio não entram na carona.
+        $this->assertSame(1200.0, (float) $fresh->web_price);
+        $this->assertSame(1200.0, (float) $fresh->price);
+        $this->assertSame(950.0, (float) $fresh->average_price);
+    }
+
+    public function test_web_altera_so_o_web(): void
+    {
+        $product = $this->product();
+
+        $this->actingAs($this->admin())
+            ->patchJson(route('products-admin.prices', $product), ['column' => 'web_price', 'value' => 777])
+            ->assertOk()
+            ->assertJson(['espelhos' => []]);
+
+        $fresh = $product->fresh();
+        $this->assertSame(777.0, (float) $fresh->web_price);
+        $this->assertSame(1100.0, (float) $fresh->wholesale_price);
+        $this->assertSame(1150.0, (float) $fresh->sale_price);
+        $this->assertSame(1000.0, (float) $fresh->min_price);
+        $this->assertSame(1200.0, (float) $fresh->price);
+    }
+
+    // ---- preço médio (UCBASE) ---------------------------------------------
+
+    public function test_preco_medio_nao_e_editavel(): void
+    {
+        $product = $this->product();
+
+        // Vem do ERP e não tem gravação: tem que bater na whitelist, não
+        // chegar no update.
+        $this->actingAs($this->admin())
+            ->patchJson(route('products-admin.prices', $product), ['column' => 'average_price', 'value' => 1])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('column');
+
+        $this->assertSame(950.0, (float) $product->fresh()->average_price);
+    }
+
+    public function test_grade_mostra_o_preco_medio_como_texto_antes_do_atacado(): void
+    {
+        $this->product(['average_price' => 912.34]);
+
+        $html = $this->actingAs($this->admin())
+            ->get(route('products-admin.index'))
+            ->assertOk()
+            ->assertSee('Médio')
+            ->assertSee('data-k="average_price"', false)
+            // célula de leitura, não input
+            ->assertSee('<span class="pa-ro medio">912.34</span>', false)
+            ->getContent();
+
+        $this->assertStringNotContainsString('data-col="average_price" data-orig', $html);
+        // O cabeçalho do Médio vem antes do de Atacado na tela.
+        $this->assertLessThan(
+            strpos($html, 'data-k="wholesale_price"'),
+            strpos($html, 'data-k="average_price"'),
+        );
+    }
+
+    // ---- coluna de estoque (opcional) --------------------------------------
+
+    public function test_grade_mostra_a_coluna_de_estoque_antes_do_medio(): void
+    {
+        $this->product(['stock' => 14]);
+
+        $html = $this->actingAs($this->admin())
+            ->get(route('products-admin.index'))
+            ->assertOk()
+            ->assertSee('Estoque')
+            ->assertSee('data-k="stock"', false)
+            ->assertSee('data-col="stock" data-v="14"', false)
+            // Coluna fixa: não há chip nem classe pra esconder.
+            ->assertDontSee('sem-estoque', false)
+            ->assertDontSee('paEst', false)
+            ->getContent();
+
+        // Ordem na tela: Estoque, depois Médio, depois Atacado.
+        $this->assertLessThan(strpos($html, 'data-k="average_price"'), strpos($html, 'data-k="stock"'));
+        $this->assertLessThan(strpos($html, 'data-k="wholesale_price"'), strpos($html, 'data-k="average_price"'));
+    }
+
+    public function test_coluna_de_estoque_nao_mostra_centavos_de_quantidade_inteira(): void
+    {
+        $this->product(['stock' => 14]);
+
+        $html = $this->actingAs($this->admin())->get(route('products-admin.index'))->getContent();
+
+        $this->assertMatchesRegularExpression('/data-v="14">\s*14\s*</', $html);
     }
 
     // ---- filtro de atacado ------------------------------------------------
@@ -276,6 +426,23 @@ class ProductPriceInlineUpdateTest extends TestCase
             ->assertSee(e(route('products-admin.index', ['active' => '0', 'atacado' => ''])), false)
             // e o chip de situação tem que levar o atacado atual
             ->assertSee(e(route('products-admin.index', ['active' => '1', 'atacado' => '1'])), false);
+    }
+
+    /**
+     * A célula esvazia ao receber foco (a máscara é da direita pra esquerda,
+     * então digitar por cima emendaria os dígitos). O valor gravado vai no
+     * placeholder pra continuar à vista enquanto se digita.
+     */
+    public function test_celula_leva_o_valor_gravado_tambem_no_placeholder(): void
+    {
+        $this->product(['wholesale_price' => 1190]);
+
+        $this->actingAs($this->admin())
+            ->get(route('products-admin.index'))
+            ->assertOk()
+            ->assertSee('value="1,190.00"', false)
+            ->assertSee('data-orig="1,190.00"', false)
+            ->assertSee('placeholder="1,190.00"', false);
     }
 
     public function test_a_grade_abre_para_quem_tem_products_view(): void

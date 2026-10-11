@@ -157,8 +157,28 @@
 .pa table.pa-rows td.pa-cell.erro .pa-inp{color:var(--pa-red);font-weight:700}
 .pa table.pa-rows td.pa-cell.erro .pa-cur{color:var(--pa-red)}
 
+/* Célula aberta fica vazia (ver `esvaziar` na grade) — o valor gravado segue
+   à vista no placeholder, bem apagado, pra conferir enquanto digita. */
+.pa-inp::placeholder{color:#c8cfd7;opacity:1}
 .pa-inp[readonly]{cursor:default}
 .pa-inp[readonly]:focus{box-shadow:inset 0 0 0 2px #c4cdd8}
+
+/* ---- colunas de leitura (Médio e Estoque) ---------------------------------
+   Vêm do ERP e não têm gravação, então não são input: ficam em cinza e com um
+   fundo de faixa, pra ler como "referência" e não como campo editável. O
+   alinhamento acompanha o das células de preço (número à direita, "$" à
+   esquerda) pra coluna nenhuma sair do prumo. */
+.pa table.pa-rows td.pa-cell.ro{background:var(--pa-panel2)}
+.pa-ro{display:block;padding:0 7px 0 15px;text-align:right;font-family:var(--pa-code);
+  font-size:var(--pa-fs);letter-spacing:-.02em;color:var(--pa-ink2);
+  font-variant-numeric:tabular-nums}
+.pa-ro.medio{color:#5c6672}
+.pa-ro.zero{color:#c3cad2}
+
+/* Estoque: referência fixa da grade, do lado do Médio. */
+.pa table.pa-rows td.pa-est{text-align:right;font-family:var(--pa-code);
+  color:var(--pa-ink2);background:var(--pa-panel2);font-variant-numeric:tabular-nums}
+.pa table.pa-rows td.pa-est.zero{color:#c3cad2}
 
 .pa-sujos{display:none}
 .pa-sujos.on{display:inline;color:var(--pa-amber);font-weight:700}
@@ -198,9 +218,32 @@
 .pa-sg b{font-family:var(--pa-code);font-size:var(--pa-fs-mi);color:var(--pa-muted);font-weight:700}
 .pa-sg.orfao .pa-sg-nome{color:var(--pa-amber)}
 .pa-sg-itens{padding:2px 0}
-.pa-item{display:flex;align-items:center;gap:8px;padding:2px 12px 2px 30px;border-bottom:1px solid var(--pa-line3)}
+.pa-item{display:flex;align-items:center;gap:8px;padding:2px 12px 2px 30px;border-bottom:1px solid var(--pa-line3);
+  cursor:pointer}
+.pa-item:hover{background:var(--pa-accent-w)}
+.pa-item input{margin:0;accent-color:var(--pa-accent);flex:none}
+/* produto desmarcado continua listado, mas apagado — dá pra ver o que ficou
+   de fora sem precisar remarcar */
+.pa-item:has(input:not(:checked)){opacity:.42}
 .pa-item span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pa-item i{font-style:normal;font-family:var(--pa-code);color:var(--pa-muted);letter-spacing:-.02em}
+/* quantidade em estoque de cada item, antes do preço */
+.pa-item em{font-style:normal;font-family:var(--pa-code);font-size:var(--pa-fs-mi);
+  color:var(--pa-muted);background:var(--pa-panel3);border-radius:var(--pa-r2);
+  padding:0 4px;letter-spacing:-.02em}
+
+/* ---- ajuste de valor (chips bar da exportação) ---------------------------
+   Campo curto com o sinal (% ou U$) cravado à esquerda, no mesmo tom dos
+   chips vizinhos. `dim` é o estado "não se aplica": o modo da lista escolhido
+   não mostra preço nenhum. */
+.pa-aj{display:inline-flex;align-items:center;gap:3px;border:1px solid var(--pa-line);
+  background:var(--pa-panel);border-radius:99px;padding:1px 4px 1px 7px}
+.pa-aj i{font-style:normal;font-family:var(--pa-code);font-size:var(--pa-fs-mi);color:var(--pa-muted)}
+.pa-aj input{width:52px;border:0;background:none;padding:1px 2px;margin:0;outline:0;
+  font-family:var(--pa-code);font-size:var(--pa-fs);color:var(--pa-ink);text-align:right;
+  font-variant-numeric:tabular-nums}
+.pa-aj:focus-within{border-color:var(--pa-accent);box-shadow:var(--pa-ring)}
+.pa-aj.dim{opacity:.4}
 
 .pa-exp-prev{display:flex;flex-direction:column;min-width:0}
 .pa-exp-head{display:flex;align-items:center;gap:9px;padding:6px 12px;background:var(--pa-panel2);

@@ -14,33 +14,66 @@ class ProductAdminController extends Controller
     /**
      * Colunas de preço do produto, na ordem em que aparecem na grade.
      *
-     * Esta lista inteira é a whitelist do endpoint de edição inline: o nome da
-     * coluna vem do cliente, então nunca é usado numa query sem passar por
-     * aqui.
+     * As colunas com `edit => true` formam a whitelist do endpoint de edição
+     * inline: o nome da coluna vem do cliente, então nunca é usado numa query
+     * sem passar por aqui.
      *
-     * `grade` controla quem aparece na tela — `false` esconde a coluna sem
-     * tirá-la do whitelist nem do sync, então voltar atrás é trocar um
-     * booleano. `tom` é a classe de cor da célula; `pri` é a coluna principal
-     * (texto escuro e negrito).
+     * - `grade`: quem aparece na tela. `false` esconde a coluna sem tirá-la do
+     *   whitelist nem do sync, então voltar atrás é trocar um booleano.
+     * - `edit`: quem é digitável. `false` sai do whitelist e vira texto na
+     *   grade, fora do caminho do Tab.
+     * - `tom`: classe de cor da célula; `pri` é a coluna principal (texto
+     *   escuro e negrito).
+     * - `espelha`: outras colunas que recebem o mesmo valor quando esta é
+     *   gravada (ver updatePrices()).
      */
     public const PRICE_COLUMNS = [
-        'wholesale_price' => ['label' => 'Atacado', 'tom' => 'pri', 'grade' => true],
-        'web_price' => ['label' => 'Web', 'tom' => '', 'grade' => true],
-        'sale_price' => ['label' => 'Promo', 'tom' => 'sale', 'grade' => true],
-        'min_price' => ['label' => 'Mínimo', 'tom' => 'min', 'grade' => true],
+        // Preço médio (UCBASE): custo médio do estoque, vindo do ERP. Fica
+        // antes do atacado de propósito — é contra ele que se confere a
+        // margem ao digitar o preço. Só leitura: não há API de escrita no ERP
+        // e custo médio não é número que se digita, sai do movimento de compra.
+        'average_price' => ['label' => 'Médio', 'tom' => 'medio', 'grade' => true, 'edit' => false],
+        // Atacado é o "A C Atacado" do ERP, e lá ele não é um campo só:
+        // PREATAC, PREVEN e PREMIN andam sempre com o mesmo valor (conferido no
+        // ERP: as três colunas são idênticas em todo o catálogo). Por isso
+        // gravar o atacado aqui espelha Promo e Mínimo.
+        'wholesale_price' => [
+            'label' => 'Atacado', 'tom' => 'pri', 'grade' => true, 'edit' => true,
+            'espelha' => ['sale_price', 'min_price'],
+        ],
+        // Web (PRECOWEB) é independente: no ERP, salvar o preço web mexe só
+        // nele. Sem `espelha`, de propósito.
+        'web_price' => ['label' => 'Web', 'tom' => '', 'grade' => true, 'edit' => true],
+        // Promo (PREVEN) e Mínimo (PREMIN) ficam fora da grade: no ERP elas são
+        // sempre iguais ao atacado, e agora o atacado as grava junto — na tela
+        // seriam três colunas repetindo o mesmo número. Seguem sincronizadas,
+        // espelhadas e aceitas pelo endpoint.
+        'sale_price' => ['label' => 'Promo', 'tom' => 'sale', 'grade' => false, 'edit' => true],
+        'min_price' => ['label' => 'Mínimo', 'tom' => 'min', 'grade' => false, 'edit' => true],
         // Varejo (PRECO3) continua sendo sincronizado do ERP e aceito pelo
         // endpoint, mas fora da grade: o preço que o negócio usa é o atacado.
-        'price' => ['label' => 'Varejo', 'tom' => '', 'grade' => false],
+        'price' => ['label' => 'Varejo', 'tom' => '', 'grade' => false, 'edit' => true],
     ];
 
     /**
      * Só as colunas que a grade exibe, na ordem declarada acima.
      *
-     * @return array<string, array{label: string, tom: string, grade: bool}>
+     * @return array<string, array{label: string, tom: string, grade: bool, edit: bool}>
      */
     public static function gridColumns(): array
     {
         return array_filter(self::PRICE_COLUMNS, fn (array $col) => $col['grade']);
+    }
+
+    /**
+     * Colunas que o endpoint de edição aceita — inclui as que estão fora da
+     * grade (`price`) e exclui as de leitura (`average_price`).
+     *
+     * @return array<string, array{label: string, tom: string, grade: bool, edit: bool}>
+     */
+    public static function editableColumns(): array
+    {
+        return array_filter(self::PRICE_COLUMNS, fn (array $col) => $col['edit']);
     }
 
     /**
@@ -71,7 +104,9 @@ class ProductAdminController extends Controller
 
         $products = $base()
             ->select(array_merge(
-                ['id', 'brand_id', 'name', 'short_name', 'active'],
+                // `stock` vem sempre: a coluna de estoque da grade é só um
+                // liga/desliga visual, não vale recarregar a tela pra isso.
+                ['id', 'brand_id', 'name', 'short_name', 'active', 'stock'],
                 array_keys($cols),
             ))
             ->with('brand:id,name')
@@ -160,34 +195,53 @@ class ProductAdminController extends Controller
     }
 
     /**
-     * Grava UM preço de UM produto — é o que a grade chama ao sair da célula.
+     * Grava UMA célula de preço de UM produto — é o que a grade chama ao sair
+     * da célula.
      *
-     * Uma coluna por request de propósito: a edição é célula a célula pelo
+     * Uma célula por request de propósito: a edição é célula a célula pelo
      * teclado, então salvar só o que mudou evita sobrescrever uma coluna
      * vizinha com valor obsoleto caso duas abas estejam abertas.
+     *
+     * A exceção é o atacado, que arrasta Promo e Mínimo junto (`espelha` em
+     * PRICE_COLUMNS): no ERP, o "A C Atacado" grava PREATAC, PREVEN e PREMIN
+     * com o mesmo valor, e é assim que os três chegam aqui em todo sync. Sem
+     * espelhar, digitar o atacado deixaria a própria grade incoerente — as
+     * três colunas mostram o mesmo número no resto do catálogo. O preco web é
+     * o contrário e continua sozinho: no ERP mexe só no PRECOWEB.
+     *
+     * Nada disso é escrito no ERP: a conexão `erp` é somente leitura e não
+     * existe API de preço do lado dele. A edição vale na base local (é o que a
+     * grade e a tela de exportar leem) até o próximo sync.
      *
      * Os valores são em USD (o catálogo do ERP é todo em dólar).
      */
     public function updatePrices(Request $request, Product $product): JsonResponse
     {
         $data = $request->validate([
-            'column' => ['required', 'string', Rule::in(array_keys(self::PRICE_COLUMNS))],
+            'column' => ['required', 'string', Rule::in(array_keys(self::editableColumns()))],
             // Teto casa com a coluna no banco: decimal(18,8).
             'value' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
         ]);
 
         $column = $data['column'];
         $value = round((float) $data['value'], 2);
+        $espelhos = self::PRICE_COLUMNS[$column]['espelha'] ?? [];
 
-        $product->update([$column => $value]);
+        $product->update(array_fill_keys(array_merge([$column], $espelhos), $value));
+
+        $fresh = $product->fresh();
+        // Devolve os valores já normalizados pelo banco para a grade confirmar
+        // o que ficou gravado, em vez de confiar no que digitou.
+        $normalizado = fn (string $col) => number_format((float) $fresh->{$col}, 2, '.', '');
 
         return response()->json([
             'success' => true,
             'column' => $column,
             'label' => self::PRICE_COLUMNS[$column]['label'],
-            // Devolve o valor já normalizado pelo banco para a grade confirmar
-            // o que ficou gravado, em vez de confiar no que digitou.
-            'value' => number_format((float) $product->fresh()->{$column}, 2, '.', ''),
+            'value' => $normalizado($column),
+            // Só as colunas vizinhas que foram gravadas de carona — a grade
+            // repinta essas células sem recarregar.
+            'espelhos' => array_combine($espelhos, array_map($normalizado, $espelhos)),
         ]);
     }
 }

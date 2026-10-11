@@ -278,6 +278,11 @@ class ErpCatalogSyncService
                     'web_price' => $webPrice !== null && $webPrice > 0 ? $webPrice : $price,
                     'sale_price' => $preven,
                     'min_price' => $this->toDecimal($row->PREMIN ?? null),
+                    // Preço médio (UCBASE): custo médio do estoque, não preço
+                    // de venda — por isso não entra em nenhuma cadeia de
+                    // fallback dos outros preços. Sem movimento de compra o
+                    // ERP traz vazio, e aí fica null mesmo.
+                    'average_price' => $this->toDecimal($row->UCBASE ?? null),
                     'stock' => $this->toDecimal($row->ESTOQUE, 0),
                     // Atualizados a cada sync (ver docblock da classe): são
                     // classificação do ERP, não há edição manual no site.

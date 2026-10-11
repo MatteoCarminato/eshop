@@ -176,6 +176,103 @@ class ProductExportListTest extends TestCase
             ->assertSee('sem atacado');
     }
 
+    // ---- estoque (opção na tela) -----------------------------------------
+
+    public function test_manda_o_estoque_de_cada_produto_pra_tela(): void
+    {
+        $sg = $this->subgroup('17 256GB LL', 30);
+        $this->product('BLUE', 885, 138, $sg);
+
+        $grupos = $this->get(route('products-admin.export'))->assertOk()->viewData('grupos');
+
+        // A tela liga/desliga o estoque sem recarregar, então o número vem
+        // sempre no payload.
+        $this->assertSame(138.0, $grupos[0]['produtos'][0]['estoque']);
+    }
+
+    public function test_tela_mostra_a_quantidade_de_cada_produto(): void
+    {
+        $sg = $this->subgroup('17 256GB LL', 31);
+        $this->product('BLUE', 885, 138, $sg);
+
+        $this->get(route('products-admin.export'))
+            ->assertOk()
+            // quantidade inteira sai sem casas decimais na lista da esquerda
+            ->assertSee('<em title="Estoque">138</em>', false);
+    }
+
+    // ---- modos da lista e ajuste de valor -----------------------------------
+
+    public function test_tela_tem_os_quatro_modos_de_linha(): void
+    {
+        $sg = $this->subgroup('17 256GB LL', 32);
+        $this->product('BLUE', 885, 10, $sg);
+
+        $response = $this->get(route('products-admin.export'))->assertOk();
+
+        // As quatro combinações de "o que vai em cada linha" têm nome na tela.
+        foreach (['preco', 'produto', 'estoque', 'ambos'] as $modo) {
+            $response->assertSee('data-modo="' . $modo . '"', false);
+        }
+
+        $response->assertSee('Somente produto')
+            ->assertSee('Somente estoque')
+            ->assertSee('Estoque e preço');
+
+        // "Produto e preço" é o modo inicial.
+        $response->assertSee('class="pa-chip pa-modo on"', false);
+    }
+
+    public function test_tela_tem_o_ajuste_de_valor_fixo_e_percentual(): void
+    {
+        $sg = $this->subgroup('17 256GB LL', 33);
+        $this->product('BLUE', 885, 10, $sg);
+
+        $this->get(route('products-admin.export'))
+            ->assertOk()
+            ->assertSee('Ajuste de valor')
+            ->assertSee('id="paAjVal"', false)
+            ->assertSee('data-ajuste="pct"', false)
+            ->assertSee('data-ajuste="fixo"', false)
+            // O preço cru vai no HTML: o ajuste é recalculado na tela, sem
+            // recarregar e sem tocar no produto.
+            ->assertSee('data-preco="885"', false);
+    }
+
+    /**
+     * O ajuste é só da lista: não existe endpoint, nem gravação, nem efeito no
+     * produto — a tela recebe o preço de atacado puro e faz a conta no cliente.
+     */
+    public function test_ajuste_de_valor_nao_altera_o_produto(): void
+    {
+        $sg = $this->subgroup('17 256GB LL', 34);
+        $p = $this->product('BLUE', 885, 10, $sg);
+
+        $this->get(route('products-admin.export'))->assertOk();
+
+        $this->assertSame(885.0, (float) $p->fresh()->wholesale_price);
+    }
+
+    // ---- seleção produto a produto ------------------------------------------
+
+    public function test_cada_produto_tem_seu_proprio_checkbox_marcado(): void
+    {
+        $sg = $this->subgroup('17 256GB LL', 35);
+        $this->product('BLUE', 885, 10, $sg);
+        $this->product('BLACK', 815, 10, $sg);
+
+        $response = $this->get(route('products-admin.export'))->assertOk();
+
+        // Um checkbox por produto, indexado por subgrupo + posição...
+        $response->assertSee('data-g="0" data-i="0" checked', false)
+            ->assertSee('data-g="0" data-i="1" checked', false)
+            // ...e o do subgrupo continua lá, agora como pai dos filhos.
+            ->assertSee('class="pa-sg-chk" data-i="0"', false);
+
+        $html = $response->getContent();
+        $this->assertSame(2, substr_count($html, 'class="pa-item-chk"'));
+    }
+
     public function test_exige_o_modulo_products_view(): void
     {
         $role = Role::create(['name' => 'Sem Catálogo', 'is_admin' => false]);

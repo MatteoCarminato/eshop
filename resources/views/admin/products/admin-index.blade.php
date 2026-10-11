@@ -5,6 +5,9 @@
 @section('content')
     @php
         $canManage = auth()->user()->hasModule('products.manage');
+        // Só as colunas digitáveis entram no caminho do Tab/setas — o Médio é
+        // exibido mas não é célula de edição.
+        $navKeys = array_keys(array_filter($cols, fn ($c) => $c['edit']));
     @endphp
 
     <div class="page-content">
@@ -89,6 +92,8 @@
                             <tr>
                                 <th class="pa-idx" scope="col" data-k="idx" title="Ordenar pela posição original">#</th>
                                 <th scope="col" data-k="name">Produto <span class="ar"></span></th>
+                                <th class="r pa-est" scope="col" data-k="stock" style="width:74px"
+                                    title="Estoque no ERP (ESTOQUE)">Estoque <span class="ar"></span></th>
                                 @foreach ($cols as $key => $col)
                                     <th class="r {{ $col['tom'] === 'pri' ? 'pri' : '' }}" scope="col"
                                         data-k="{{ $key }}" style="width:104px">{{ $col['label'] }} <span class="ar"></span></th>
@@ -112,6 +117,15 @@
                                             <span class="pa-pill bad" title="Produto inativo">inativo</span>
                                         @endunless
                                     </td>
+                                    @php
+                                        $est = (float) $product->stock;
+                                        // Estoque é inteiro na prática (decimal no banco por
+                                        // causa do ERP), então só mostra centavos se existirem.
+                                        $estFmt = number_format($est, $est == (int) $est ? 0 : 2, '.', ',');
+                                    @endphp
+                                    <td class="r pa-est {{ $est <= 0 ? 'zero' : '' }}" data-col="stock" data-v="{{ $est }}">
+                                        {{ $estFmt }}
+                                    </td>
                                     @foreach ($cols as $key => $col)
                                         @php
                                             $val = (float) $product->{$key};
@@ -121,18 +135,28 @@
                                             // coluna volta sozinho.
                                             $tom = trim($col['tom'] . ($val <= 0 ? ' zero' : ''));
                                         @endphp
-                                        <td class="pa-cell" data-col="{{ $key }}">
-                                            <span class="pa-cur">$</span>
-                                            <input type="text" class="pa-inp {{ $tom }}" value="{{ $fmt }}"
-                                                data-orig="{{ $fmt }}" data-col="{{ $key }}"
-                                                inputmode="decimal" autocomplete="off" spellcheck="false" tabindex="-1"
-                                                @unless ($canManage) readonly @endunless>
-                                        </td>
+                                        @if ($col['edit'])
+                                            <td class="pa-cell" data-col="{{ $key }}">
+                                                <span class="pa-cur">$</span>
+                                                <input type="text" class="pa-inp {{ $tom }}" value="{{ $fmt }}"
+                                                    data-orig="{{ $fmt }}" data-col="{{ $key }}" placeholder="{{ $fmt }}"
+                                                    inputmode="decimal" autocomplete="off" spellcheck="false" tabindex="-1"
+                                                    @unless ($canManage) readonly @endunless>
+                                            </td>
+                                        @else
+                                            {{-- Coluna de leitura (Médio): texto, não input — fora do
+                                                 Tab e sem endpoint de gravação. O `data-v` é o número
+                                                 cru, usado pela ordenação. --}}
+                                            <td class="pa-cell ro" data-col="{{ $key }}" data-v="{{ $val }}">
+                                                <span class="pa-cur">$</span>
+                                                <span class="pa-ro {{ $tom }}">{{ $fmt }}</span>
+                                            </td>
+                                        @endif
                                     @endforeach
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="{{ count($cols) + 2 }}">
+                                    <td colspan="{{ count($cols) + 3 }}">
                                         <div class="pa-empty">Nenhum produto encontrado com esses filtros.</div>
                                     </td>
                                 </tr>
@@ -154,6 +178,9 @@
                     <span><kbd>←</kbd><kbd>→</kbd> muda de coluna</span>
                     <span><kbd>Enter</kbd> confirma e desce</span>
                     <span><kbd>Esc</kbd> desfaz a célula</span>
+                    <span class="l" style="margin-left:6px">Colunas</span>
+                    <span><b>Atacado</b> grava <b>Promo</b> e <b>Mínimo</b> junto (fora da grade)</span>
+                    <span><b>Médio</b> e <b>Estoque</b> são só leitura (vêm do ERP)</span>
                     <span class="pa-sujos" id="paSujos"></span>
                     <span style="margin-left:auto">Tudo em <b>US$</b> · clique no cabeçalho pra ordenar</span>
                 </div>
@@ -176,7 +203,8 @@
             const counter = document.getElementById('paCnt');
             const sujos   = document.getElementById('paSujos');
             const rows    = Array.from(tbody.querySelectorAll('tr.pa-row'));
-            const colKeys = @json(array_keys($cols));
+            // Navegação só pelas colunas digitáveis: Médio e Estoque são texto.
+            const colKeys = @json($navKeys);
             const podeGravar = @json($canManage);
             const urlSalvar = id => @json(url('products-admin')) + '/' + id + '/prices';
             const token = document.querySelector('#paCsrf [name=_token]').value;
@@ -210,6 +238,29 @@
             const fmtCents = c => (c / 100).toLocaleString('en-US', {
                 minimumFractionDigits: 2, maximumFractionDigits: 2,
             });
+
+            // Entrar na célula esvazia o campo: a máscara é da direita pra
+            // esquerda, então digitar por cima do valor antigo emendaria os
+            // dígitos (1.190,00 + "885" viraria 119.088,50). O número gravado
+            // continua à vista no placeholder.
+            //
+            // Só esvazia célula que está igual ao banco: pendente ou com erro ela
+            // guarda o que o usuário digitou e não foi gravado — limpar apagaria
+            // o trabalho dele.
+            function esvaziar(inp) {
+                if (!podeGravar || inp.value !== inp.dataset.orig) return;
+                inp.dataset.vazio = '1';
+                inp.value = '';
+            }
+
+            // Saiu sem digitar nada: a célula foi só visitada (Tab, seta, clique),
+            // então volta o valor gravado e nada é enviado.
+            function restaurar(inp) {
+                delete inp.dataset.vazio;
+                inp.value = inp.dataset.orig;
+                inp.classList.toggle('zero', centsDe(inp) === 0);
+                marcarSujo(inp);
+            }
 
             function caretFim(inp) {
                 const n = inp.value.length;
@@ -272,7 +323,9 @@
                         // O servidor devolve o valor normalizado pelo banco.
                         inp.value = fmtCents(Math.round(parseFloat(d.value) * 100));
                         inp.dataset.orig = inp.value;
+                        inp.placeholder = inp.value;
                         inp.classList.toggle('zero', centsDe(inp) === 0);
+                        aplicarEspelhos(inp, d.espelhos);
 
                         td.classList.remove('gravando', 'sujo', 'erro');
                         td.classList.add('salvo');
@@ -291,6 +344,46 @@
                         // Mudou de novo enquanto gravava: manda a última versão.
                         if (inp.value !== inp.dataset.orig && !td.classList.contains('erro')) salvar(inp);
                     });
+            }
+
+            // O atacado grava Promo e Mínimo junto (ver updatePrices): repinta
+            // essas células com o que o servidor confirmou, senão elas mostrariam
+            // o valor velho até recarregar a tela. Hoje as duas estão fora da
+            // grade (`grade => false`) e o loop não acha input nenhum — fica de
+            // pé porque voltar a exibi-las é trocar um booleano.
+            //
+            // Célula que o usuário já mexeu fica de fora — pendente (sujo) ou com
+            // request em voo. A resposta chega async: sem essa guarda, o espelho
+            // apagaria o que ele está digitando na célula ao lado, e é a edição
+            // dele que tem que ganhar.
+            function aplicarEspelhos(inp, espelhos) {
+                if (!espelhos) return;
+
+                const tr = inp.closest('tr');
+
+                Object.keys(espelhos).forEach(col => {
+                    const alvo = tr.querySelector('input.pa-inp[data-col="' + col + '"]');
+                    if (!alvo || alvo === inp) return;
+
+                    const td = alvo.parentElement;
+                    if (td.dataset.gravando === '1' || td.classList.contains('sujo')) return;
+
+                    const novo = fmtCents(Math.round(parseFloat(espelhos[col]) * 100));
+                    alvo.dataset.orig = novo;
+                    alvo.placeholder = novo;
+                    // Célula aberta e ainda vazia continua vazia: o usuário está
+                    // prestes a digitar nela. O focusout replõe com o valor novo.
+                    if (alvo.dataset.vazio !== '1') {
+                        alvo.value = novo;
+                        alvo.classList.toggle('zero', centsTxt(novo) === 0);
+                    }
+
+                    td.classList.remove('gravando', 'sujo', 'erro');
+                    td.classList.add('salvo');
+                    td.removeAttribute('title');
+                    setTimeout(() => td.classList.remove('salvo'), 1200);
+                    marcarSujo(alvo);
+                });
             }
 
             function montaErro(d) {
@@ -337,6 +430,7 @@
                 rows.forEach(r => r.classList.remove('cur'));
                 tr.classList.add('cur');
                 cur = visible().indexOf(tr);
+                esvaziar(inp);
                 caretFim(inp);
             });
 
@@ -344,7 +438,9 @@
             // o foco da página toda.
             tbody.addEventListener('focusout', e => {
                 const inp = e.target.closest && e.target.closest('input.pa-inp');
-                if (inp) salvar(inp);
+                if (!inp) return;
+                if (inp.dataset.vazio === '1') { restaurar(inp); return; }
+                salvar(inp);
             });
 
             tbody.addEventListener('keydown', e => {
@@ -361,11 +457,24 @@
                 if (podeGravar) {
                     if (/^[0-9]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
                         e.preventDefault();
+                        delete inp.dataset.vazio;
                         porCents(inp, centsDe(inp) * 10 + Number(e.key));
                         return;
                     }
-                    if (e.key === 'Backspace') { e.preventDefault(); porCents(inp, Math.floor(centsDe(inp) / 10)); return; }
-                    if (e.key === 'Delete')    { e.preventDefault(); porCents(inp, 0); return; }
+                    if (e.key === 'Backspace') {
+                        e.preventDefault();
+                        // Célula recém-aberta já está vazia — apagar de novo não pode
+                        // virar "gravar 0" sem o usuário ter digitado nada.
+                        if (inp.dataset.vazio === '1') return;
+                        porCents(inp, Math.floor(centsDe(inp) / 10));
+                        return;
+                    }
+                    if (e.key === 'Delete') {
+                        e.preventDefault();
+                        delete inp.dataset.vazio;
+                        porCents(inp, 0);
+                        return;
+                    }
                 }
 
                 // Tab / Shift+Tab: desce (ou sobe) na mesma coluna. No fim da
@@ -403,6 +512,10 @@
                 // dispara request); se ela já está limpa, volta pra busca.
                 if (e.key === 'Escape') {
                     e.preventDefault();
+                    // Célula só visitada (ainda vazia): nada mudou, então Esc faz o
+                    // de sempre — volta pra busca. Quem replóe o valor é o
+                    // focusout, ao sair.
+                    if (inp.dataset.vazio === '1') { input.focus(); input.select(); return; }
                     if (inp.value !== inp.dataset.orig) {
                         porCents(inp, centsTxt(inp.dataset.orig));
                         inp.parentElement.classList.remove('erro');
@@ -480,7 +593,10 @@
                     // valor vivo do input: ordenar bate com o que está na tela,
                     // inclusive depois de editar.
                     const inp = r.querySelector('input.pa-inp[data-col="' + key + '"]');
-                    return inp ? centsDe(inp) : 0;
+                    if (inp) return centsDe(inp);
+                    // Médio e Estoque não têm input — o número cru está no td.
+                    const td = r.querySelector('td[data-col="' + key + '"]');
+                    return td ? parseFloat(td.dataset.v) || 0 : 0;
                 };
 
                 const ordenados = rows.slice().sort((a, b) => {

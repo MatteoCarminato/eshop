@@ -39,8 +39,26 @@ Eloquent normais (conexão padrão da aplicação).
   grupo, junta com `GRUPO.CODGRU`), `SGRUPRO` (código do subgrupo, junta com
   `SUB.CODSGRU`), `NOMELONG` (nome completo), `NOMPRO` (nome curto), `PRECO3`
   (preço principal), `PREATAC` (preço atacado), `PRECOWEB` (preço web),
-  `PREVEN` (preço de venda), `PREMIN` (preço mínimo), `ESTOQUE` (quantidade em
-  estoque).
+  `PREVEN` (preço de venda), `PREMIN` (preço mínimo), `UCBASE` (preço médio —
+  custo médio do estoque), `ESTOQUE` (quantidade em estoque).
+
+### `PREATAC`, `PREVEN` e `PREMIN` andam juntos
+
+No ERP o campo "A C Atacado" não grava uma coluna só: `PREATAC`, `PREVEN` e
+`PREMIN` ficam com o **mesmo valor**, e é assim que os três chegam no site a
+cada sync (confirmado consultando o catálogo: as três colunas são idênticas
+linha por linha). `PRECOWEB` é o contrário — é independente dos outros.
+
+Por isso a grade de preços do site espelha esse comportamento ao gravar: editar
+o Atacado grava `wholesale_price`, `sale_price` e `min_price` com o mesmo valor;
+editar o Web mexe só em `web_price` (ver
+`ProductAdminController::PRICE_COLUMNS`, chave `espelha`). Sem isso, a própria
+grade ficaria incoerente logo depois da edição — as três colunas mostram o
+mesmo número no resto do catálogo.
+
+**A edição não volta pro ERP.** A conexão `erp` é somente leitura e não existe
+API de preço do lado dele, então o preço editado vale na base local — é o que
+a grade e a tela de exportar leem — até o próximo sync sobrescrever.
 
 ### Grupo e subgrupo não são hierárquicos
 
@@ -82,7 +100,8 @@ edições feitas por um admin no site. Ela faz upsert por `recno`:
 - **Produtos** (`ErpCatalogSyncService::syncProducts()`):
   - Produto novo: cria com `recno`, `brand_id` (resolvido — ver abaixo),
     `name` (= `NOMELONG`), `short_name` (= `NOMPRO`, `null` se vazio), preços
-    (`price`, `wholesale_price`, `web_price`, `sale_price`, `min_price`),
+    (`price`, `wholesale_price`, `web_price`, `sale_price`, `min_price`,
+    `average_price`),
     `stock`, `slug` (slugificado e deduplicado a partir de `NOMELONG`),
     `active = (ATIVO === 'S' && ENVIA_SITE === 'S')` e `synced_at = now()`.
   - Produto já existente: atualiza **apenas** `name`, `short_name`, os
@@ -102,6 +121,9 @@ edições feitas por um admin no site. Ela faz upsert por `recno`:
       o ERP não alimenta `PRECOWEB` para a maior parte do catálogo.
     - Sem nenhum desses valores preenchidos no ERP, o produto fica mesmo com
       preço `0` — não há de onde puxar um valor melhor.
+    - `average_price` (= `UCBASE`) **não** entra em nenhuma cadeia de
+      fallback: é custo médio do estoque, não preço de venda. Produto sem
+      movimento de compra vem com o campo vazio e fica `null`.
   - Linhas com `IS_DELETED = 'Y'` são ignoradas (contadas como "skipped").
 
 ### Grupo/subgrupo são a exceção ao "só na criação"
@@ -194,7 +216,8 @@ ou de erro.
 `PRODUTO_PRO` tem ~130 outras colunas no ERP (código de barras, dimensões,
 códigos fiscais, flags de promoção, etc.) que **não** são sincronizadas nesta
 primeira versão — só os campos listados acima são mapeados. Em particular,
-`CODWEB`, `REFER`, `BARRA`, `HTTPLINK` e `FOTOPRO` existem no ERP e poderiam
+`CODWEB`, `REFER`, `BARRA`, `HTTPLINK`, `FOTOPRO`, `PRECO4`/`PRECO5` e
+`PRE_BLACK` existem no ERP e poderiam
 ser mapeados futuramente caso o site precise de um código de barras, link
 externo de imagem, ou flag de "tem foto" — mas ficaram fora do escopo desta
 etapa.
