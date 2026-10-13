@@ -184,7 +184,7 @@ class ProductPriceInlineUpdateTest extends TestCase
             ->assertSee('readonly', false);
     }
 
-    public function test_grade_mostra_so_medio_atacado_e_web(): void
+    public function test_grade_mostra_medio_atacado_diferenca_e_web(): void
     {
         $this->product();
 
@@ -193,6 +193,7 @@ class ProductPriceInlineUpdateTest extends TestCase
         $response->assertSee('Atacado')
             ->assertDontSee('Varejo')
             ->assertSee('data-k="wholesale_price"', false)
+            ->assertSee('data-k="diff"', false)
             ->assertSee('data-k="web_price"', false)
             // Varejo (PRECO3), Promo (PREVEN) e Mínimo (PREMIN) ficam fora da
             // grade — as duas últimas porque o atacado já as grava, então
@@ -201,9 +202,10 @@ class ProductPriceInlineUpdateTest extends TestCase
             ->assertDontSee('data-k="sale_price"', false)
             ->assertDontSee('data-k="min_price"', false);
 
-        // Ordem exata da grade: o Médio antes do atacado, e nada depois do Web.
+        // Ordem exata da grade: o Médio antes do atacado, a Diferença logo
+        // depois dele (é a conta entre os dois) e nada depois do Web.
         $cols = array_keys($response->viewData('cols'));
-        $this->assertSame(['average_price', 'wholesale_price', 'web_price'], $cols);
+        $this->assertSame(['average_price', 'wholesale_price', 'diff', 'web_price'], $cols);
 
         // O atacado é a primeira coluna NAVEGÁVEL (onde o Alt+Enter cai),
         // porque o Médio não é digitável.
@@ -212,6 +214,192 @@ class ProductPriceInlineUpdateTest extends TestCase
             $cols,
         ));
         $this->assertSame(['wholesale_price', 'web_price'], $navegaveis);
+    }
+
+    /**
+     * A Diferença é coluna da grade mas não existe no banco: ela não pode nem
+     * ir pro select() (quebraria a query) nem ser aceita pelo endpoint.
+     */
+    public function test_diferenca_e_calculada_e_nao_e_gravavel(): void
+    {
+        $product = $this->product(['wholesale_price' => 1100, 'average_price' => 950]);
+
+        $this->assertArrayNotHasKey(
+            'diff',
+            \App\Http\Controllers\ProductAdminController::storedGridColumns(),
+            'coluna calculada não pode entrar no select()',
+        );
+        $this->assertArrayNotHasKey(
+            'diff',
+            \App\Http\Controllers\ProductAdminController::editableColumns(),
+        );
+
+        $this->actingAs($this->admin())
+            ->get(route('products-admin.index'))
+            ->assertOk()
+            // 1100 − 950, calculado na renderização.
+            ->assertSee('data-v="150"', false)
+            ->assertSee('150.00');
+
+        $this->actingAs($this->admin())
+            ->patchJson(route('products-admin.prices', $product), ['column' => 'diff', 'value' => 10])
+            ->assertStatus(422);
+    }
+
+    /**
+     * Sem saldo o produto não está à venda, então não entra na grade de preços
+     * — mas continua alcançável pelos chips de estoque.
+     */
+    public function test_esconde_produto_com_estoque_zerado_por_padrao(): void
+    {
+        $this->product(['name' => 'COM SALDO', 'stock' => 3]);
+        $this->product(['name' => 'ZERADO', 'stock' => 0]);
+
+        $admin = $this->admin();
+
+        $padrao = $this->actingAs($admin)->get(route('products-admin.index'))->assertOk();
+        $this->assertSame(['COM SALDO'], $padrao->viewData('products')->pluck('name')->all());
+        // O chip "Zerados" conta quem ficou de fora.
+        $this->assertSame(1, $padrao->viewData('semEstoque'));
+
+        $zerados = $this->actingAs($admin)
+            ->get(route('products-admin.index', ['estoque' => '0']))->assertOk();
+        $this->assertSame(['ZERADO'], $zerados->viewData('products')->pluck('name')->all());
+
+        $todos = $this->actingAs($admin)
+            ->get(route('products-admin.index', ['estoque' => '']))->assertOk();
+        $this->assertSame(['COM SALDO', 'ZERADO'], $todos->viewData('products')->pluck('name')->all());
+    }
+
+    /**
+     * As duas contagens dos chips olham uma pelo filtro da outra: o "sem
+     * atacado" só conta o que o filtro de estoque deixaria aparecer, e
+     * vice-versa.
+     */
+    public function test_contagens_dos_chips_respeitam_o_outro_filtro(): void
+    {
+        $this->product(['name' => 'ZERADO SEM ATACADO', 'stock' => 0, 'wholesale_price' => 0]);
+        $this->product(['name' => 'COM SALDO SEM ATACADO', 'stock' => 4, 'wholesale_price' => 0]);
+        $this->product(['name' => 'COM SALDO E ATACADO', 'stock' => 4, 'wholesale_price' => 900]);
+
+        $r = $this->actingAs($this->admin())->get(route('products-admin.index'))->assertOk();
+
+        $this->assertSame(['COM SALDO E ATACADO'], $r->viewData('products')->pluck('name')->all());
+        // Só o sem atacado que TEM saldo: o zerado já está fora por estoque.
+        $this->assertSame(1, $r->viewData('semAtacado'));
+        // Só o zerado que TEM atacado — nenhum.
+        $this->assertSame(0, $r->viewData('semEstoque'));
+    }
+
+    // ---- gravação no ERP ----------------------------------------------------
+    // Nenhum teste encosta no ERP de verdade: ERP_PRICE_WRITE=false no
+    // phpunit.xml e, onde o comportamento importa, o ErpPriceWriter é trocado
+    // por um dublê.
+
+    public function test_atacado_vai_pro_erp_com_preatac_preven_e_premin(): void
+    {
+        $product = $this->product(['erp_code' => '2523']);
+
+        $this->mock(\App\Services\Erp\ErpPriceWriter::class, function ($mock) use ($product) {
+            $mock->shouldReceive('write')
+                ->once()
+                ->withArgs(fn ($p, $colunas, $valor) => $p->is($product)
+                    && $colunas === ['PREATAC', 'PREVEN', 'PREMIN']
+                    && $valor === 5.01)
+                ->andReturnNull();
+            $mock->shouldReceive('enabled')->andReturnTrue();
+        });
+
+        $this->actingAs($this->admin())
+            ->patchJson(route('products-admin.prices', $product), ['column' => 'wholesale_price', 'value' => '5.01'])
+            ->assertOk()
+            ->assertJson(['success' => true, 'erp' => true]);
+
+        $this->assertSame('5.01', (string) $product->fresh()->wholesale_price);
+    }
+
+    /**
+     * O preço web é do site: não tem par no ERP e não pode disparar gravação
+     * lá (o grant até permitiria o PRECOWEB — a decisão é de produto).
+     */
+    public function test_preco_web_nao_vai_pro_erp(): void
+    {
+        $product = $this->product(['erp_code' => '2523']);
+
+        $this->mock(\App\Services\Erp\ErpPriceWriter::class, function ($mock) {
+            // Chamado, sim, mas sem coluna nenhuma de ERP pra gravar.
+            $mock->shouldReceive('write')
+                ->once()
+                ->withArgs(fn ($p, $colunas, $valor) => $colunas === [])
+                ->andReturnNull();
+            $mock->shouldReceive('enabled')->andReturnTrue();
+        });
+
+        $this->actingAs($this->admin())
+            ->patchJson(route('products-admin.prices', $product), ['column' => 'web_price', 'value' => '1234.00'])
+            ->assertOk()
+            ->assertJson(['success' => true, 'erp' => false]);
+
+        $this->assertSame('1234.00', (string) $product->fresh()->web_price);
+    }
+
+    /**
+     * ERP recusando, a base do site não muda: é o que impede as duas ficarem
+     * com preços diferentes.
+     */
+    public function test_erp_recusando_nao_grava_na_base_do_site(): void
+    {
+        $product = $this->product(['erp_code' => '2523', 'wholesale_price' => 1100]);
+
+        $this->mock(\App\Services\Erp\ErpPriceWriter::class, function ($mock) {
+            $mock->shouldReceive('write')
+                ->once()
+                ->andThrow(new \App\Exceptions\ErpWriteException('Nenhum produto no ERP com o código 2523.'));
+        });
+
+        $this->actingAs($this->admin())
+            ->patchJson(route('products-admin.prices', $product), ['column' => 'wholesale_price', 'value' => '5.01'])
+            ->assertStatus(422)
+            ->assertJson(['success' => false, 'message' => 'Nenhum produto no ERP com o código 2523.']);
+
+        $product->refresh();
+        $this->assertSame('1100.00', (string) $product->wholesale_price);
+        // Os espelhos também não podem ter andado sozinhos.
+        $this->assertSame('1150.00', (string) $product->sale_price);
+        $this->assertSame('1000.00', (string) $product->min_price);
+    }
+
+    /**
+     * Produto que nunca veio do ERP não tem CODNNN — e sem CODNNN não existe
+     * UPDATE possível (o usuário de escrita não enxerga RECNO).
+     */
+    public function test_produto_sem_codnnn_nao_tenta_gravar_no_erp(): void
+    {
+        config(['erp.price_write' => true]);
+        $product = $this->product(['erp_code' => null]);
+
+        $this->expectException(\App\Exceptions\ErpWriteException::class);
+        $this->expectExceptionMessage('Produto sem código do ERP (CODNNN)');
+
+        // Sem conexão nenhuma: a checagem acontece antes de falar com o banco.
+        (new \App\Services\Erp\ErpPriceWriter())->write($product, ['PREATAC'], 5.01);
+    }
+
+    /**
+     * Com o flag desligado (ambiente sem credencial de escrita, e os testes) a
+     * grade volta a gravar só na base do site.
+     */
+    public function test_flag_desligado_grava_so_no_site(): void
+    {
+        config(['erp.price_write' => false]);
+        $product = $this->product(['erp_code' => null]);
+
+        $this->actingAs($this->admin())
+            ->patchJson(route('products-admin.prices', $product), ['column' => 'wholesale_price', 'value' => '5.01'])
+            ->assertOk()
+            ->assertJson(['success' => true, 'erp' => false]);
+
+        $this->assertSame('5.01', (string) $product->fresh()->wholesale_price);
     }
 
     /**

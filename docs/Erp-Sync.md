@@ -18,8 +18,39 @@ vindas de `.env` (`ERP_DB_HOST`, `ERP_DB_PORT`, `ERP_DB_DATABASE`,
 
 **A conexão `erp` é somente leitura, por convenção.** Nunca escrever nela,
 nunca rodar migrations contra ela, nunca chamar `Schema::connection('erp')`.
-Toda escrita acontece nas tabelas locais `brands`/`products` via os models
-Eloquent normais (conexão padrão da aplicação).
+O sync grava nas tabelas locais `brands`/`products` via os models Eloquent
+normais (conexão padrão da aplicação).
+
+### A conexão `erp_update` — a única escrita no ERP
+
+O preço de **atacado** editado na grade vai pro ERP na hora, por uma segunda
+conexão: `erp_update`, banco `novo_cec`, usuário `update1`
+(`ERP_UPDATE_DB_*` no `.env`). É outro usuário de propósito, com grant estreito:
+
+```
+GRANT SELECT (PREVEN, PREMIN, CODNNN, CODPRO, PRECOWEB, PREATAC, NOMPRO),
+      UPDATE (PREVEN, PREMIN, PRECOWEB, PREATAC) ON novo_cec.PRODUTO_PRO
+```
+
+Três consequências que explicam o desenho de `ErpPriceWriter`:
+
+1. **O WHERE é por `CODNNN`**, nunca por RECNO: o `update1` não tem SELECT nem
+   pra ler a coluna RECNO, então um `WHERE RECNO = ...` volta
+   *SELECT command denied*. Por isso `products.erp_code` guarda o CODNNN, e sem
+   ele a gravação é recusada com mensagem na própria célula.
+2. **Só PREATAC/PREVEN/PREMIN/PRECOWEB podem ser escritos.** `PRECO3` (o
+   "Varejo") não tem grant — é só da base do site.
+3. **Nada é lido de volta por essa conexão.** Quem confirma a gravação é a
+   contagem de linhas do UPDATE (a conexão usa `MYSQL_ATTR_FOUND_ROWS`, então
+   regravar o mesmo valor conta como sucesso).
+
+`ERP_PRICE_WRITE=false` desliga a escrita e a grade volta a gravar só na base do
+site — é o padrão dos testes (`phpunit.xml`) e de ambiente sem credencial.
+
+Isso **não** é o caminho do painel antigo (`g_invoice/salvar_edicao_dinamica.php`
++ `crawler/autoprice.php`), que grava o preço como texto em `tb_produtos_2` e só
+chega no ERP quando o `autoprice` roda — e que zera os preços de quem está sem
+estoque ou sem custo.
 
 ## Tabelas de origem
 
@@ -56,9 +87,11 @@ editar o Web mexe só em `web_price` (ver
 grade ficaria incoerente logo depois da edição — as três colunas mostram o
 mesmo número no resto do catálogo.
 
-**A edição não volta pro ERP.** A conexão `erp` é somente leitura e não existe
-API de preço do lado dele, então o preço editado vale na base local — é o que
-a grade e a tela de exportar leem — até o próximo sync sobrescrever.
+**O Atacado volta pro ERP; o resto, não.** Salvar o Atacado grava
+`PREATAC`/`PREVEN`/`PREMIN` no `PRODUTO_PRO` pela conexão `erp_update` (ver
+acima) e só então grava na base local — recusa do ERP significa nada gravado
+dos dois lados. Web e Varejo ficam só na base local, que é o que a grade e a
+tela de exportar leem, até o próximo sync sobrescrever.
 
 ### Grupo e subgrupo não são hierárquicos
 

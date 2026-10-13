@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\ErpWriteException;
 use App\Models\Brand;
 use App\Models\Product;
+use App\Services\Erp\ErpPriceWriter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -26,6 +28,9 @@ class ProductAdminController extends Controller
      *   escuro e negrito).
      * - `espelha`: outras colunas que recebem o mesmo valor quando esta é
      *   gravada (ver updatePrices()).
+     * - `erp`: coluna correspondente no PRODUTO_PRO. Quem tem essa chave é
+     *   gravado TAMBÉM no ERP ao ser salvo (ver ErpPriceWriter); quem não tem
+     *   fica só na base do site.
      */
     public const PRICE_COLUMNS = [
         // Preço médio (UCBASE): custo médio do estoque, vindo do ERP. Fica
@@ -37,21 +42,31 @@ class ProductAdminController extends Controller
         // PREATAC, PREVEN e PREMIN andam sempre com o mesmo valor (conferido no
         // ERP: as três colunas são idênticas em todo o catálogo). Por isso
         // gravar o atacado aqui espelha Promo e Mínimo.
+        // É a ÚNICA coluna que sai da grade pro ERP: salvar o atacado grava
+        // PREATAC, PREVEN e PREMIN no PRODUTO_PRO na hora, sem passar pelo
+        // painel nem esperar o autoprice.
         'wholesale_price' => [
             'label' => 'Atacado', 'tom' => 'pri', 'grade' => true, 'edit' => true,
-            'espelha' => ['sale_price', 'min_price'],
+            'espelha' => ['sale_price', 'min_price'], 'erp' => 'PREATAC',
         ],
-        // Web (PRECOWEB) é independente: no ERP, salvar o preço web mexe só
-        // nele. Sem `espelha`, de propósito.
+        // Diferença = Atacado − Médio: a margem em dólar do item, que é o que se
+        // confere ao varrer a grade. NÃO existe no banco — `calc` tira a coluna
+        // do select() e do endpoint de edição; o valor é montado na renderização
+        // e refeito no cliente a cada atacado digitado.
+        'diff' => ['label' => 'Diferença', 'tom' => 'diff', 'grade' => true, 'edit' => false, 'calc' => true],
+        // Web (PRECOWEB) é independente: sem `espelha` e, de propósito, sem
+        // `erp` — o preço web é do site e não volta pro ERP.
         'web_price' => ['label' => 'Web', 'tom' => '', 'grade' => true, 'edit' => true],
         // Promo (PREVEN) e Mínimo (PREMIN) ficam fora da grade: no ERP elas são
         // sempre iguais ao atacado, e agora o atacado as grava junto — na tela
         // seriam três colunas repetindo o mesmo número. Seguem sincronizadas,
         // espelhadas e aceitas pelo endpoint.
-        'sale_price' => ['label' => 'Promo', 'tom' => 'sale', 'grade' => false, 'edit' => true],
-        'min_price' => ['label' => 'Mínimo', 'tom' => 'min', 'grade' => false, 'edit' => true],
+        'sale_price' => ['label' => 'Promo', 'tom' => 'sale', 'grade' => false, 'edit' => true, 'erp' => 'PREVEN'],
+        'min_price' => ['label' => 'Mínimo', 'tom' => 'min', 'grade' => false, 'edit' => true, 'erp' => 'PREMIN'],
         // Varejo (PRECO3) continua sendo sincronizado do ERP e aceito pelo
         // endpoint, mas fora da grade: o preço que o negócio usa é o atacado.
+        // Sem `erp`: o usuário de escrita não tem grant no PRECO3, então esta
+        // coluna não teria como ir pro ERP nem se voltasse pra tela.
         'price' => ['label' => 'Varejo', 'tom' => '', 'grade' => false, 'edit' => true],
     ];
 
@@ -63,6 +78,17 @@ class ProductAdminController extends Controller
     public static function gridColumns(): array
     {
         return array_filter(self::PRICE_COLUMNS, fn (array $col) => $col['grade']);
+    }
+
+    /**
+     * Só as colunas da grade que são coluna de verdade no banco — é isso que
+     * pode ir pro select(). Tira a Diferença, que é calculada.
+     *
+     * @return array<string, array{label: string, tom: string, grade: bool, edit: bool}>
+     */
+    public static function storedGridColumns(): array
+    {
+        return array_filter(self::gridColumns(), fn (array $col) => empty($col['calc']));
     }
 
     /**
@@ -92,43 +118,72 @@ class ProductAdminController extends Controller
         // Padrão esconde os sem atacado: é o preço que o negócio usa, e boa
         // parte do catálogo vem do ERP com PREATAC zerado.
         $atacado = $request->get('atacado', '1');
+        // '1' = só com estoque (padrão), '0' = só os zerados, '' = todos.
+        // Padrão esconde os zerados: a grade serve pra conferir o preço do que
+        // está à venda, e o catálogo do ERP arrasta muito item sem saldo.
+        $estoque = $request->get('estoque', '1');
 
         $cols = self::gridColumns();
 
-        // Filtros compartilhados pela listagem e pela contagem do chip, pra as
-        // duas não divergirem.
+        // Filtros compartilhados pela listagem e pelas contagens dos chips, pra
+        // as três não divergirem. Atacado e estoque ficam em closures separadas
+        // porque cada contagem precisa aplicar um sem aplicar o outro.
         $base = fn () => Product::query()
             ->when($brand !== null && $brand !== '', fn ($q) => $q->where('brand_id', (int) $brand))
             ->when($active === '1', fn ($q) => $q->where('active', true))
             ->when($active === '0', fn ($q) => $q->where('active', false));
+
+        $filtroAtacado = function ($q) use ($atacado) {
+            // `> 0` já descarta NULL (NULL > 0 não é verdadeiro), então o
+            // "com atacado" cobre nulo e zero de uma vez.
+            if ($atacado === '1') {
+                $q->where('wholesale_price', '>', 0);
+            }
+            if ($atacado === '0') {
+                $q->where(fn ($q) => $q->whereNull('wholesale_price')->orWhere('wholesale_price', '<=', 0));
+            }
+        };
+
+        $filtroEstoque = function ($q) use ($estoque) {
+            if ($estoque === '1') {
+                $q->where('stock', '>', 0);
+            }
+            if ($estoque === '0') {
+                $q->where('stock', '<=', 0);
+            }
+        };
 
         $products = $base()
             ->select(array_merge(
                 // `stock` vem sempre: a coluna de estoque da grade é só um
                 // liga/desliga visual, não vale recarregar a tela pra isso.
                 ['id', 'brand_id', 'name', 'short_name', 'active', 'stock'],
-                array_keys($cols),
+                // Sem as calculadas (Diferença): no banco elas não existem.
+                array_keys(self::storedGridColumns()),
             ))
             ->with('brand:id,name')
-            // `> 0` já descarta NULL (NULL > 0 não é verdadeiro), então o
-            // "com atacado" cobre nulo e zero de uma vez.
-            ->when($atacado === '1', fn ($q) => $q->where('wholesale_price', '>', 0))
-            ->when($atacado === '0', fn ($q) => $q->where(
-                fn ($q) => $q->whereNull('wholesale_price')->orWhere('wholesale_price', '<=', 0)
-            ))
+            ->where($filtroAtacado)
+            ->where($filtroEstoque)
             ->orderBy('name')
             ->get();
 
         $brands = Brand::orderBy('name')->get(['id', 'name']);
 
-        // Quantos ficariam de fora pelo filtro de atacado, dentro dos mesmos
-        // filtros de marca/situação — mostrado no chip "Sem atacado".
+        // Quantos ficariam de fora por cada filtro, dentro dos mesmos filtros de
+        // marca/situação — mostrado nos chips "Sem preço" e "Zerados".
         $semAtacado = $base()
+            ->where($filtroEstoque)
             ->where(fn ($q) => $q->whereNull('wholesale_price')->orWhere('wholesale_price', '<=', 0))
             ->count();
 
+        $semEstoque = $base()
+            ->where($filtroAtacado)
+            ->where('stock', '<=', 0)
+            ->count();
+
         return view('admin.products.admin-index', compact(
-            'products', 'brands', 'brand', 'active', 'atacado', 'cols', 'semAtacado',
+            'products', 'brands', 'brand', 'active', 'atacado', 'estoque', 'cols',
+            'semAtacado', 'semEstoque',
         ));
     }
 
@@ -209,13 +264,18 @@ class ProductAdminController extends Controller
      * três colunas mostram o mesmo número no resto do catálogo. O preco web é
      * o contrário e continua sozinho: no ERP mexe só no PRECOWEB.
      *
-     * Nada disso é escrito no ERP: a conexão `erp` é somente leitura e não
-     * existe API de preço do lado dele. A edição vale na base local (é o que a
-     * grade e a tela de exportar leem) até o próximo sync.
+     * O ATACADO vai pro ERP no mesmo request (ErpPriceWriter): grava PREATAC,
+     * PREVEN e PREMIN no PRODUTO_PRO pelo CODNNN do produto. É a única coluna
+     * que sai daqui — Web e Varejo ficam só na base do site, e o Médio é só
+     * leitura.
+     *
+     * Se o ERP recusar, a base local NÃO é tocada e a célula volta em erro: as
+     * duas bases nunca ficam diferentes por causa de uma gravação que só
+     * funcionou de um lado.
      *
      * Os valores são em USD (o catálogo do ERP é todo em dólar).
      */
-    public function updatePrices(Request $request, Product $product): JsonResponse
+    public function updatePrices(Request $request, Product $product, ErpPriceWriter $erp): JsonResponse
     {
         $data = $request->validate([
             'column' => ['required', 'string', Rule::in(array_keys(self::editableColumns()))],
@@ -226,8 +286,28 @@ class ProductAdminController extends Controller
         $column = $data['column'];
         $value = round((float) $data['value'], 2);
         $espelhos = self::PRICE_COLUMNS[$column]['espelha'] ?? [];
+        $gravadas = array_merge([$column], $espelhos);
 
-        $product->update(array_fill_keys(array_merge([$column], $espelhos), $value));
+        // Colunas do ERP correspondentes às que serão gravadas aqui. Fica vazio
+        // quando nenhuma delas tem par no ERP (Web, Varejo) — e aí a gravação é
+        // só local, como era antes.
+        $colunasErp = array_values(array_filter(array_map(
+            fn (string $col) => self::PRICE_COLUMNS[$col]['erp'] ?? null,
+            $gravadas,
+        )));
+
+        try {
+            // Primeiro o ERP: ele é a fonte do preço e é o que pode recusar.
+            // Dando erro, o update local nem acontece.
+            $erp->write($product, $colunasErp, $value);
+        } catch (ErpWriteException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+
+        $product->update(array_fill_keys($gravadas, $value));
 
         $fresh = $product->fresh();
         // Devolve os valores já normalizados pelo banco para a grade confirmar
@@ -236,6 +316,10 @@ class ProductAdminController extends Controller
 
         return response()->json([
             'success' => true,
+            // Diz se o preço saiu daqui pro ERP — a grade não usa hoje, mas é o
+            // que diferencia "gravado no site" de "gravado no site e no ERP"
+            // pra quem for depurar pelo network.
+            'erp' => $colunasErp !== [] && $erp->enabled(),
             'column' => $column,
             'label' => self::PRICE_COLUMNS[$column]['label'],
             'value' => $normalizado($column),

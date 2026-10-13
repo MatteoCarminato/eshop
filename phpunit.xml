@@ -32,5 +32,8 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <!-- Nenhum teste escreve no ERP: quem precisa, liga o flag e troca o
+             ErpPriceWriter por um dublê. -->
+        <env name="ERP_PRICE_WRITE" value="false"/>
     </php>
 </phpunit>

@@ -20,6 +20,7 @@ class Product extends Model
      */
     protected $fillable = [
         'recno',
+        'erp_code',
         'brand_id',
         'category_id',
         'product_group_id',

@@ -133,6 +133,40 @@ return [
             'engine' => null,
         ],
 
+        // Conexão de ESCRITA no ERP — só para o preço de atacado da grade
+        // Produtos × Preços (ver ErpPriceWriter e docs/Erp-Sync.md).
+        //
+        // É outro banco e outro usuário: o `consulta` lê de cec_consulta e o
+        // `update1` grava em novo_cec. O grant do update1 é estreito de
+        // propósito — SELECT/UPDATE em PREATAC, PREVEN, PREMIN e PRECOWEB da
+        // PRODUTO_PRO, e mais nada. Ele NÃO enxerga RECNO, por isso todo UPDATE
+        // casa a linha por CODNNN (`products.erp_code`).
+        'erp_update' => [
+            'driver' => 'mysql',
+            'url' => null,
+            'host' => env('ERP_UPDATE_DB_HOST', env('ERP_DB_HOST', '127.0.0.1')),
+            'port' => env('ERP_UPDATE_DB_PORT', env('ERP_DB_PORT', '3306')),
+            'database' => env('ERP_UPDATE_DB_DATABASE', 'novo_cec'),
+            'username' => env('ERP_UPDATE_DB_USERNAME'),
+            'password' => env('ERP_UPDATE_DB_PASSWORD'),
+            'unix_socket' => '',
+            'charset' => env('ERP_DB_CHARSET', 'utf8mb4'),
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => false,
+            'engine' => null,
+            'options' => [
+                // O ERP é remoto: sem timeout, uma célula travada seguraria o
+                // request inteiro da grade.
+                PDO::ATTR_TIMEOUT => (int) env('ERP_UPDATE_TIMEOUT', 8),
+                // Linhas ENCONTRADAS, não alteradas: regravar o mesmo preço tem
+                // que contar como sucesso, senão a grade acusaria erro toda vez
+                // que o valor digitado já fosse o que o ERP já tinha.
+                PDO::MYSQL_ATTR_FOUND_ROWS => true,
+            ],
+        ],
+
     ],
 
     /*

@@ -268,6 +268,9 @@ class ErpCatalogSyncService
                 $price = $preco3 > 0 ? $preco3 : (($preven !== null && $preven > 0) ? $preven : $preco3);
 
                 $syncedAttributes = [
+                    // CODNNN: é por ele que o UPDATE de preço no ERP casa a
+                    // linha (o usuário de escrita não enxerga RECNO).
+                    'erp_code' => trim((string) ($row->CODNNN ?? '')) ?: null,
                     'name' => $name,
                     'short_name' => $shortName,
                     'price' => $price,

@@ -103,6 +103,9 @@ class ErpCatalogSyncServiceTest extends TestCase
     {
         return (object) array_merge([
             'RECNO' => 100,
+            // CODNNN é o código que o UPDATE de preço usa pra achar a linha no
+            // ERP — ver ErpPriceWriter.
+            'CODNNN' => '1007',
             'IS_DELETED' => 'N',
             'GRUPRO' => 6,
             'SGRUPRO' => 8,
@@ -119,6 +122,19 @@ class ErpCatalogSyncServiceTest extends TestCase
             'UCBASE' => '6850.123400',
             'ESTOQUE' => '10.000000000',
         ], $overrides);
+    }
+
+    /**
+     * Sem o CODNNN do lado de cá não há como gravar preço no ERP: o usuário de
+     * escrita não enxerga RECNO e todo UPDATE casa por CODNNN.
+     */
+    public function test_sync_products_guarda_o_codnnn(): void
+    {
+        $service = $this->makeService(collect(), collect([$this->productRow(['CODNNN' => '2523'])]));
+
+        $service->syncProducts();
+
+        $this->assertSame('2523', Product::where('recno', 100)->first()->erp_code);
     }
 
     public function test_sync_brands_creates_new_brand(): void

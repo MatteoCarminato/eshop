@@ -175,6 +175,30 @@
 .pa-ro.medio{color:#5c6672}
 .pa-ro.zero{color:#c3cad2}
 
+/* Diferença (Atacado − Médio): é a margem em dólar, então a cor é o sinal —
+   verde acima do custo, vermelho abaixo. Sem os dois lados preenchidos a
+   célula mostra "—" e o cifrão sai junto, pra não parecer valor zerado. */
+.pa-ro.diff{font-weight:700;color:var(--pa-ink2)}
+.pa-ro.diff.pos{color:var(--pa-green)}
+.pa-ro.diff.neg{color:var(--pa-red)}
+.pa-ro.diff.nulo{color:#c3cad2;font-weight:400}
+.pa table.pa-rows td.pa-cell.ro:has(.diff.nulo) .pa-cur{visibility:hidden}
+
+/* ---- mover coluna: arrasta o cabeçalho ------------------------------------
+   A barra azul marca de que lado do cabeçalho a coluna vai cair. As regras
+   vêm depois de th.pri de propósito: enquanto arrasta, o indicador ganha do
+   realce da coluna principal. */
+.pa table.pa-rows th[draggable=true]{cursor:grab}
+.pa table.pa-rows th[draggable=true]:active{cursor:grabbing}
+.pa table.pa-rows th.pa-drag{opacity:.4}
+.pa table.pa-rows th.pa-dropL{box-shadow:inset 3px 0 0 var(--pa-accent2),0 1px 0 rgba(14,22,34,.07)}
+.pa table.pa-rows th.pa-dropR{box-shadow:inset -3px 0 0 var(--pa-accent2),0 1px 0 rgba(14,22,34,.07)}
+/* só aparece quando a ordem está diferente da original */
+.pa-colreset{display:none;border:1px solid var(--pa-line);background:var(--pa-panel);border-radius:99px;
+  padding:1px 8px;color:var(--pa-ink2);cursor:pointer;font-size:var(--pa-fs);line-height:1.5}
+.pa-colreset:hover{border-color:var(--pa-accent);color:var(--pa-accent)}
+.pa-colreset.on{display:inline-flex;align-items:center;gap:4px}
+
 /* Estoque: referência fixa da grade, do lado do Médio. */
 .pa table.pa-rows td.pa-est{text-align:right;font-family:var(--pa-code);
   color:var(--pa-ink2);background:var(--pa-panel2);font-variant-numeric:tabular-nums}
