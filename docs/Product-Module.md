@@ -188,9 +188,17 @@ alternativo descritivo, com marca, pra buscadores e leitores de tela).
 
 Ver `database/migrations/2026_09_27_100100_create_products_table.php`. Destaques:
 - `recno` (nullable, unique) — chave do PRODUTO_PRO do ERP; nulo = produto cadastrado manualmente no site.
+- `erp_code` (nullable, indexado) — o CODNNN do ERP; é por ele que a gravação de preço encontra a linha
+  no PRODUTO_PRO (o usuário de escrita não enxerga RECNO — ver `App\Services\Erp\ErpPriceWriter`).
+  Aparece nas "Informações do Registro" das telas de edição e visualização.
 - `brand_id` (nullable, `nullOnDelete`) — marca associada.
 - Preços em `decimal(18,8)` espelhando o ERP (`price`, `wholesale_price`, `web_price`, `sale_price`,
-  `min_price`); `stock` em `decimal(18,4)`.
+  `min_price`, `average_price`); `stock` em `decimal(18,4)` no banco, mas tratado como quantidade
+  inteira nas telas (input `step="1"`, validação `integer`).
+- `promo_price` (`decimal(18,8)`, default `0`) — promoção da loja online, **só do painel**: não vem do
+  ERP e o sync nunca a sobrescreve. `0` = sem promoção. Preenchida, passa a ser o preço da loja e o
+  Preço Web vira o "de" riscado (ver `Product::sitePrice()` e docs/Orbita-Api.md). Não confundir com
+  `sale_price`, que é o PREVEN do ERP e não aparece na loja.
 - `slug` (unique), `description`, `image_url`, `active`, `featured` — campos próprios do site.
 - `synced_at` — preenchido pela sincronização com o ERP (`CatalogSyncController`, fora deste módulo).
 - `softDeletes()` + índice em `active`.

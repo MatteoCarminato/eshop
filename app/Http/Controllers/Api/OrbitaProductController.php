@@ -64,14 +64,20 @@ class OrbitaProductController extends Controller
 
     /**
      * GET /api/orbita/promotions
-     * O eshop ainda não tem o conceito de promoção (preço "de/por" com prazo/
-     * quantidade limitados) — o front já trata 404/erro aqui como "sem
-     * ofertas" (getPromotedProducts tem try/catch e cai pra lista vazia), mas
-     * respondemos 200 com lista vazia mesmo assim, por ser mais correto que
-     * um erro para um recurso que existe no contrato mas está vazio.
+     * Produtos com promoção digitada no painel (`promo_price`), do maior
+     * desconto pro menor. Lista vazia = nenhuma promoção ativa, e o front
+     * usa exatamente isso pra esconder a seção "Ofertas do dia" da home e o
+     * link "Ofertas" do header.
+     *
+     * Promoção com prazo/quantidade limitados (o `promotion` do contrato do
+     * Orbita) continua sem equivalente aqui — só o par preço/compareAtPrice.
      */
-    public function promotions(): JsonResponse
+    public function promotions(Request $request): JsonResponse
     {
-        return response()->json(['data' => []]);
+        $limit = (int) ($request->query('limit') ?? 4);
+
+        return response()->json([
+            'data' => ProductResource::collection($this->catalog->promoted($limit)),
+        ]);
     }
 }

@@ -31,6 +31,7 @@ class Product extends Model
         'wholesale_price',
         'web_price',
         'sale_price',
+        'promo_price',
         'min_price',
         'average_price',
         'stock',
@@ -56,6 +57,7 @@ class Product extends Model
         'wholesale_price' => 'decimal:2',
         'web_price' => 'decimal:2',
         'sale_price' => 'decimal:2',
+        'promo_price' => 'decimal:2',
         'min_price' => 'decimal:2',
         'average_price' => 'decimal:2',
         'stock' => 'decimal:4',
@@ -157,6 +159,37 @@ class Product extends Model
     public function getFormattedPriceAttribute(): string
     {
         return 'R$ ' . number_format((float) $this->price, 2, ',', '.');
+    }
+
+    /**
+     * Promoção válida: `promo_price` preenchida E abaixo do Preço Web. Promo
+     * maior ou igual ao Preço Web é erro de digitação — seria um "desconto"
+     * negativo na vitrine —, então é simplesmente ignorada.
+     */
+    public function hasSitePromo(): bool
+    {
+        $promo = (float) $this->promo_price;
+
+        return $promo > 0 && $promo < (float) $this->web_price;
+    }
+
+    /**
+     * Preço que a loja online exibe: a promoção do painel quando válida,
+     * senão o Preço Web. `price` (PRECO3/varejo do ERP) não é usado na loja —
+     * ver OrbitaCatalogService.
+     */
+    public function sitePrice(): float
+    {
+        return $this->hasSitePromo() ? (float) $this->promo_price : (float) $this->web_price;
+    }
+
+    /**
+     * Preço "de" (riscado) da loja: só existe quando há promoção no painel —
+     * aí o Preço Web é o valor riscado. Sem promoção, null.
+     */
+    public function siteCompareAtPrice(): ?float
+    {
+        return $this->hasSitePromo() ? (float) $this->web_price : null;
     }
 
     /**

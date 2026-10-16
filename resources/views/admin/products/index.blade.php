@@ -138,7 +138,7 @@
                                                 <td>{{ $product->brand->name ?? '—' }}</td>
                                                 <td>{{ $product->category->name ?? '—' }}</td>
                                                 <td>{{ $product->formatted_price }}</td>
-                                                <td>{{ number_format((float) $product->stock, 2, ',', '.') }}</td>
+                                                <td>{{ number_format((int) $product->stock, 0, ',', '.') }}</td>
                                                 <td>
                                                     @if ($product->recno)
                                                         <span class="badge bg-info-subtle text-info">ERP</span>

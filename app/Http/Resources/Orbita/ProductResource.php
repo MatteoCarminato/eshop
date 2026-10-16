@@ -11,8 +11,12 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * Orbita (ver orbita/web/src/types/product.ts). category/storage/colorName
  * vêm de App\Services\Catalog\ProductClassifierService (ver
  * docs/Product-Classification.md). Campos que o eshop ainda não modela
- * (promoção, variantes/model, rating, specs, SKU/GTIN reais) são omitidos —
+ * (promoção por tempo/quantidade, rating, specs, SKU/GTIN reais) são omitidos —
  * ver docs/Orbita-Api.md.
+ *
+ * `price` é o preço da loja: o Preço Web, ou a promoção do painel quando
+ * preenchida — e nesse caso o Preço Web vai em `compareAtPrice` (o "de"
+ * riscado). O `price` do ERP (PRECO3/varejo) não aparece no site.
  */
 class ProductResource extends JsonResource
 {
@@ -31,7 +35,10 @@ class ProductResource extends JsonResource
         /** @var OrbitaCatalogService $catalog */
         $catalog = app(OrbitaCatalogService::class);
         $usdRate = $catalog->usdRate();
-        $priceUsd = $catalog->toUsd((float) $product->price, $usdRate);
+        $price = $product->sitePrice();
+        $priceUsd = $catalog->toUsd($price, $usdRate);
+        $compareAt = $product->siteCompareAtPrice();
+        $compareAtUsd = $compareAt !== null ? $catalog->toUsd($compareAt, $usdRate) : null;
 
         // Alt com nome do produto + marca da loja — texto alternativo real
         // em vez de só o nome, melhor pra SEO de busca de imagens.
@@ -59,9 +66,14 @@ class ProductResource extends JsonResource
             'brand' => $product->brand?->name ?? '',
             'brandLogo' => $this->includeBrandLogo ? $product->brand?->logo_url : null,
             'description' => $product->description ?? '',
-            'price' => (float) $product->price,
+            'price' => $price,
             'priceUsd' => $priceUsd,
             'pricePyg' => $catalog->toPyg($priceUsd),
+            // Só saem do array_filter quando há promoção no painel: sem ela,
+            // null, e o front não desenha preço riscado nem selo de desconto.
+            'compareAtPrice' => $compareAt,
+            'compareAtPriceUsd' => $compareAtUsd,
+            'compareAtPricePyg' => $compareAtUsd !== null ? $catalog->toPyg($compareAtUsd) : null,
             'currency' => 'BRL',
             // Produto sem estoque/preço já é excluído antes de chegar aqui (ver
             // OrbitaCatalogService::sellableQuery), então availability é sempre InStock.

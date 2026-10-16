@@ -101,9 +101,16 @@
                                 </div>
 
                                 <div class="col-xxl-3 col-md-6">
-                                    <label class="form-label">Preço Promocional</label>
+                                    <label class="form-label">Promo (ERP)</label>
                                     <input type="text" class="form-control"
                                         value="{{ $product->sale_price !== null ? 'R$ ' . number_format((float) $product->sale_price, 2, ',', '.') : '—' }}"
+                                        disabled>
+                                </div>
+
+                                <div class="col-xxl-3 col-md-6">
+                                    <label class="form-label">Promoção do Site</label>
+                                    <input type="text" class="form-control"
+                                        value="{{ (float) $product->promo_price > 0 ? 'R$ ' . number_format((float) $product->promo_price, 2, ',', '.') : 'Sem promoção' }}"
                                         disabled>
                                 </div>
 
@@ -117,7 +124,7 @@
                                 <div class="col-xxl-6 col-md-6">
                                     <label class="form-label">Estoque</label>
                                     <input type="text" class="form-control"
-                                        value="{{ number_format((float) $product->stock, 4, ',', '.') }}" disabled>
+                                        value="{{ number_format((int) $product->stock, 0, ',', '.') }}" disabled>
                                 </div>
 
                                 <div class="col-xxl-6 col-md-6">
@@ -158,6 +165,7 @@
                                                     </li>
                                                     @if ($product->recno)
                                                         <li>Origem: ERP — RECNO {{ $product->recno }}</li>
+                                                        <li>Código ERP (CODNNN): {{ $product->erp_code ?: '—' }}</li>
                                                         <li>
                                                             Sincronizado em:
                                                             {{ $product->synced_at ? $product->synced_at->displayTz()->format('d/m/Y H:i') : '—' }}

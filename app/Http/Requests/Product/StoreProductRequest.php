@@ -22,6 +22,9 @@ class StoreProductRequest extends FormRequest
             'active' => filter_var($this->active, FILTER_VALIDATE_BOOLEAN),
             'featured' => filter_var($this->featured, FILTER_VALIDATE_BOOLEAN),
             'stock' => $this->stock === null || $this->stock === '' ? 0 : $this->stock,
+            // Promoção vazia = sem promoção, e no banco isso é 0 (nunca null):
+            // é esse 0 que faz a loja voltar a exibir o Preço Web.
+            'promo_price' => $this->promo_price === null || $this->promo_price === '' ? 0 : $this->promo_price,
         ]);
     }
 
@@ -41,8 +44,10 @@ class StoreProductRequest extends FormRequest
             'wholesale_price' => 'nullable|numeric|min:0',
             'web_price' => 'nullable|numeric|min:0',
             'sale_price' => 'nullable|numeric|min:0',
+            'promo_price' => 'nullable|numeric|min:0',
             'min_price' => 'nullable|numeric|min:0',
-            'stock' => 'nullable|numeric|min:0',
+            // Estoque é contagem de peças: inteiro, sem casas decimais.
+            'stock' => 'nullable|integer|min:0',
             'description' => 'nullable|string',
             'image_url' => 'nullable|string|max:2048',
             'image' => 'nullable|image|max:5120',
@@ -72,8 +77,9 @@ class StoreProductRequest extends FormRequest
             'wholesale_price.numeric' => 'O preço de atacado deve ser um valor numérico.',
             'web_price.numeric' => 'O preço web deve ser um valor numérico.',
             'sale_price.numeric' => 'O preço promocional deve ser um valor numérico.',
+            'promo_price.numeric' => 'O preço promocional do site deve ser um valor numérico.',
             'min_price.numeric' => 'O preço mínimo deve ser um valor numérico.',
-            'stock.numeric' => 'O estoque deve ser um valor numérico.',
+            'stock.integer' => 'O estoque deve ser um número inteiro de peças.',
             'image_url.max' => 'A URL da imagem não pode ter mais de 2048 caracteres.',
             'image.image' => 'O arquivo da foto principal deve ser uma imagem.',
             'image.max' => 'A foto principal não pode ter mais de 5MB.',
@@ -99,6 +105,7 @@ class StoreProductRequest extends FormRequest
             'wholesale_price' => 'preço de atacado',
             'web_price' => 'preço web',
             'sale_price' => 'preço promocional',
+            'promo_price' => 'preço promocional do site',
             'min_price' => 'preço mínimo',
             'stock' => 'estoque',
             'description' => 'descrição',

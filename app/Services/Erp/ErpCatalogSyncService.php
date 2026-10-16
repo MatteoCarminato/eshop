@@ -280,6 +280,9 @@ class ErpCatalogSyncService
                     // acima em vez de exibir R$ 0.
                     'web_price' => $webPrice !== null && $webPrice > 0 ? $webPrice : $price,
                     'sale_price' => $preven,
+                    // `promo_price` (promoção da loja) NÃO entra aqui de
+                    // propósito: é campo só do painel, nasce 0 e o sync nunca
+                    // sobrescreve — ver Product::sitePrice().
                     'min_price' => $this->toDecimal($row->PREMIN ?? null),
                     // Preço médio (UCBASE): custo médio do estoque, não preço
                     // de venda — por isso não entra em nenhuma cadeia de

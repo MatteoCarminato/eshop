@@ -157,6 +157,11 @@ edições feitas por um admin no site. Ela faz upsert por `recno`:
     - `average_price` (= `UCBASE`) **não** entra em nenhuma cadeia de
       fallback: é custo médio do estoque, não preço de venda. Produto sem
       movimento de compra vem com o campo vazio e fica `null`.
+  - `promo_price` (promoção da loja online) **não é sincronizada**: não existe
+    campo correspondente no ERP. Nasce `0` (= sem promoção) e só muda quando
+    alguém edita o produto no painel; nenhum sync a sobrescreve. Não confundir
+    com `sale_price`, que é o `PREVEN` do ERP e não aparece na loja — ver
+    docs/Orbita-Api.md.
   - Linhas com `IS_DELETED = 'Y'` são ignoradas (contadas como "skipped").
 
 ### Grupo/subgrupo são a exceção ao "só na criação"

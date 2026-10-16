@@ -211,13 +211,13 @@
                                             @error('web_price')
                                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                                             @enderror
-                                            <div class="form-text">Opcional — preço exibido na loja online</div>
+                                            <div class="form-text">É este o preço que a loja online cobra</div>
                                         </div>
                                     </div>
 
                                     <div class="col-xxl-3 col-md-6">
                                         <div>
-                                            <label for="sale_price" class="form-label">Preço Promocional</label>
+                                            <label for="sale_price" class="form-label">Promo (ERP)</label>
                                             <input type="number" step="0.01" min="0"
                                                 class="form-control @error('sale_price') is-invalid @enderror"
                                                 id="sale_price" name="sale_price"
@@ -225,7 +225,7 @@
                                             @error('sale_price')
                                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                                             @enderror
-                                            <div class="form-text">Opcional — usado em promoções</div>
+                                            <div class="form-text">PREVEN do ERP — não aparece na loja</div>
                                         </div>
                                     </div>
 
@@ -242,6 +242,34 @@
                                             <div class="form-text">Opcional — piso permitido para descontos</div>
                                         </div>
                                     </div>
+                                    <!-- Promoção da loja (só do painel) -->
+                                    <div class="col-12">
+                                        <h5 class="fs-14 text-muted text-uppercase mb-0 mt-2">Loja online</h5>
+                                        <p class="text-muted fs-12 mb-0">
+                                            A loja cobra o Preço Web. Promoção é só daqui — o ERP nunca mexe nela.
+                                        </p>
+                                    </div>
+
+                                    <div class="col-xxl-3 col-md-6">
+                                        <div>
+                                            <label for="promo_price" class="form-label">Promoção do Site</label>
+                                            <input type="number" step="0.01" min="0"
+                                                class="form-control @error('promo_price') is-invalid @enderror"
+                                                id="promo_price" name="promo_price"
+                                                value="{{ old('promo_price', (float) $product->promo_price ?: null) }}"
+                                                placeholder="0.00">
+                                            @error('promo_price')
+                                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                            @enderror
+                                            <div class="form-text">
+                                                Vazio ou 0 = sem promoção. Preenchido, vira o preço da loja e o Preço
+                                                Web aparece riscado — precisa ser <strong>menor</strong> que o Preço
+                                                Web, senão é ignorado.
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!--end promoção-->
+
                                     <!--end preços-->
 
                                     <!-- Estoque -->
@@ -251,10 +279,10 @@
                                                 Estoque
                                             </label>
                                             <div class="form-icon">
-                                                <input type="number" step="0.0001" min="0"
+                                                <input type="number" step="1" min="0"
                                                     class="form-control form-control-icon @error('stock') is-invalid @enderror"
-                                                    id="stock" name="stock" value="{{ old('stock', $product->stock) }}"
-                                                    placeholder="0">
+                                                    id="stock" name="stock"
+                                                    value="{{ old('stock', (int) $product->stock) }}" placeholder="0">
                                                 <i class="ri-archive-line"></i>
                                             </div>
                                             @error('stock')
@@ -435,6 +463,14 @@
                                                         <li>
                                                             Origem:
                                                             {{ $product->recno ? 'ERP (RECNO ' . $product->recno . ')' : 'Cadastrado manualmente' }}
+                                                        </li>
+                                                        <li>
+                                                            Código ERP (CODNNN):
+                                                            {{ $product->erp_code ?: '—' }}
+                                                            <small class="text-muted">
+                                                                — é por ele que a gravação de preço no ERP encontra o
+                                                                produto
+                                                            </small>
                                                         </li>
                                                     </ul>
                                                 </div>

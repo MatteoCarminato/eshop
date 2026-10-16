@@ -14,21 +14,35 @@ use Illuminate\Support\Collection;
  *
  * Regra de negócio (documentada no próprio front, src/lib/api.ts): produto com
  * preço 0 ou sem estoque nunca pode aparecer na loja, nem em listagem/busca,
- * nem no detalhe. Por isso toda query aqui já filtra active + price > 0 +
+ * nem no detalhe. Por isso toda query aqui já filtra active + web_price > 0 +
  * stock > 0 — o front reaplica o mesmo filtro como cinto e suspensório, mas a
  * fonte de verdade é aqui.
+ *
+ * O preço da loja é o Preço Web (`web_price`), NÃO o `price` (PRECO3/varejo do
+ * ERP): quem define o que o site cobra é o painel. A promoção também é do
+ * painel (`promo_price`, 0 = sem promoção, nunca vem do ERP) e, quando
+ * preenchida, passa a ser o preço com o Preço Web riscado (compareAtPrice).
+ * Filtro de faixa, ordenação e priceBounds usam esse preço efetivo
+ * (SITE_PRICE_SQL), pra grade e vitrine ordenarem pelo mesmo número exibido.
  *
  * category/storage/colorName/model vêm de App\Services\Catalog\ProductClassifierService
  * (ver docs/Product-Classification.md). "model" agrupa produtos irmãos (mesmo
  * modelo, cor/armazenamento diferente) — ver variantsFor(), usado pelo
- * seletor de variante do Orbita no detalhe do produto. Orbita ainda não tem o
- * conceito de promoção (compareAtPrice) do lado do eshop — esse campo
- * simplesmente não é incluído na resposta.
+ * seletor de variante do Orbita no detalhe do produto. O módulo de promoção
+ * por tempo/quantidade do Orbita (`promotion`) continua sem equivalente aqui —
+ * só o par preço/compareAtPrice é preenchido.
  */
 class OrbitaCatalogService
 {
     private const FALLBACK_USD_RATE = 5.20;
     private const PYG_PER_USD = 6400; // Sem fonte real de câmbio Gs. ainda — mesma aproximação usada no mock do Orbita.
+
+    /**
+     * Preço efetivo da loja em SQL — espelho de Product::sitePrice(): a
+     * promoção do painel quando válida (preenchida e abaixo do Preço Web),
+     * senão o Preço Web.
+     */
+    private const SITE_PRICE_SQL = 'CASE WHEN promo_price > 0 AND promo_price < web_price THEN promo_price ELSE web_price END';
 
     public function __construct(private ExchangeRateService $exchangeRateService)
     {
@@ -39,7 +53,7 @@ class OrbitaCatalogService
         return Product::query()
             ->with(['brand', 'category', 'images'])
             ->where('active', true)
-            ->where('price', '>', 0)
+            ->where('web_price', '>', 0)
             ->where('stock', '>', 0);
     }
 
@@ -79,6 +93,30 @@ class OrbitaCatalogService
     }
 
     /**
+     * Produtos em promoção: os que têm `promo_price` preenchida no painel,
+     * do maior desconto pro menor. Alimenta /promotions, usado pela seção
+     * "Ofertas do dia" da home, pela página /ofertas e pelo link "Ofertas"
+     * do header (que o front esconde quando isso vem vazio).
+     *
+     * `web_price > 0` já é garantido por sellableQuery(), então a divisão do
+     * desconto não tem risco de dividir por zero.
+     *
+     * @return Collection<int, Product>
+     */
+    public function promoted(int $limit = 4): Collection
+    {
+        return $this->sellableQuery()
+            ->where('promo_price', '>', 0)
+            ->whereColumn('promo_price', '<', 'web_price') // promo >= web é erro de digitação — ver Product::hasSitePromo()
+            // `* 1.0` força divisão em ponto flutuante: no SQLite a divisão de
+            // dois inteiros trunca, e aí todo desconto abaixo de 100% virava 0
+            // e a ordem caía na de inserção.
+            ->orderByRaw('(web_price - promo_price) * 1.0 / web_price desc')
+            ->limit(max(1, min(60, $limit)))
+            ->get();
+    }
+
+    /**
      * @param array{q?:string,category?:string,brand?:string,model?:string,storage?:string,color?:string,price_min?:float,price_max?:float,sort?:string,page?:int,limit?:int} $params
      * @return array{products: Collection<int, Product>, meta: array}
      */
@@ -93,7 +131,7 @@ class OrbitaCatalogService
         $priceBounds = $this->sellableQuery();
         $this->applyFilters($priceBounds, $params, except: ['price']);
         $priceBounds = $priceBounds->without(['brand', 'category'])
-            ->selectRaw('MIN(price) as min, MAX(price) as max')
+            ->selectRaw('MIN(' . self::SITE_PRICE_SQL . ') as min, MAX(' . self::SITE_PRICE_SQL . ') as max')
             ->first();
 
         $facets = [
@@ -171,11 +209,15 @@ class OrbitaCatalogService
         }
 
         if (!in_array('price', $except, true)) {
+            // Valor interpolado em vez de bind: `(float)` já garante que o que
+            // entra no SQL é número, e um bind de float chega como texto no
+            // SQLite — e lá comparar número com texto é sempre falso, o que
+            // zerava a faixa de preço.
             if (isset($params['price_min'])) {
-                $query->where('price', '>=', (float) $params['price_min']);
+                $query->whereRaw(self::SITE_PRICE_SQL . ' >= ' . (float) $params['price_min']);
             }
             if (isset($params['price_max'])) {
-                $query->where('price', '<=', (float) $params['price_max']);
+                $query->whereRaw(self::SITE_PRICE_SQL . ' <= ' . (float) $params['price_max']);
             }
         }
     }
@@ -202,8 +244,8 @@ class OrbitaCatalogService
     private function applySort(Builder $query, ?string $sort): void
     {
         match ($sort) {
-            'price_asc' => $query->orderBy('price'),
-            'price_desc' => $query->orderByDesc('price'),
+            'price_asc' => $query->orderByRaw(self::SITE_PRICE_SQL . ' asc'),
+            'price_desc' => $query->orderByRaw(self::SITE_PRICE_SQL . ' desc'),
             'name_asc' => $query->orderBy('name'),
             default => $query->orderByDesc('created_at'),
         };
@@ -298,7 +340,7 @@ class OrbitaCatalogService
         // aceita referenciar o alias de uma subquery correlata (withCount) direto
         // no HAVING nessa forma, diferente de MySQL/SQLite — e a tabela é pequena.
         return Category::withCount(['products' => function (Builder $q) {
-                $q->where('active', true)->where('price', '>', 0)->where('stock', '>', 0);
+                $q->where('active', true)->where('web_price', '>', 0)->where('stock', '>', 0);
             }])
             ->orderByDesc('products_count')
             ->get()
