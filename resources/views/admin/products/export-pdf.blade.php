@@ -1,12 +1,13 @@
 {{--
     Catálogo em PDF gerado por ProductAdminController@exportPdf (mPDF, A4
-    retrato). Porte do template `catalogo_eshop.html`: papel branco, hero
-    escuro com faixa azul, grade de 4 cards e selo azul de página no rodapé.
+    retrato). Porte fiel do template `catalogo_eshop.html`: hero escuro com
+    brilho azul, grade de 4 cards arredondados e rodapé com selo de página.
 
-    HTML escrito pro mPDF, não pro navegador: o flex/grid do template vira
-    tabela (o mPDF não tem nenhum dos dois), as sombras saem e as medidas são
-    em mm. Hero e rodapé são `htmlpageheader`/`htmlpagefooter`, então se
-    repetem em toda página — é no hero que fica o WhatsApp do vendedor.
+    Escrito pro mPDF, não pro navegador, e aí vale a regra que mandou no
+    layout: dentro de célula de tabela o mPDF NÃO pinta fundo nem borda de
+    div (e tabela não aceita border-radius). Por isso os cards são `div`
+    flutuantes na raiz do documento — é a única forma de ter canto
+    arredondado — e tabela só aparece onde é de fato duas colunas de texto.
 --}}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -21,66 +22,79 @@
         body {
             background-color: #ffffff;
             color: #111827;
-            font-family: dejavusans, sans-serif;
+            /* Condensed: é a fonte do mPDF que mais se aproxima da Inter do
+               template e ainda dá conta dos nomes longos dentro do card. */
+            font-family: dejavusanscondensed, sans-serif;
             font-size: 8pt;
         }
 
         /* ---- hero (cabeçalho de todas as páginas) ---- */
-        .hero { width: 100%; background-color: #141b27; }
-        .hero td { vertical-align: middle; padding: 5mm 10mm 4.5mm 10mm; }
+        .hero {
+            background-image: radial-gradient(ellipse at 88% 0%, #2b5ba8 0%, #141c29 58%);
+            padding: 4.5mm 7mm 4mm 7mm;
+        }
+        .hero-logo { vertical-align: middle; }
         .sobrancelha {
             font-size: 6pt;
             font-weight: bold;
             color: #93b8ff;
-            letter-spacing: 1.8pt;
+            letter-spacing: 1.9pt;
         }
         .hero-tit {
-            font-size: 19pt;
+            font-size: 20pt;
             font-weight: bold;
             color: #ffffff;
-            letter-spacing: 1.2pt;
-            padding-top: 1mm;
+            letter-spacing: 1.4pt;
+            padding-top: 0.8mm;
         }
         .hero-sub {
-            font-size: 6.5pt;
+            font-size: 7pt;
             color: #c4cfdf;
-            letter-spacing: 0.5pt;
+            letter-spacing: 1.3pt;
             padding-top: 1.2mm;
         }
         .contato {
-            font-size: 10pt;
+            font-size: 10.5pt;
             font-weight: bold;
             color: #ffffff;
-            padding-top: 2.2mm;
+            padding-top: 2mm;
         }
         .hero-nota {
             font-size: 6.5pt;
             color: #b8c6da;
             text-align: right;
-            letter-spacing: 0.8pt;
-            line-height: 1.8;
-        }
-        .hero-nota b { color: #ffffff; }
-        /* Faixa azul no pé do hero (o ::after do template). */
-        .hero-risco { width: 100%; background-color: #246bfe; }
-        .hero-risco td { padding: 0; font-size: 1pt; line-height: 1.3mm; }
-
-        /* ---- rodapé de todas as páginas ---- */
-        .rodape { width: 100%; }
-        .rodape td {
-            border-top: 0.2mm solid #e5eaf2;
-            padding: 3mm 10mm 0 10mm;
-            font-size: 6pt;
-            color: #8190a5;
-            letter-spacing: 0.5pt;
+            letter-spacing: 1.1pt;
+            line-height: 1.7;
             vertical-align: middle;
         }
+        .hero-nota b { color: #ffffff; letter-spacing: 1.4pt; }
+        /* Faixa azul no pé do hero (o ::after do template). */
+        .hero-faixa {
+            background-color: #246bfe;
+            height: 1.1mm;
+            font-size: 1pt;
+            line-height: 1.1mm;
+        }
+
+        /* ---- rodapé de todas as páginas ---- */
+        .rodape {
+            border-top: 0.2mm solid #e5eaf2;
+            padding: 3mm 7mm 0 7mm;
+            font-size: 6.5pt;
+            color: #8190a5;
+            letter-spacing: 1.1pt;
+        }
         .rodape b { color: #25344b; }
-        .selo-pag { background-color: #246bfe; border-radius: 1.6mm; }
-        .selo-pag td {
-            border: none;
-            padding: 1.8mm 3mm;
+        /* Posicionado por margem, e não por float: dentro de htmlpagefooter
+           o mPDF simplesmente não desenha elemento flutuante. */
+        .selo-pag {
+            width: 22mm;
+            margin: -7mm 0 0 160mm;
+            background-color: #246bfe;
+            border-radius: 2.1mm;
+            padding: 2mm 3mm;
             color: #ffffff;
+            font-size: 6.5pt;
             font-weight: bold;
             letter-spacing: 1.5pt;
             text-align: center;
@@ -89,255 +103,228 @@
             font-size: 6pt;
             color: #9aa7b8;
             text-align: center;
-            padding-top: 2.5mm;
+            padding-top: 3mm;
         }
 
         /* ---- abertura (uma vez, no topo do catálogo) ---- */
-        .intro { width: 100%; }
-        .intro td { vertical-align: bottom; padding: 0 0 4mm 0; }
-        .intro-tit { font-size: 12pt; font-weight: bold; color: #111827; }
-        .intro-sub { font-size: 7.5pt; color: #64748b; padding-top: 1.5mm; }
+        .intro-tit { font-size: 13pt; font-weight: bold; color: #111827; }
+        .intro-sub { font-size: 8pt; color: #64748b; padding-top: 1.5mm; }
         .contador {
+            float: right;
+            width: 44mm;
+            text-align: center;
             background-color: #f1f5fb;
             border: 0.2mm solid #e4eaf3;
-            border-radius: 6mm;
-        }
-        .contador td {
-            padding: 2mm 3.5mm;
+            border-radius: 5mm;
+            padding: 2.2mm 4mm;
             font-size: 6.5pt;
             font-weight: bold;
             color: #42536c;
-            letter-spacing: 0.8pt;
-            text-align: center;
+            letter-spacing: 0.9pt;
         }
 
-        /* ---- card ---- */
+        /* ---- card (div flutuante: é o que permite canto arredondado) ---- */
         .card {
-            width: 100%;
+            float: left;
+            page-break-inside: avoid;
+            width: 42.6mm;
+            margin: 0 1.3mm 2.6mm 1.3mm;
             background-color: #ffffff;
             border: 0.2mm solid #e5eaf2;
-            border-radius: 2.2mm;
+            border-radius: 3.4mm;
         }
-        .card td { padding: 0 3mm; }
-        .cel-cheia { padding: 0 !important; }
+        /* Primeiro card da linha recuado: alinha a grade com o texto da
+           abertura e deixa a sobra igual nos dois lados. */
+        .card.inicio { margin-left: 5.4mm; }
 
-        .card-topo { width: 100%; background-color: #f8faff; }
-        /* Altura fixa: "MACBOOK AIR 13 M5 16GB/512" quebra em duas linhas e
-           "CABO" não — sem isso os cards da mesma linha ficariam de alturas
-           diferentes e os preços desalinhados. */
-        .card-topo td {
-            padding: 2mm 3mm !important;
+        .card-topo {
+            background-color: #f8faff;
             border-bottom: 0.2mm solid #e5eaf2;
-            vertical-align: middle;
+            border-radius: 3.4mm 3.4mm 0 0;
+            padding: 2.6mm 3.2mm;
         }
         .modelo {
             font-size: 6.5pt;
             font-weight: bold;
             color: #205de0;
-            letter-spacing: 0.8pt;
+            letter-spacing: 0.9pt;
+            vertical-align: middle;
         }
         .etiqueta {
-            font-size: 5.5pt;
+            font-size: 6pt;
             font-weight: bold;
             color: #64748b;
             letter-spacing: 0.7pt;
             text-align: right;
+            vertical-align: middle;
         }
 
-        .foto { width: 100%; background-color: #fbfcfe; }
-        .foto td {
-            padding: 2mm;
+        .card-corpo { padding: 3mm; }
+        .foto {
+            height: 19mm;
+            background-color: #f6f8fc;
+            border-radius: 2.1mm;
             text-align: center;
-            vertical-align: middle;
-            border: none;
-            /* Sem entrelinha: a foto sozinha na célula ganhava uns pontos de
-               leading e deixava o card mais alto que os vizinhos da linha. */
+            /* Entrelinha curta: a foto sozinha no bloco ganhava leading e
+               deixava o card mais alto que os vizinhos da linha. */
             line-height: 1;
+            padding: 2mm 0;
         }
         .placeholder {
             font-size: 13pt;
             font-weight: bold;
-            color: #d3dce9;
-            letter-spacing: 1.5pt;
+            color: #d9e0ea;
+            letter-spacing: 1.4pt;
+            /* Mesma altura da área de foto (img de 64px): sem isso o card sem
+               foto fica mais baixo que o vizinho que tem. */
+            padding: 7.5mm 0;
         }
-
         .cor {
-            font-size: 8pt;
+            font-size: 9pt;
             font-weight: bold;
             color: #27364b;
-            letter-spacing: 0.5pt;
-            padding-top: 3mm !important;
-            padding-bottom: 2mm !important;
-            vertical-align: top;
+            letter-spacing: 0.4pt;
+            padding: 3.2mm 0 0 0;
         }
-        /* Preço como tabela: no mPDF só a tabela ocupa a largura toda da
-           célula — um div pinta o fundo apenas atrás do texto. */
-        .preco { width: 100%; background-color: #246bfe; border-radius: 1.6mm; }
-        .preco td { padding: 2.4mm 0; text-align: center; }
-        .preco .moeda { font-size: 6.5pt; color: #d7e4ff; }
-        .preco .valor { font-size: 11.5pt; font-weight: bold; color: #ffffff; }
-        .sem-preco { width: 100%; background-color: #f1f5fb; border: 0.2mm dashed #cbd6e6; border-radius: 1.6mm; }
-        .sem-preco td {
-            padding: 3.2mm 0;
+        .preco {
+            background-color: #246bfe;
+            border-radius: 2.1mm;
             text-align: center;
-            font-size: 7pt;
+            padding: 2.6mm 0;
+            margin-top: 3mm;
+        }
+        .preco .moeda { font-size: 7pt; color: #dbe7ff; }
+        .preco .valor { font-size: 11.5pt; font-weight: bold; color: #ffffff; }
+        .sem-preco {
+            background-color: #f1f5fb;
+            border: 0.2mm dashed #cbd6e6;
+            border-radius: 2.1mm;
+            text-align: center;
+            padding: 2.8mm 0;
+            margin-top: 3mm;
+            font-size: 7.5pt;
             font-weight: bold;
             color: #8190a5;
-            letter-spacing: 0.8pt;
+            letter-spacing: 0.9pt;
         }
-        .cel-meta { padding-bottom: 3mm !important; }
-        .meta { width: 100%; }
+        .meta { width: 100%; margin-top: 3.2mm; }
         .meta td {
-            padding: 2.4mm 0 0 0;
             border-top: 0.2mm solid #e5eaf2;
-            font-size: 6pt;
+            padding: 2.4mm 0 0 0;
+            font-size: 6.5pt;
             color: #7a899e;
-            letter-spacing: 0.8pt;
+            letter-spacing: 0.9pt;
         }
-        .meta .sku { text-align: right; font-weight: bold; color: #53647c; font-size: 7pt; }
+        .meta .sku { text-align: right; font-weight: bold; color: #53647c; font-size: 7.5pt; }
     </style>
 </head>
 <body>
 
 <htmlpageheader name="topo">
-    <table class="hero">
-        <tr>
-            <td width="24%">
-                @if (file_exists($logo))
-                    <img src="{{ $logo }}" height="38">
-                @endif
-            </td>
-            <td width="44%">
-                <div class="sobrancelha">SELEÇÃO DE PRODUTOS</div>
-                <div class="hero-tit">CATÁLOGO</div>
-                <div class="hero-sub">PREÇOS DE ATACADO · PRONTA ENTREGA</div>
-                {{-- O WhatsApp é o canal do pedido, então vai no alto de toda página. --}}
-                <div class="contato">
-                    @if (file_exists($wppIcone))
-                        <img src="{{ $wppIcone }}" height="14">
+    <div class="hero">
+        <table width="100%">
+            <tr>
+                <td width="26%" class="hero-logo">
+                    @if (file_exists($logo))
+                        <img src="{{ $logo }}" height="34">
                     @endif
-                    {{ $whatsapp }}
-                </div>
-            </td>
-            <td width="32%" class="hero-nota" nowrap>
-                PRODUTOS ORIGINAIS<br>
-                <b>ATUALIZADO EM {{ $gerado->format('d/m/Y') }}</b>
-            </td>
-        </tr>
-    </table>
-    <table class="hero-risco">
-        <tr><td></td></tr>
-    </table>
+                </td>
+                <td width="44%">
+                    <div class="sobrancelha">SELEÇÃO DE PRODUTOS</div>
+                    <div class="hero-tit">CATÁLOGO</div>
+                    <div class="hero-sub">PREÇOS DE ATACADO · PRONTA ENTREGA</div>
+                    {{-- O WhatsApp é o canal do pedido, então vai no alto de toda página. --}}
+                    <div class="contato">
+                        @if (file_exists($wppIcone))
+                            <img src="{{ $wppIcone }}" height="14">
+                        @endif
+                        {{ $whatsapp }}
+                    </div>
+                </td>
+                <td width="30%" class="hero-nota">
+                    PRODUTOS ORIGINAIS<br>
+                    <b>ATUALIZADO EM {{ $gerado->format('d/m/Y') }}</b>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <div class="hero-faixa"></div>
 </htmlpageheader>
 
 <htmlpagefooter name="rodape">
-    <table class="rodape">
-        <tr>
-            <td width="46%" nowrap><b>eShop</b> · PRODUTOS ORIGINAIS E DE ALTA QUALIDADE</td>
-            <td width="30%" nowrap>CATÁLOGO ATACADISTA</td>
-            <td width="24%">
-                <table class="selo-pag" align="right">
-                    <tr><td>PÁGINA {PAGENO}</td></tr>
-                </table>
-            </td>
-        </tr>
-    </table>
+    <div class="rodape">
+        <b>ESHOP</b> · PRODUTOS ORIGINAIS E DE ALTA QUALIDADE
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CATÁLOGO ATACADISTA
+    </div>
+    <div class="selo-pag">PÁGINA {PAGENO}</div>
     <div class="miudo">Valores e disponibilidade sujeitos a confirmação no momento do pedido.</div>
 </htmlpagefooter>
 
-<table class="intro">
-    <tr>
-        <td width="68%">
-            <div class="intro-tit">Produtos em destaque</div>
-            <div class="intro-sub">Seleção de modelos e acessórios disponíveis para consulta.</div>
-        </td>
-        <td width="32%">
-            <table class="contador" align="right">
-                <tr><td>{{ $total }} {{ $total === 1 ? 'ITEM' : 'ITENS' }} NESTE CATÁLOGO</td></tr>
+<div style="padding: 0 5.4mm 4mm 5.4mm">
+    <div class="contador">{{ $total }} {{ $total === 1 ? 'ITEM' : 'ITENS' }} NESTE CATÁLOGO</div>
+    <div class="intro-tit">Produtos em destaque</div>
+    <div class="intro-sub">Seleção de modelos e acessórios disponíveis para consulta.</div>
+    <div style="clear: both"></div>
+</div>
+
+{{-- Grade de 4 cards por linha. O subgrupo é o "modelo" do cabeçalho do card
+     (é ele que diz modelo/capacidade) e a marca é a etiqueta à direita; o nome
+     do produto costuma ser só a cor. --}}
+@foreach ($itens as $i => $produto)
+    <div class="card {{ $i % 4 === 0 ? 'inicio' : '' }}">
+        <div class="card-topo">
+            <table width="100%">
+                <tr>
+                    <td width="62%" class="modelo" height="26">{{ mb_strtoupper($produto['rotulo']) }}</td>
+                    <td width="38%" class="etiqueta">{{ mb_strtoupper($produto['etiqueta']) }}</td>
+                </tr>
             </table>
-        </td>
-    </tr>
-</table>
+        </div>
+        <div class="card-corpo">
+            {{-- Altura fixa: com ou sem foto, todos os cards da linha
+                 terminam no mesmo lugar. --}}
+            <div class="foto">
+                @if ($produto['foto'])
+                    <img src="{{ $produto['foto'] }}" height="64">
+                @else
+                    <div class="placeholder">eShop</div>
+                @endif
+            </div>
+            <div class="cor">{{ mb_strtoupper($produto['nome']) }}</div>
 
-{{-- Grade de 4 cards por linha, como no template. O subgrupo é o "modelo" no
-     cabeçalho do card (é ele que diz modelo/capacidade) e a marca é a etiqueta
-     à direita; o nome do produto costuma ser só a cor. --}}
-<table class="grade">
-    @foreach ($itens->chunk(4) as $linha)
-        <tr>
-            @foreach ($linha as $produto)
-                <td width="25%" style="padding: 0 1.5mm 5mm 1.5mm; vertical-align: top;">
-                    <table class="card" width="100%">
-                        <tr>
-                            <td class="cel-cheia">
-                                <table class="card-topo" width="100%">
-                                    <tr>
-                                        <td width="62%" class="modelo" height="38">{{ mb_strtoupper($produto['rotulo']) }}</td>
-                                        <td width="38%" class="etiqueta">{{ mb_strtoupper($produto['etiqueta']) }}</td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="cel-cheia">
-                                {{-- Altura fixa: com ou sem foto, todos os cards da
-                                     linha terminam no mesmo lugar. --}}
-                                <table class="foto" width="100%">
-                                    <tr>
-                                        <td height="110">
-                                            @if ($produto['foto'])
-                                                <img src="{{ $produto['foto'] }}" height="90">
-                                            @else
-                                                <span class="placeholder">eShop</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="cor" height="24">{{ mb_strtoupper($produto['nome']) }}</td>
-                        </tr>
-                        @if ($mostraPreco)
-                            <tr>
-                                <td>
-                                    @if ($produto['preco'] > 0)
-                                        <table class="preco" width="100%">
-                                            <tr>
-                                                <td>
-                                                    <span class="moeda">US$&nbsp;</span><span class="valor">{{ number_format($produto['preco'], 2, ',', '.') }}</span>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    @else
-                                        <table class="sem-preco" width="100%">
-                                            <tr><td>CONSULTE</td></tr>
-                                        </table>
-                                    @endif
-                                </td>
-                            </tr>
-                        @endif
-                        <tr>
-                            <td class="cel-meta">
-                                <table class="meta" width="100%">
-                                    <tr>
-                                        <td>{{ $mostraEstoque ? 'EST. ' . number_format($produto['estoque'], 0, ',', '.') : 'CÓDIGO' }}</td>
-                                        <td class="sku">{{ $produto['codigo'] ?? '—' }}</td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-            @endforeach
+            @if ($mostraPreco)
+                @if ($produto['preco'] > 0)
+                    <div class="preco">
+                        <span class="moeda">US$</span> <span class="valor">{{ number_format($produto['preco'], 2, ',', '.') }}</span>
+                    </div>
+                @else
+                    <div class="sem-preco">CONSULTE</div>
+                @endif
+            @endif
 
-            {{-- Completa a linha pra última fileira não esticar os cards. --}}
-            @for ($i = count($linha); $i < 4; $i++)
-                <td width="25%" style="padding: 0 1.5mm 5mm 1.5mm;"></td>
-            @endfor
-        </tr>
-    @endforeach
-</table>
+            <table class="meta" width="100%">
+                <tr>
+                    <td>{{ $mostraEstoque ? 'EST. ' . number_format($produto['estoque'], 0, ',', '.') : 'CÓDIGO' }}</td>
+                    <td class="sku">{{ $produto['codigo'] ?? '—' }}</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    {{-- Fecha a linha a cada 4: sem isso um card mais alto empurraria o
+         próximo pra posição errada na linha seguinte. --}}
+    @if ($i % 4 === 3)
+        <div style="clear: both"></div>
+    @endif
+
+    {{-- Quebra de página explícita a cada 12 (3 linhas), que é o que cabe na
+         altura útil: o mPDF ignora `page-break-inside` em elemento flutuante
+         e cortaria a última linha ao meio. --}}
+    @if ($i % 12 === 11 && !$loop->last)
+        <pagebreak />
+    @endif
+@endforeach
+<div style="clear: both"></div>
 
 </body>
 </html>

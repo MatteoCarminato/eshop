@@ -312,10 +312,10 @@ class ProductAdminController extends Controller
                 'nome' => $p->short_name ?: $p->name,
                 // Subgrupo primeiro: é o rótulo mais informativo do card. A
                 // marca entra quando o produto não tem subgrupo.
-                // Cortado em 26: o cabeçalho do card tem altura fixa de duas
-                // linhas, e um subgrupo que vazasse pra terceira deixaria o
-                // card mais alto que os vizinhos da mesma linha.
-                'rotulo' => Str::limit($p->productSubgroup?->name ?: ($p->brand?->name ?: 'eShop'), 26, '…'),
+                // Cortado em 22: o cabeçalho do card cabe em duas linhas, e um
+                // subgrupo que vazasse pra terceira deixaria o card mais alto
+                // que os vizinhos da mesma linha.
+                'rotulo' => Str::limit($p->productSubgroup?->name ?: ($p->brand?->name ?: 'eShop'), 22, '…'),
                 // Etiqueta à direita do cabeçalho do card: a marca — a menos
                 // que o rótulo já a carregue ("ACESSORIO APPLE" + "APPLE"
                 // seria repetição) ou que ela seja o próprio rótulo.
@@ -357,8 +357,8 @@ class ProductAdminController extends Controller
             'margin_right' => 10,
             // Espaço pro hero e pro rodapé fixos, que são desenhados fora da
             // margem (margin_header/footer = 0).
-            'margin_top' => 42,
-            'margin_bottom' => 22,
+            'margin_top' => 33,
+            'margin_bottom' => 20,
             'margin_header' => 0,
             'margin_footer' => 0,
             'tempDir' => $temp,
