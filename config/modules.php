@@ -106,6 +106,17 @@ return [
             'description' => 'Aportar USD no caixa e vender USD do caixa para clientes.',
         ],
 
+        'invoice.view' => [
+            'label' => 'Visualizar invoices',
+            'group' => 'Invoice',
+            'description' => 'Abrir o editor de invoice, o histórico e os PDFs gerados.',
+        ],
+        'invoice.manage' => [
+            'label' => 'Gerar e gerenciar invoices',
+            'group' => 'Invoice',
+            'description' => 'Gerar PDF, subir arquivo, bipar IMEIs, travar e excluir invoices.',
+        ],
+
         'whatsapp.view' => [
             'label' => 'Visualizar módulo WhatsApp',
             'group' => 'Comunicação',

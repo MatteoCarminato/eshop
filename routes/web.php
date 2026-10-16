@@ -144,6 +144,29 @@ Route::middleware('auth')->group(function () {
         });
     });
 
+    // Invoice (porte do módulo g_invoice do painel legado)
+    Route::prefix('admin/invoice')->name('admin.invoice.')->group(function () {
+        Route::middleware('module:invoice.view')->group(function () {
+            Route::get('/', [\App\Http\Controllers\InvoiceController::class, 'index'])->name('index');
+            Route::get('/historico', [\App\Http\Controllers\InvoiceController::class, 'history'])->name('history');
+            // O PDF fica em storage/, fora do public: é entregue pela rota.
+            Route::get('/arquivo/{arquivo}', [\App\Http\Controllers\InvoiceController::class, 'file'])->name('file');
+            Route::get('/imais', [\App\Http\Controllers\InvoiceController::class, 'imaisInfo'])->name('imais-info');
+            Route::get('/{invoiceFile}/imais', [\App\Http\Controllers\InvoiceController::class, 'imais'])->name('imais');
+            Route::get('/{invoiceFile}/imais/xlsx', [\App\Http\Controllers\InvoiceController::class, 'exportImais'])->name('imais-export');
+        });
+
+        Route::middleware('module:invoice.manage')->group(function () {
+            // Recebe o HTML do modelo editado na tela e devolve o nome do PDF.
+            Route::post('/pdf', [\App\Http\Controllers\InvoiceController::class, 'pdf'])->name('pdf');
+            Route::post('/textos', [\App\Http\Controllers\InvoiceController::class, 'saveTexts'])->name('texts');
+            Route::post('/upload', [\App\Http\Controllers\InvoiceController::class, 'upload'])->name('upload');
+            Route::post('/{invoiceFile}/imais', [\App\Http\Controllers\InvoiceController::class, 'saveImais'])->name('imais.save');
+            Route::post('/{invoiceFile}/trava', [\App\Http\Controllers\InvoiceController::class, 'toggleLock'])->name('lock');
+            Route::delete('/{invoiceFile}', [\App\Http\Controllers\InvoiceController::class, 'destroy'])->name('destroy');
+        });
+    });
+
     // WhatsApp (conexão com serviço Node já existente)
     Route::prefix('admin/whatsapp')->name('admin.whatsapp.')->group(function () {
         Route::middleware('module:whatsapp.view')->group(function () {

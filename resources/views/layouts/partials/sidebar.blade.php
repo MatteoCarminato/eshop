@@ -231,6 +231,16 @@
                 @endif
 
                 @auth
+                    @if (auth()->user()->hasModule('invoice.view') || auth()->user()->hasModule('invoice.manage'))
+                        <li class="nav-item">
+                            <a href="{{ route('admin.invoice.index') }}" class="nav-link menu-link">
+                                <i class="ri-file-text-line"></i> <span>Invoice</span>
+                            </a>
+                        </li>
+                    @endif
+                @endauth
+
+                @auth
                     <li class="nav-item">
                         <a href="{{ route('admin.ai.index') }}" class="nav-link menu-link">
                             <i class="mdi mdi-robot-outline"></i> <span>Análise IA (PIX)</span>
