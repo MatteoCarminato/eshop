@@ -75,7 +75,7 @@ armazenamento, cor, modelo — ver próximo passo).
 imagem, destaque, categoria/variante editados manualmente no admin depois
 da criação — ver `docs/Erp-Sync.md`).
 
-O agendamento automático (`routes/console.php`, a cada 30 minutos) já
+O agendamento automático (`routes/console.php`, a cada 1 minuto) já
 cuida de manter isso sincronizado depois — **confirme que o cron do
 Laravel está rodando em produção** (`* * * * * php artisan schedule:run`
 no crontab do servidor), senão o sync automático nunca dispara.

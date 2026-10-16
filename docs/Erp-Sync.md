@@ -231,8 +231,8 @@ por entidade e retorna código de saída não-zero em caso de erro inesperado
 
 ## Agendamento automático
 
-`routes/console.php` agenda `erp:sync-catalog` para rodar a cada 30 minutos
-(`->everyThirtyMinutes()`), com `->withoutOverlapping()` para não empilhar
+`routes/console.php` agenda `erp:sync-catalog` para rodar a cada 1 minuto
+(`->everyMinute()`), com `->withoutOverlapping()` para não empilhar
 execuções caso uma demore mais que o intervalo. Para mudar a cadência, edite
 a entrada `Schedule::command('erp:sync-catalog')` nesse arquivo (ex.:
 `->hourly()`, `->dailyAt('03:00')`, etc. — ver documentação do Laravel Task

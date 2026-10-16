@@ -65,6 +65,6 @@ Schedule::job(new ProcessWhatsappScheduledMessagesJob())
     ->name('whatsapp-scheduled-messages');
 
 Schedule::command('erp:sync-catalog')
-    ->everyThirtyMinutes()
+    ->everyMinute()
     ->withoutOverlapping()
     ->name('erp-sync-catalog');
