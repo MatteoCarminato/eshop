@@ -160,9 +160,12 @@
         }
 
         .card-corpo { padding: 3mm; }
+        /* Branca, como no template: a foto de produto já vem com fundo
+           branco, e um painel cinza deixaria um quadrado claro no meio dele.
+           Sem foto, quem pinta o bloco é o .placeholder. */
         .foto {
             height: 19mm;
-            background-color: #f6f8fc;
+            background-color: #ffffff;
             border-radius: 2.1mm;
             text-align: center;
             /* Entrelinha curta: a foto sozinha no bloco ganhava leading e
@@ -171,6 +174,8 @@
             padding: 2mm 0;
         }
         .placeholder {
+            background-color: #f3f6fb;
+            border-radius: 2.1mm;
             font-size: 13pt;
             font-weight: bold;
             color: #d9e0ea;
