@@ -68,6 +68,13 @@ Route::middleware('auth')->group(function () {
         ->name('products-admin.export')
         ->middleware('module:products.view');
 
+    // Catálogo em PDF (paisagem, fundo preto) dos produtos marcados na tela de
+    // exportação. POST porque a seleção pode ter centenas de ids — não cabe
+    // numa query string.
+    Route::post('products-admin/export/pdf', [\App\Http\Controllers\ProductAdminController::class, 'exportPdf'])
+        ->name('products-admin.export-pdf')
+        ->middleware('module:products.view');
+
     // Edição inline de um preço — ver é products.view, gravar exige manage
     Route::patch('products-admin/{product}/prices', [\App\Http\Controllers\ProductAdminController::class, 'updatePrices'])
         ->name('products-admin.prices')

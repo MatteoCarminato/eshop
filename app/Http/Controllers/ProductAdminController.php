@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Services\Erp\ErpPriceWriter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -68,6 +69,18 @@ class ProductAdminController extends Controller
         // Sem `erp`: o usuário de escrita não tem grant no PRECO3, então esta
         // coluna não teria como ir pro ERP nem se voltasse pra tela.
         'price' => ['label' => 'Varejo', 'tom' => '', 'grade' => false, 'edit' => true],
+    ];
+
+    /**
+     * O que cada linha da exportação carrega. Mesmos quatro modos da tela
+     * (ver o JS de admin/products/export.blade.php), repetidos aqui porque o
+     * PDF é montado no servidor e precisa obedecer ao modo escolhido.
+     */
+    public const MODOS_EXPORT = [
+        'preco' => ['preco' => true, 'estoque' => false],
+        'produto' => ['preco' => false, 'estoque' => false],
+        'estoque' => ['preco' => false, 'estoque' => true],
+        'ambos' => ['preco' => true, 'estoque' => true],
     ];
 
     /**
@@ -227,6 +240,10 @@ class ProductAdminController extends Controller
                 'sem_subgrupo' => $nome === '',
                 'produtos' => $itens
                     ->map(fn (Product $p) => [
+                        // O id vai junto porque a tela devolve a seleção pro
+                        // PDF (exportPdf) — lá os produtos são relidos do banco
+                        // por id, não pelo que o cliente mandou.
+                        'id' => $p->id,
                         // Cai pro nome longo se algum produto vier sem NOMPRO.
                         'nome' => $p->short_name ?: $p->name,
                         // PREATAC. Fica 0 se o ERP não tiver preço de atacado
@@ -247,6 +264,150 @@ class ProductAdminController extends Controller
             'grupos' => $grupos,
             'totalProdutos' => $products->count(),
         ]);
+    }
+
+    /**
+     * Catálogo em PDF (A4 retrato, papel branco com hero escuro e detalhes
+     * azuis) dos produtos marcados na tela de exportação: grade de 4 cards
+     * por linha com subgrupo, marca, nome, preço de atacado, código do ERP e
+     * foto quando o produto tem uma. O layout vem do template
+     * `catalogo_eshop.html` — ver resources/views/admin/products/export-pdf.blade.php.
+     *
+     * A tela manda só os ids marcados — nome, preço e estoque são relidos do
+     * banco aqui, nunca aproveitados do que veio no request. O que a tela
+     * manda além dos ids é a *apresentação*: o modo da lista (se mostra preço
+     * e/ou estoque) e o ajuste de valor, que é o mesmo da pré-visualização e
+     * vale só neste PDF — não grava no produto.
+     */
+    public function exportPdf(Request $request): \Symfony\Component\HttpFoundation\Response
+    {
+        $dados = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+            'modo' => ['required', Rule::in(array_keys(self::MODOS_EXPORT))],
+            'ajuste_tipo' => ['required', Rule::in(['pct', 'fixo'])],
+            'ajuste_valor' => ['required', 'numeric', 'between:-100000,100000'],
+        ]);
+
+        $modo = self::MODOS_EXPORT[$dados['modo']];
+
+        $products = Product::query()
+            ->select(['id', 'name', 'short_name', 'erp_code', 'recno', 'wholesale_price', 'stock', 'image_url', 'brand_id', 'product_subgroup_id'])
+            ->with(['productSubgroup:id,name', 'brand:id,name'])
+            ->whereIn('id', $dados['ids'])
+            ->where('stock', '>', 0)
+            ->get();
+
+        if ($products->isEmpty()) {
+            return back()->with('error', 'Nenhum produto válido na seleção — nada a exportar.');
+        }
+
+        // Mesma ordem da tela: subgrupo em ordem alfabética, "SEM SUBGRUPO" no
+        // fim, produtos por nome dentro de cada bloco. Diferente da tela, aqui
+        // a saída é uma lista achatada: os cards correm de ponta a ponta, 4 por
+        // linha, e o subgrupo vira o rótulo de cada card (é ele que diz o
+        // modelo/capacidade — o nome do produto costuma ser só a cor).
+        $itens = $products
+            ->map(fn (Product $p) => [
+                'nome' => $p->short_name ?: $p->name,
+                // Subgrupo primeiro: é o rótulo mais informativo do card. A
+                // marca entra quando o produto não tem subgrupo.
+                // Cortado em 26: o cabeçalho do card tem altura fixa de duas
+                // linhas, e um subgrupo que vazasse pra terceira deixaria o
+                // card mais alto que os vizinhos da mesma linha.
+                'rotulo' => Str::limit($p->productSubgroup?->name ?: ($p->brand?->name ?: 'eShop'), 26, '…'),
+                // Etiqueta à direita do cabeçalho do card: a marca — a menos
+                // que o rótulo já a carregue ("ACESSORIO APPLE" + "APPLE"
+                // seria repetição) ou que ela seja o próprio rótulo.
+                'etiqueta' => $this->etiquetaDaMarca($p),
+                'ordem' => $p->productSubgroup?->name ?? 'zzzz',
+                // CODNNN é o código que o cliente usa pra pedir; sem ele, o
+                // RECNO ainda identifica a linha do ERP.
+                'codigo' => $p->erp_code ?: ($p->recno ? (string) $p->recno : null),
+                'preco' => $this->ajustarPreco((float) $p->wholesale_price, $dados['ajuste_tipo'], (float) $dados['ajuste_valor']),
+                'estoque' => (float) $p->stock,
+                'foto' => $p->image_url,
+            ])
+            ->sortBy(fn (array $i) => mb_strtolower($i['ordem'] . '|' . $i['nome']), SORT_NATURAL)
+            ->values();
+
+        $html = view('admin.products.export-pdf', [
+            'itens' => $itens,
+            'total' => $products->count(),
+            'mostraPreco' => $modo['preco'],
+            'mostraEstoque' => $modo['estoque'],
+            'gerado' => now()->displayTz(),
+            // Versão sem o fundo preto do PNG original: o hero do catálogo é
+            // azul-escuro, e o logo com fundo deixaria um retângulo preto nele.
+            'logo' => public_path('assets/images/logo-eshop-transparente.png'),
+            'wppIcone' => public_path('assets/images/whatsapp.svg'),
+            // Contato do vendedor impresso no catálogo. Sai do config
+            // (services.whatsapp.catalogo) pra trocar sem mexer na view.
+            'whatsapp' => config('services.whatsapp.catalogo'),
+        ])->render();
+
+        // O mPDF exige que o tempDir exista; a pasta não vem do git (vazia),
+        // então é criada aqui em vez de quebrar no primeiro PDF do deploy.
+        $temp = storage_path('app/mpdf');
+        \Illuminate\Support\Facades\File::ensureDirectoryExists($temp);
+
+        $pdf = new \Mpdf\Mpdf([
+            'format' => 'A4',
+            'margin_left' => 10,
+            'margin_right' => 10,
+            // Espaço pro hero e pro rodapé fixos, que são desenhados fora da
+            // margem (margin_header/footer = 0).
+            'margin_top' => 42,
+            'margin_bottom' => 22,
+            'margin_header' => 0,
+            'margin_footer' => 0,
+            'tempDir' => $temp,
+            // Foto de produto mora no S3/Spaces: sem timeout curto, um link
+            // quebrado seguraria a geração inteira.
+            'curlTimeout' => 5,
+        ]);
+        $pdf->SetTitle('Catálogo eShop');
+        $pdf->SetDefaultBodyCSS('background-color', '#ffffff');
+        $pdf->WriteHTML($html);
+
+        $nome = 'catalogo-eshop-' . now()->displayTz()->format('Y-m-d') . '.pdf';
+
+        return response($pdf->Output($nome, \Mpdf\Output\Destination::STRING_RETURN), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $nome . '"',
+        ]);
+    }
+
+    /**
+     * Marca a ser impressa como etiqueta do card, ou string vazia quando ela
+     * não acrescenta nada ao rótulo (subgrupo) que já está ao lado.
+     */
+    private function etiquetaDaMarca(Product $product): string
+    {
+        $marca = $product->brand?->name;
+        $rotulo = $product->productSubgroup?->name;
+
+        if (!$marca || !$rotulo) {
+            return '';
+        }
+
+        return str_contains(mb_strtolower($rotulo), mb_strtolower($marca)) ? '' : $marca;
+    }
+
+    /**
+     * Ajuste de valor da tela de exportação: percentual ou valor fixo em
+     * dólar, nunca negativo (100% de desconto zera o preço, não inverte).
+     * Espelha `ajustar()` do JS da tela — os dois precisam dar o mesmo número.
+     */
+    private function ajustarPreco(float $preco, string $tipo, float $valor): float
+    {
+        if ($valor == 0.0) {
+            return round($preco, 2);
+        }
+
+        $novo = $tipo === 'pct' ? $preco * (1 + $valor / 100) : $preco + $valor;
+
+        return max(0, round($novo, 2));
     }
 
     /**

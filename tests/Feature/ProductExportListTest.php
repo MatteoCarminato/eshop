@@ -154,6 +154,20 @@ class ProductExportListTest extends TestCase
             ->assertSee('Exportar');
     }
 
+    /**
+     * A tela de exportação tem o botão de PDF e o form que leva a seleção
+     * pro servidor (ver ProductAdminController@exportPdf).
+     */
+    public function test_tela_de_exportacao_tem_a_saida_em_pdf(): void
+    {
+        $this->product('BLUE', 885, 1, $this->subgroup('17 256GB LL', 1));
+
+        $this->get(route('products-admin.export'))
+            ->assertOk()
+            ->assertSee('id="paPdf"', false)
+            ->assertSee(route('products-admin.export-pdf'), false);
+    }
+
     public function test_usa_preatac_e_nao_preco3(): void
     {
         $sg = $this->subgroup('17 256GB LL', 20);

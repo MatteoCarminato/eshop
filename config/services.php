@@ -49,6 +49,9 @@ return [
 
     'whatsapp' => [
         'webhook_token' => env('WHATSAPP_WEBHOOK_TOKEN', ''),
+        // Número impresso no cabeçalho do catálogo em PDF (ver
+        // ProductAdminController@exportPdf).
+        'catalogo' => env('WHATSAPP_CATALOGO', '+595 976 883 793'),
     ],
 
     'clientbank' => [

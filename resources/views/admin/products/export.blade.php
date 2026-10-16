@@ -98,11 +98,25 @@
                             <div class="pa-exp-head">
                                 <span class="pa-flab">Pré-visualização · atacado<span id="paAjRot"></span></span>
                                 <span class="pa-exp-info" id="paLinhas"></span>
+                                <button type="button" class="pa-act" id="paPdf"
+                                    title="Catálogo em PDF (paisagem) com os produtos marcados">PDF</button>
                                 <button type="button" class="pa-act" id="paCopiar">Copiar</button>
                             </div>
                             <pre class="pa-saida" id="paSaida"></pre>
                         </div>
                     </div>
+
+                    {{-- O PDF sai por POST: a seleção pode ter centenas de ids, que
+                         não caberiam numa query string. O form é preenchido na hora
+                         do clique com o que está marcado. --}}
+                    <form method="POST" action="{{ route('products-admin.export-pdf') }}"
+                        id="paPdfForm" target="_blank" style="display:none">
+                        @csrf
+                        <input type="hidden" name="modo" id="paPdfModo">
+                        <input type="hidden" name="ajuste_tipo" id="paPdfAjTipo">
+                        <input type="hidden" name="ajuste_valor" id="paPdfAjVal">
+                        <span id="paPdfIds"></span>
+                    </form>
 
                     <div class="pa-foot">
                         <span class="l">Formato</span>
@@ -110,6 +124,7 @@
                         <span>preço de <b>atacado</b> (PREATAC)</span>
                         <span>estoque sai entre parênteses, ex.: <b>(14)</b></span>
                         <span>o ajuste vale <b>só nesta lista</b> — não grava no produto</span>
+                        <span><b>PDF</b>: catálogo em paisagem com os mesmos produtos marcados</span>
                         <span style="margin-left:auto">Só produtos com <b>estoque &gt; 0</b></span>
                     </div>
                 @endif
@@ -127,6 +142,7 @@
             const grupos   = @json($grupos);
             const lista    = document.getElementById('paLista');
             const btCopiar = document.getElementById('paCopiar');
+            const btPdf    = document.getElementById('paPdf');
             const resumo   = document.getElementById('paResumo');
             const linhas   = document.getElementById('paLinhas');
             const inpAj    = document.getElementById('paAjVal');
@@ -244,6 +260,8 @@
 
                 btCopiar.disabled = texto === '';
                 btCopiar.classList.toggle('dim', texto === '');
+                btPdf.disabled = nProdutos === 0;
+                btPdf.classList.toggle('dim', nProdutos === 0);
             }
 
             // Marca do subgrupo = resumo dos filhos: cheio, vazio ou traço (parcial).
@@ -366,6 +384,24 @@
                 } else {
                     fallback();
                 }
+            });
+
+            // ---- PDF ------------------------------------------------------------
+            // Mesma seleção e mesmo ajuste da pré-visualização; o servidor relê os
+            // produtos por id e monta o catálogo (ver ProductAdminController@exportPdf).
+            btPdf.addEventListener('click', () => {
+                const ids = selecao().flatMap(g => g.produtos.map(p => p.id));
+                if (ids.length === 0) return;
+
+                const form = document.getElementById('paPdfForm');
+                document.getElementById('paPdfModo').value = modo;
+                document.getElementById('paPdfAjTipo').value = tipoAjuste;
+                // Sem preço na linha, o ajuste não se aplica — nem no PDF.
+                document.getElementById('paPdfAjVal').value = MODOS[modo].preco ? valorAjuste() : 0;
+                document.getElementById('paPdfIds').innerHTML = ids
+                    .map(id => '<input type="hidden" name="ids[]" value="' + id + '">')
+                    .join('');
+                form.submit();
             });
 
             render();
