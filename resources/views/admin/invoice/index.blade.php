@@ -36,182 +36,228 @@
             <div class="card">
                 <div class="card-body invoice-folha">
 <div class="seletor-invoice">
-	<!-- <div class="seletor-invoice-item" data-id="conteudo_pdf"><img src="{{ asset('assets/images/invoice/modelo1.png') }}"></div> -->
-	<!-- <div class="seletor-invoice-item" data-id="conteudo_pdf_2"><img src="{{ asset('assets/images/invoice/modelo2.png') }}"></div> -->
+	<div class="seletor-invoice-item" data-id="conteudo_pdf"><img src="{{ asset('assets/images/invoice/modelo1.png') }}"></div>
+	<div class="seletor-invoice-item" data-id="conteudo_pdf_2"><img src="{{ asset('assets/images/invoice/modelo2.png') }}"></div>
 	<div class="seletor-invoice-item" data-id="conteudo_pdf_3"><img src="{{ asset('assets/images/invoice/modelo3.png') }}"></div>
-	<!-- <div class="seletor-invoice-item" data-id="conteudo_pdf_4"><img src="{{ asset('assets/images/invoice/modelo4.png') }}"></div> -->
+	<div class="seletor-invoice-item" data-id="conteudo_pdf_4"><img src="{{ asset('assets/images/invoice/modelo4.png') }}"></div>
 	<div class="seletor-invoice-item" data-id="conteudo_pdf_5"><img src="{{ asset('assets/images/invoice/modelo5.png') }}"></div>
 </div>
 
-<div class="pdf-container" id="conteudo_pdf" style="display:none;">
-	<div class="pdf-container">
-		<div class="pdf-titulo ml-20 l-0" style="min-width: 100px;" contenteditable="true">ATHENAS TRADING DISTRI INC</div>
-		<div class="pdf-titulo mr-20 r-0" style="min-width: 100px;text-align: right;" contenteditable="true">Invoice</div>
-	</div>
-	<div class="pdf-container">
-		<div class="pdf-titulo-2 ml-20 l-0" style="min-width:100px;" contenteditable="true">3101 NW 72nd Ave #135 Doral FL 22133</div>
-		<div class="pdf-titulo-2" style="right:20%;">Invoice No:</div>
-		<div class="pdf-titulo-2 mr-20 r-0" style="min-width: 100px;text-align: right;" contenteditable="true">{{ $invoiceCod }}</div>
-	</div>
-	<div class="pdf-container">
-		<div class="pdf-titulo-3 ml-20 l-0" style="min-width:100px;" contenteditable="true"></div>
-		<div class="pdf-titulo-3" style="right:20%;">Date:</div>
-		<div class="pdf-titulo-3 mr-20 r-0" style="min-width: 100px;text-align: right;" contenteditable="true">{{ $dataAtual }}</div>
-	</div>
-	<div class="pdf-container pdf-divisor-1"></div>
-	<div class="pdf-container">
-		<div style="position:absolute;top:90px;left:0;font-size:12px;color:#000000;margin-left:20px;font-weight:bold;">Bill To:</div>
-		<div style="position:absolute;top:90px;left:10%;font-size:12px;color:#000000;min-width:200px;" contenteditable="true" id="texto1">{{ $textos1['txt1'] }}</div>
-		<div style="position:absolute;top:90px;left:40%;font-size:12px;color:#000000;font-weight:bold;">Ship To:</div>
-		<div style="position:absolute;top:90px;left:50%;font-size:12px;color:#000000;min-width:200px;" contenteditable="true" id="texto2">{{ $textos1['txt2'] }}</div>
-		<div style="position:absolute;top:90px;left:80%;font-size:12px;color:#000000;font-weight:bold;">Tracking No:</div>
-		<div style="position:absolute;top:90px;right:0;font-size:12px;color:#000000;margin-right:20px;min-width:100px;text-align:right;" contenteditable="true"></div>
-	</div>
-	<div class="pdf-container">
-		<div style="position:absolute;top:110px;left:10%;font-size:12px;color:#000000;min-width:200px;" contenteditable="true" id="texto3">{{ $textos1['txt3'] }}</div>
-		<div style="position:absolute;top:110px;left:50%;font-size:12px;color:#000000;min-width:200px;" contenteditable="true" id="texto4">{{ $textos1['txt4'] }}</div>
-		<div style="position:absolute;top:110px;left:80%;font-size:12px;color:#000000;font-weight:bold;">Ship Via:</div>
-		<div style="position:absolute;top:110px;right:0;font-size:12px;color:#000000;margin-right:20px;min-width:100px;text-align:right;" contenteditable="true"></div>
-	</div>
-	<div class="pdf-container">
-		<div style="position:absolute;top:130px;left:10%;font-size:12px;color:#000000;min-width:200px;" contenteditable="true" id="texto5">{{ $textos1['txt5'] }}</div>
-		<div style="position:absolute;top:130px;left:50%;font-size:12px;color:#000000;min-width:200px;" contenteditable="true" id="texto6">{{ $textos1['txt6'] }}</div>
-		<div style="position:absolute;top:130px;left:80%;font-size:12px;color:#000000;font-weight:bold;" contenteditable="true">Free Shipping</div>
-		<div style="position:absolute;top:130px;right:0;font-size:12px;color:#000000;margin-right:20px;min-width:100px;text-align:right;" contenteditable="true"></div>
-	</div>
-	<div class="pdf-container" style="position:absolute;height:2px;background-color:#000000;top:163px;"></div>
-	<div class="pdf-container">
-		<div class="pdf-text l-0 ml-20" style="top:169px;font-weight:bold;">Description</div>
-		<div class="pdf-text" style="top:169px;left:50%;width:100px;text-align:right;font-weight:bold;">Quantity</div>
-		<div class="pdf-text" style="top:169px;left:70%;width:90px;text-align:right;font-weight:bold;">Rate</div>
-		<div class="pdf-text mr-20" style="top:169px;right:0;font-weight:bold;">Amount</div>
-	</div>
-	<div class="pdf-container" style="position:absolute;height:2px;background-color:#000000;top:194px;"></div>
-	<div class="container_invoice pdf-container">
-		<div class="invoice_item pdf-container">
-			<div class="pdf-text l-0 ml-20" style="top:210px;min-width:200px;" contenteditable="true">PRODUCT</div>
-			<div class="pdf-text l-0 ml-20" style="top:230px;min-width:200px;" contenteditable="true">COLOR</div>
-			<div>
-				<input style="top:210px;left:50%;width:100px;text-align:right;" type="text" name="" class="invoice_item_qtd pdf-text" maxlength="5">
-			</div>
-			<div>
-				<input style="top:210px;left:70%;width:90px;text-align:right;display:block;" type="text" name="" class="invoice_item_preco pdf-text">
-			</div>
-			<div style="top:210px;right:0;" class="invoice_item_total pdf-text mr-20">$ 0.00</div>
-			<div class="pdf-container" style="position:absolute;height:2px;background-color:#f4f4f4;top:260px;"></div>
-		</div>
-	</div>
-	<div class="pdf-container">
-		<div style="width:100%;height:200px;position:absolute;top:830px;left:0%;">
-			<div class="pdf-container" style="display:table;margin-top:20px;">
-				<div style="width:50%;text-align:right;display:table-cell;font-size:12px;color:#000000;">Subtotal</div>
-				<div class="pdf-subtotal" style="width:50%;text-align:right;display:table-cell;font-size:12px;color:#000000;padding-right: 20px;">$ 0.00</div>
-			</div>
-			<div class="pdf-container" style="display:table;margin-top:7px;">
-				<div style="width:50%;text-align:right;display:table-cell;font-size:12px;color:#000000;" contenteditable="true">TAX 0%</div>
-				<div style="display:flex;justify-content:flex-end;">
-					<input type="text" name="" value="$ 0.00" class="total_editavel editavel_incremento" style="width:50%;text-align:right;display:table-cell;font-size:12px;color:#000000;padding-right: 20px;">
-				</div>
-			</div>
-			<div class="pdf-container" style="display:table;margin-top:7px;">
-				<div style="width:50%;text-align:right;display:table-cell;font-size:12px;color:#000000;">Shipping</div>
-				<div style="display:flex;justify-content:flex-end;">
-					<input type="text" name="" value="$ 0.00" class="total_editavel editavel_incremento" style="width:50%;text-align:right;display:table-cell;font-size:12px;color:#000000;padding-right: 20px;">
-				</div>
-			</div>
-			<div class="pdf-container" style="display:table;margin-top:7px;">
-				<div style="width:50%;text-align:right;display:table-cell;font-size:12px;color:#000000;">Total</div>
-				<div style="width:50%;text-align:right;display:table-cell;font-size:12px;color:#000000;padding-right: 20px;" class="pdf-total-1">$ 0.00</div>
-			</div>
-			<div class="pdf-container" style="display:table;margin-top:14px;">
-				<div style="width:50%;text-align:right;display:table-cell;font-size:12px;color:#000000;">Paid</div>
-				<div style="display:flex;justify-content:flex-end;">
-					<input type="text" name="" value="$ 0.00" class="total_editavel total_decremento" style="width:50%;text-align:right;display:table-cell;font-size:12px;color:#000000;padding-right: 20px;">
-				</div>
-			</div>
-			<div class="pdf-container" style="margin-top:7px;height:2px;background-color:#000000;margin-left:20px;"></div>
-			<div class="pdf-container" style="display:table;margin-top:7px;margin-bottom:7px;">
-				<div style="width:50%;text-align:right;display:table-cell;font-size:16px;color:#000000;font-weight:bold;">Balance Due</div>
-				<div style="width:50%;text-align:right;display:table-cell;font-size:16px;color:#000000;padding-right:20px;font-weight:bold;" class="total_final">$ 0.00</div>
-			</div>
-			<div class="pdf-container" style="margin-top:7px;height:2px;background-color:#000000;margin-left:20px;"></div>
-		</div>
-	</div>
+{{-- Modelo clássico. No painel legado a folha inteira era montada com
+     position:absolute e coordenadas em px (top:90px, left:40%...), que o
+     Dompdf posicionava e o mPDF ignora — tudo saía empilhado numa coluna.
+     Mesma folha, agora em tabelas, como os modelos 3 e 5. --}}
+<div class="pdf-container" id="conteudo_pdf" style="width:100%;font-family:Arial, Helvetica, sans-serif;display:none;color:#000;">
+	<table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+		<tr>
+			<td style="width:60%;border:0;padding:0 0 0 20px;font-size:20px;font-weight:bold;" contenteditable="true">ATHENAS TRADING DISTRI INC</td>
+			<td style="width:40%;border:0;padding:0 20px 0 0;font-size:20px;font-weight:bold;text-align:right;" contenteditable="true">Invoice</td>
+		</tr>
+		<tr>
+			<td style="border:0;padding:15px 0 0 20px;font-size:12px;" contenteditable="true">3101 NW 72nd Ave #135 Doral FL 22133</td>
+			<td style="border:0;padding:15px 20px 0 0;font-size:12px;text-align:right;">
+				Invoice No: <span contenteditable="true">{{ $invoiceCod }}</span>
+			</td>
+		</tr>
+		<tr>
+			<td style="border:0;padding:5px 0 0 20px;font-size:12px;" contenteditable="true"></td>
+			<td style="border:0;padding:5px 20px 0 0;font-size:12px;text-align:right;">
+				Date: <span contenteditable="true">{{ $dataAtual }}</span>
+			</td>
+		</tr>
+	</table>
+
+	<div style="width:100%;height:2px;background-color:#eaeaea;margin-top:10px;"></div>
+
+	{{-- Bill To / Ship To / Tracking --}}
+	<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-top:10px;">
+		<tr>
+			<td style="width:10%;border:0;padding:0 0 0 20px;font-size:12px;font-weight:bold;">Bill To:</td>
+			<td style="width:30%;border:0;padding:0;font-size:12px;" contenteditable="true" id="texto1">{{ $textos1['txt1'] }}</td>
+			<td style="width:10%;border:0;padding:0;font-size:12px;font-weight:bold;">Ship To:</td>
+			<td style="width:25%;border:0;padding:0;font-size:12px;" contenteditable="true" id="texto2">{{ $textos1['txt2'] }}</td>
+			<td style="width:13%;border:0;padding:0;font-size:12px;font-weight:bold;">Tracking No:</td>
+			<td style="width:12%;border:0;padding:0 20px 0 0;font-size:12px;text-align:right;" contenteditable="true"></td>
+		</tr>
+		<tr>
+			<td style="border:0;padding:8px 0 0 20px;"></td>
+			<td style="border:0;padding:8px 0 0 0;font-size:12px;" contenteditable="true" id="texto3">{{ $textos1['txt3'] }}</td>
+			<td style="border:0;padding:8px 0 0 0;"></td>
+			<td style="border:0;padding:8px 0 0 0;font-size:12px;" contenteditable="true" id="texto4">{{ $textos1['txt4'] }}</td>
+			<td style="border:0;padding:8px 0 0 0;font-size:12px;font-weight:bold;">Ship Via:</td>
+			<td style="border:0;padding:8px 20px 0 0;font-size:12px;text-align:right;" contenteditable="true"></td>
+		</tr>
+		<tr>
+			<td style="border:0;padding:8px 0 0 20px;"></td>
+			<td style="border:0;padding:8px 0 0 0;font-size:12px;" contenteditable="true" id="texto5">{{ $textos1['txt5'] }}</td>
+			<td style="border:0;padding:8px 0 0 0;"></td>
+			<td style="border:0;padding:8px 0 0 0;font-size:12px;" contenteditable="true" id="texto6">{{ $textos1['txt6'] }}</td>
+			<td style="border:0;padding:8px 0 0 0;font-size:12px;font-weight:bold;" contenteditable="true">Free Shipping</td>
+			<td style="border:0;padding:8px 20px 0 0;font-size:12px;text-align:right;" contenteditable="true"></td>
+		</tr>
+	</table>
+
+	<div style="width:100%;height:2px;background-color:#000000;margin-top:14px;"></div>
+
+	{{-- Itens --}}
+	<table style="width:100%;border-collapse:collapse;table-layout:fixed;" class="container_invoice">
+		<tr>
+			<td style="width:50%;border:0;padding:6px 0 6px 20px;font-size:12px;font-weight:bold;border-bottom:2px solid #000000;">Description</td>
+			<td style="width:20%;border:0;padding:6px 0;font-size:12px;font-weight:bold;text-align:right;border-bottom:2px solid #000000;">Quantity</td>
+			<td style="width:15%;border:0;padding:6px 0;font-size:12px;font-weight:bold;text-align:right;border-bottom:2px solid #000000;">Rate</td>
+			<td style="width:15%;border:0;padding:6px 20px 6px 0;font-size:12px;font-weight:bold;text-align:right;border-bottom:2px solid #000000;">Amount</td>
+		</tr>
+		<tr class="invoice_item">
+			<td style="border:0;border-bottom:2px solid #f4f4f4;padding:10px 0 10px 20px;font-size:12px;vertical-align:top;">
+				<div contenteditable="true">PRODUCT</div>
+				<div contenteditable="true">COLOR</div>
+			</td>
+			<td style="border:0;border-bottom:2px solid #f4f4f4;padding:10px 0;font-size:12px;text-align:right;vertical-align:top;">
+				<input style="width:100%;border:0;background:transparent;font-size:12px;color:#000;text-align:right;padding:0;" type="text" name="" class="invoice_item_qtd" maxlength="5">
+			</td>
+			<td style="border:0;border-bottom:2px solid #f4f4f4;padding:10px 0;font-size:12px;text-align:right;vertical-align:top;">
+				<input style="width:100%;border:0;background:transparent;font-size:12px;color:#000;text-align:right;padding:0;" type="text" name="" class="invoice_item_preco">
+			</td>
+			<td style="border:0;border-bottom:2px solid #f4f4f4;padding:10px 20px 10px 0;font-size:12px;text-align:right;vertical-align:top;" class="invoice_item_total">$ 0.00</td>
+		</tr>
+	</table>
+
+	{{-- Totais --}}
+	<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-top:20px;">
+		<tr>
+			<td style="width:50%;border:0;padding:0;"></td>
+			<td style="width:50%;border:0;padding:0;vertical-align:top;">
+				<table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+					<tr>
+						<td style="width:50%;border:0;padding:0;text-align:right;font-size:12px;">Subtotal</td>
+						<td style="width:50%;border:0;padding:0 20px 0 0;text-align:right;font-size:12px;" class="pdf-subtotal">$ 0.00</td>
+					</tr>
+					<tr>
+						<td style="border:0;padding:7px 0 0 0;text-align:right;font-size:12px;" contenteditable="true">TAX 0%</td>
+						<td style="border:0;padding:7px 20px 0 0;text-align:right;font-size:12px;">
+							<input type="text" name="" value="$ 0.00" class="total_editavel editavel_incremento" style="width:100%;border:0;background:transparent;text-align:right;font-size:12px;color:#000000;padding:0;">
+						</td>
+					</tr>
+					<tr>
+						<td style="border:0;padding:7px 0 0 0;text-align:right;font-size:12px;">Shipping</td>
+						<td style="border:0;padding:7px 20px 0 0;text-align:right;font-size:12px;">
+							<input type="text" name="" value="$ 0.00" class="total_editavel editavel_incremento" style="width:100%;border:0;background:transparent;text-align:right;font-size:12px;color:#000000;padding:0;">
+						</td>
+					</tr>
+					<tr>
+						<td style="border:0;padding:7px 0 0 0;text-align:right;font-size:12px;">Total</td>
+						<td style="border:0;padding:7px 20px 0 0;text-align:right;font-size:12px;" class="pdf-total-1">$ 0.00</td>
+					</tr>
+					<tr>
+						<td style="border:0;padding:14px 0 0 0;text-align:right;font-size:12px;">Paid</td>
+						<td style="border:0;padding:14px 20px 0 0;text-align:right;font-size:12px;">
+							<input type="text" name="" value="$ 0.00" class="total_editavel total_decremento" style="width:100%;border:0;background:transparent;text-align:right;font-size:12px;color:#000000;padding:0;">
+						</td>
+					</tr>
+					<tr>
+						<td style="border:0;border-top:2px solid #000000;border-bottom:2px solid #000000;padding:7px 0;text-align:right;font-size:16px;font-weight:bold;">Balance Due</td>
+						<td style="border:0;border-top:2px solid #000000;border-bottom:2px solid #000000;padding:7px 20px 7px 0;text-align:right;font-size:16px;font-weight:bold;" class="total_final">$ 0.00</td>
+					</tr>
+				</table>
+			</td>
+		</tr>
+	</table>
 </div>
 
 <div class="pdf-container pdf-container-2" id="conteudo_pdf_2" style="width:100%;font-family:sans-serif;display:none;">
-	<div style="width:100%;height:30px;background-color:#001e4c;position:relative;display:block;">
-		<img src="{{ asset('assets/images/invoice/logo_virkin.png') }}" style="width:170px;position:absolute;right:0;top:60px;"></div>
-	<div style="margin-top:40px;font-weight: bold;color:#000;font-size:16px;" contenteditable="true">Virkin International Corporation</div>
+	<div style="width:100%;height:30px;background-color:#001e4c;display:block;"></div>
+
+	{{-- Logo à direita. No legado era position:absolute, que o mPDF ignora. --}}
+	<table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+		<tr>
+			<td style="width:60%;border:0;padding:0;"></td>
+			<td style="width:40%;border:0;padding:0;text-align:right;">
+				<img src="{{ asset('assets/images/invoice/logo_virkin.png') }}" style="width:170px;border:0;">
+			</td>
+		</tr>
+	</table>
+
+	<div style="margin-top:20px;font-weight:bold;color:#000;font-size:16px;" contenteditable="true">Virkin International Corporation</div>
 	<div style="margin-top:13px;margin-bottom:3px;color:#222;font-size:13px;" contenteditable="true">31 SAGAMORE PARK RD</div>
 	<div style="color:#222;font-size:13px;" contenteditable="true">HUDSON, NH 03051</div>
-	<div style="width:100%;white-space:nowrap;margin-top:50px;">
-		<div style="color:#000;font-weight:bold;width:34%;float:left;font-size:16px;margin-bottom:8px;">BILL TO</div>
-		<div style="color:#000;font-weight:bold;width:32%;float:left;font-size:16px;margin-bottom:8px;">SHIP TO</div>
-		<div style="color:#000;font-weight:bold;width:17%;float:left;font-size:16px;margin-bottom:8px;">INVOICE #</div>
-		<div style="color:#000;width:17%;float:left;text-align:right;font-size:13px;margin-bottom:8px;margin-top:3px;" contenteditable="true">{{ $invoiceCod }}</div>
-	</div>
-	<div style="clear:both;"></div>
-	<div style="width:100%;white-space:nowrap;">
-		<div style="color:#000;width:34%;float:left;font-size:13px;display:inline-block;vertical-align:bottom;" contenteditable="true">ELYZE S.A.</div>
-		<div style="color:#000;width:32%;float:left;font-size:13px;display:inline-block;vertical-align:bottom;" contenteditable="true">Miami</div>
-		<div style="color:#000;font-weight:bold;width:17%;float:left;font-size:16px;display:inline-block;vertical-align:bottom;margin-top:-3px;">INVOICE DATE</div>
-		<div style="color:#000;width:17%;float:left;text-align:right;font-size:13px;display:inline-block;vertical-align:bottom;" contenteditable="true">{{ $dataAtual }}</div>
-	</div>
-	<div style="clear:both;"></div>
-	<div style="width:100%;white-space:nowrap;">
-		<div style="color:#000;width:34%;float:left;font-size:13px;" contenteditable="true">RUC: 80064781-5</div>
-		<div style="color:#000;width:32%;float:left;font-size:13px;" contenteditable="true"></div>
-	</div>
-	<div style="clear:both;"></div>
-	<div style="width:100%;white-space:nowrap;">
-		<div style="color:#000;width:34%;float:left;font-size:13px;" contenteditable="true">CALLE CARUPAYTY C/ AVDA</div>
-		<div style="color:#000;width:32%;float:left;font-size:13px;" contenteditable="true"></div>
-	</div>
-	<div style="clear:both;"></div>
-	<div style="width:100%;white-space:nowrap;">
-		<div style="color:#000;width:34%;float:left;font-size:13px;" contenteditable="true">ADRIAN JARA</div>
-		<div style="color:#000;width:32%;float:left;font-size:13px;" contenteditable="true"></div>
-	</div>
-	<div style="clear:both;"></div>
-	<div style="width:100%;white-space:nowrap;">
-		<div style="color:#000;width:34%;float:left;font-size:13px;" contenteditable="true">CIUDAD DEL ESTE, PARAGUAY</div>
-		<div style="color:#000;width:32%;float:left;font-size:13px;" contenteditable="true"></div>
-	</div>
-	<div style="clear:both;"></div>
-	<div style="width:100%;white-space:nowrap;">
-		<div style="color:#000;width:34%;float:left;font-size:13px;margin-bottom:30px;" contenteditable="true">PHONE: +595 994 365877</div>
-		<div style="color:#000;width:32%;float:left;font-size:13px;margin-bottom:30px;" contenteditable="true"></div>
-	</div>
-	<div style="clear:both;"></div>
+
+	{{-- Bill To / Ship To / dados da invoice: as linhas eram float no legado. --}}
+	<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-top:50px;">
+		<tr>
+			<td style="width:34%;border:0;padding:0 0 8px 0;color:#000;font-weight:bold;font-size:16px;">BILL TO</td>
+			<td style="width:32%;border:0;padding:0 0 8px 0;color:#000;font-weight:bold;font-size:16px;">SHIP TO</td>
+			<td style="width:17%;border:0;padding:0 0 8px 0;color:#000;font-weight:bold;font-size:16px;">INVOICE #</td>
+			<td style="width:17%;border:0;padding:3px 0 8px 0;color:#000;text-align:right;font-size:13px;" contenteditable="true">{{ $invoiceCod }}</td>
+		</tr>
+		<tr>
+			<td style="border:0;padding:0;color:#000;font-size:13px;vertical-align:bottom;" contenteditable="true">ELYZE S.A.</td>
+			<td style="border:0;padding:0;color:#000;font-size:13px;vertical-align:bottom;" contenteditable="true">Miami</td>
+			<td style="border:0;padding:0;color:#000;font-weight:bold;font-size:16px;vertical-align:bottom;">INVOICE DATE</td>
+			<td style="border:0;padding:0;color:#000;font-size:13px;text-align:right;vertical-align:bottom;" contenteditable="true">{{ $dataAtual }}</td>
+		</tr>
+		<tr>
+			<td style="border:0;padding:0;color:#000;font-size:13px;" contenteditable="true">RUC: 80064781-5</td>
+			<td style="border:0;padding:0;color:#000;font-size:13px;" contenteditable="true"></td>
+			<td style="border:0;padding:0;"></td>
+			<td style="border:0;padding:0;"></td>
+		</tr>
+		<tr>
+			<td style="border:0;padding:0;color:#000;font-size:13px;" contenteditable="true">CALLE CARUPAYTY C/ AVDA</td>
+			<td style="border:0;padding:0;color:#000;font-size:13px;" contenteditable="true"></td>
+			<td style="border:0;padding:0;"></td>
+			<td style="border:0;padding:0;"></td>
+		</tr>
+		<tr>
+			<td style="border:0;padding:0;color:#000;font-size:13px;" contenteditable="true">ADRIAN JARA</td>
+			<td style="border:0;padding:0;color:#000;font-size:13px;" contenteditable="true"></td>
+			<td style="border:0;padding:0;"></td>
+			<td style="border:0;padding:0;"></td>
+		</tr>
+		<tr>
+			<td style="border:0;padding:0;color:#000;font-size:13px;" contenteditable="true">CIUDAD DEL ESTE, PARAGUAY</td>
+			<td style="border:0;padding:0;color:#000;font-size:13px;" contenteditable="true"></td>
+			<td style="border:0;padding:0;"></td>
+			<td style="border:0;padding:0;"></td>
+		</tr>
+		<tr>
+			<td style="border:0;padding:0 0 30px 0;color:#000;font-size:13px;" contenteditable="true">PHONE: +595 994 365877</td>
+			<td style="border:0;padding:0 0 30px 0;color:#000;font-size:13px;" contenteditable="true"></td>
+			<td style="border:0;padding:0;"></td>
+			<td style="border:0;padding:0;"></td>
+		</tr>
+	</table>
+
 	<div style="width:100%;height:2px;background-color:#000;margin-bottom:17px;"></div>
-	<div style="width:100%;white-space:nowrap;">
-		<div style="color:#000;width:50%;float:left;font-weight:bold;font-size:38px;margin-bottom:17px;">Invoice Total</div>
-		<div style="color:#000;width:50%;float:left;font-weight:bold;font-size:38px;text-align:right;margin-bottom:17px;" class="pdf-subtotal">U$ 0,00</div>
-	</div>
-	<div style="clear:both;"></div>
+
+	<table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+		<tr>
+			<td style="width:50%;border:0;padding:0 0 17px 0;color:#000;font-weight:bold;font-size:38px;">Invoice Total</td>
+			<td style="width:50%;border:0;padding:0 0 17px 0;color:#000;font-weight:bold;font-size:38px;text-align:right;" class="pdf-subtotal">U$ 0,00</td>
+		</tr>
+	</table>
+
 	<div style="width:100%;height:2px;background-color:#000;margin-bottom:30px;"></div>
-	<div style="width:100%;white-space:nowrap;">
-		<div style="margin-bottom:15px;font-size:16px;color:#000;font-weight:bold;width:10%;float:left;">QTY</div>
-		<div style="margin-bottom:15px;font-size:16px;color:#000;font-weight:bold;width:50%;float:left;">DESCRIPTION</div>
-		<div style="margin-bottom:15px;font-size:16px;color:#000;font-weight:bold;width:20%;float:left;text-align:right;">UNIT PRICE</div>
-		<div style="margin-bottom:15px;font-size:16px;color:#000;font-weight:bold;width:20%;float:left;text-align:right;">AMOUNT</div>
-	</div>
-	<div style="clear:both;"></div>
-	<div class="invoice2-items">
-		<div style="width:100%;white-space:nowrap;" class="invoice2-item">
-			<div>
-				<input style="margin-bottom:10px;font-size:13px;color:#000;width:10%;float:left;position:unset;" type="text" name="" class="invoice_item_qtd" maxlength="5">
-			</div>
-			<div style="margin-bottom:10px;font-size:13px;color:#000;width:50%;float:left;" contenteditable="true">PRODUCT</div>
-			<div>
-				<input style="margin-bottom:10px;font-size:13px;color:#000;width:20%;float:left;text-align:right;position:unset;" type="text" name="" class="invoice_item_preco">
-			</div>
-			<div class="invoice_item_total" style="margin-bottom:10px;font-size:13px;color:#000;width:20%;float:left;text-align:right;">U$ 0,00</div>
-		</div>
-		<div style="clear:both;" class="invoice2-both"></div>
-	</div>
-	<div style="width:100%;height:30px;background-color:#001e4c;position:absolute;bottom:0;"></div>
+
+	<table style="width:100%;border-collapse:collapse;table-layout:fixed;" class="invoice2-items">
+		<tr>
+			<td style="width:10%;border:0;padding:0 0 15px 0;font-size:16px;color:#000;font-weight:bold;">QTY</td>
+			<td style="width:50%;border:0;padding:0 0 15px 0;font-size:16px;color:#000;font-weight:bold;">DESCRIPTION</td>
+			<td style="width:20%;border:0;padding:0 0 15px 0;font-size:16px;color:#000;font-weight:bold;text-align:right;">UNIT PRICE</td>
+			<td style="width:20%;border:0;padding:0 0 15px 0;font-size:16px;color:#000;font-weight:bold;text-align:right;">AMOUNT</td>
+		</tr>
+		<tr class="invoice2-item">
+			<td style="border:0;padding:0 0 10px 0;font-size:13px;color:#000;">
+				<input style="width:100%;border:0;background:transparent;font-size:13px;color:#000;padding:0;" type="text" name="" class="invoice_item_qtd" maxlength="5">
+			</td>
+			<td style="border:0;padding:0 0 10px 0;font-size:13px;color:#000;" contenteditable="true">PRODUCT</td>
+			<td style="border:0;padding:0 0 10px 0;font-size:13px;color:#000;text-align:right;">
+				<input style="width:100%;border:0;background:transparent;font-size:13px;color:#000;text-align:right;padding:0;" type="text" name="" class="invoice_item_preco">
+			</td>
+			<td class="invoice_item_total" style="border:0;padding:0 0 10px 0;font-size:13px;color:#000;text-align:right;">U$ 0,00</td>
+		</tr>
+	</table>
+
+	<div style="width:100%;height:30px;background-color:#001e4c;margin-top:30px;"></div>
 </div>
 
 
@@ -430,55 +476,81 @@
 
 <div class="pdf-container pdf-container-4" id="conteudo_pdf_4" style="width:100%;font-family:sans-serif;display:none;">
 	<div style="color:#305b98;font-size:34px;margin-left:55%;">Invoice</div>
-	<div style="width:100%;margin-top:5px;">
-		<div style="width:5%;float:left;height:1px;"></div>
-		<div style="width:40%;float:left;">
-			<div style="width:100%;">
-				<div style="color:#000;font-size:13px;" contenteditable="true">TC INN</div>
-				<div style="color:#000;font-size:13px;" contenteditable="true">3228 NW 72nd Ave Miami FL</div>
-				<div style="color:#000;font-size:13px;" contenteditable="true"></div>
-				<div style="color:#000;font-size:13px;" contenteditable="true"></div>
-			</div>
-		</div>
-		<div style="width:10%;float:left;height:1px;"></div>
-		<div style="width:45%;float:left;">
-			<div style="width:100%;">
-				<div style="color:#000;font-size:13px;"><b style="width:120px;display:inline-block;">Invoice Number:</b><span style="width:calc(100% - 120px);display:inline-block;white-space:nowrap;" contenteditable="true">{{ $invoiceCod }}</span></div>
-				<div style="color:#000;font-size:13px;"><b style="width:120px;display:inline-block;">Invoice Date:</b><span style="width:calc(100% - 120px);display:inline-block;white-space:nowrap;" contenteditable="true">{{ $dataAtual }}</span></div>
-				<div style="color:#000;font-size:13px;"><b style="width:120px;display:inline-block;">Payment Terms:</b><span style="width:calc(100% - 120px);display:inline-block;white-space:nowrap;" contenteditable="true">Due On Receipt</span></div>
-				<div style="color:#000;font-size:13px;"><b style="width:120px;display:inline-block;">Invoice Due Date:</b><span style="width:calc(100% - 120px);display:inline-block;white-space:nowrap;" contenteditable="true">{{ $dataAtual }}</span></div>
-				<div style="color:#000;font-size:13px;"><b style="width:120px;display:inline-block;">Invoice Amount:</b><span style="width:calc(100% - 120px);display:inline-block;white-space:nowrap;" contenteditable="true">85,000.00</span></div>
-				<div style="color:#000;font-size:13px;"><b style="width:120px;display:inline-block;">Created By:</b><span style="width:calc(100% - 120px);display:inline-block;white-space:nowrap;" contenteditable="true">ORDER Ronxaan</span></div>
-			</div>
-		</div>
-	</div>
-	<div style="clear:both;"></div>
+
+	{{-- Emitente + dados da invoice. Era float no painel legado; virou tabela
+	     porque o mPDF não posiciona float (o Dompdf posicionava). --}}
+	<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-top:5px;">
+		<tr>
+			<td style="width:5%;border:0;padding:0;"></td>
+			<td style="width:40%;border:0;padding:0;vertical-align:top;">
+				<table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+					<tr><td style="border:0;padding:0;color:#000;font-size:13px;" contenteditable="true">TC INN</td></tr>
+					<tr><td style="border:0;padding:0;color:#000;font-size:13px;" contenteditable="true">3228 NW 72nd Ave Miami FL</td></tr>
+					<tr><td style="border:0;padding:0;color:#000;font-size:13px;height:16px;" contenteditable="true"></td></tr>
+					<tr><td style="border:0;padding:0;color:#000;font-size:13px;height:16px;" contenteditable="true"></td></tr>
+				</table>
+			</td>
+			<td style="width:10%;border:0;padding:0;"></td>
+			<td style="width:45%;border:0;padding:0;vertical-align:top;">
+				<table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+					<tr>
+						<td style="width:48%;border:0;padding:0;color:#000;font-size:13px;font-weight:bold;">Invoice Number:</td>
+						<td style="width:52%;border:0;padding:0;color:#000;font-size:13px;" contenteditable="true">{{ $invoiceCod }}</td>
+					</tr>
+					<tr>
+						<td style="border:0;padding:0;color:#000;font-size:13px;font-weight:bold;">Invoice Date:</td>
+						<td style="border:0;padding:0;color:#000;font-size:13px;" contenteditable="true">{{ $dataAtual }}</td>
+					</tr>
+					<tr>
+						<td style="border:0;padding:0;color:#000;font-size:13px;font-weight:bold;">Payment Terms:</td>
+						<td style="border:0;padding:0;color:#000;font-size:13px;" contenteditable="true">Due On Receipt</td>
+					</tr>
+					<tr>
+						<td style="border:0;padding:0;color:#000;font-size:13px;font-weight:bold;">Invoice Due Date:</td>
+						<td style="border:0;padding:0;color:#000;font-size:13px;" contenteditable="true">{{ $dataAtual }}</td>
+					</tr>
+					<tr>
+						<td style="border:0;padding:0;color:#000;font-size:13px;font-weight:bold;">Invoice Amount:</td>
+						<td style="border:0;padding:0;color:#000;font-size:13px;" contenteditable="true">85,000.00</td>
+					</tr>
+					<tr>
+						<td style="border:0;padding:0;color:#000;font-size:13px;font-weight:bold;">Created By:</td>
+						<td style="border:0;padding:0;color:#000;font-size:13px;" contenteditable="true">ORDER Ronxaan</td>
+					</tr>
+				</table>
+			</td>
+		</tr>
+	</table>
+
+	{{-- Bill To / Ship To --}}
+	<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-top:20px;">
+		<tr>
+			<td style="width:5%;border:0;padding:0;"></td>
+			<td style="width:40%;border:0;padding:0;vertical-align:top;">
+				<table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+					<tr><td style="border:0;padding:0;color:#000;font-size:13px;font-weight:bold;">Bill To</td></tr>
+					<tr><td style="border:0;padding:0;color:#000;font-size:13px;" contenteditable="true">Armando</td></tr>
+					<tr><td style="border:0;padding:0;color:#000;font-size:13px;height:16px;" contenteditable="true"></td></tr>
+					<tr><td style="border:0;padding:0;color:#000;font-size:13px;height:16px;" contenteditable="true"></td></tr>
+					<tr><td style="border:0;padding:0;color:#000;font-size:13px;height:16px;" contenteditable="true"></td></tr>
+				</table>
+			</td>
+			<td style="width:10%;border:0;padding:0;"></td>
+			<td style="width:40%;border:0;padding:0;vertical-align:top;">
+				<table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+					<tr><td style="border:0;padding:0;color:#000;font-size:13px;font-weight:bold;">Ship To</td></tr>
+					<tr><td style="border:0;padding:0;color:#000;font-size:13px;" contenteditable="true">Armando</td></tr>
+					<tr><td style="border:0;padding:0;color:#000;font-size:13px;height:16px;" contenteditable="true"></td></tr>
+					<tr><td style="border:0;padding:0;color:#000;font-size:13px;height:16px;" contenteditable="true"></td></tr>
+					<tr><td style="border:0;padding:0;color:#000;font-size:13px;height:16px;" contenteditable="true"></td></tr>
+				</table>
+			</td>
+			<td style="width:5%;border:0;padding:0;"></td>
+		</tr>
+	</table>
+
 	<div style="width:100%;">
-		<div style="width:5%;float:left;height:1px;margin-top:20px;"></div>
-		<div style="width:40%;float:left;margin-top:20px;">
-			<div style="width:100%;">
-				<div style="color:#000;font-size:13px;"><b>Bill To</b></div>
-				<div style="color:#000;font-size:13px;" contenteditable="true">Armando</div>
-				<div style="color:#000;font-size:13px;" contenteditable="true"></div>
-				<div style="color:#000;font-size:13px;" contenteditable="true"></div>
-				<div style="color:#000;font-size:13px;" contenteditable="true"></div>
-			</div>
-		</div>
-		<div style="width:10%;float:left;height:1px;margin-top:20px;"></div>
-		<div style="width:40%;float:left;margin-top:20px;">
-			<div style="width:100%;">
-				<div style="color:#000;font-size:13px;"><b>Ship To</b></div>
-				<div style="color:#000;font-size:13px;" contenteditable="true">Armando</div>
-				<div style="color:#000;font-size:13px;" contenteditable="true"></div>
-				<div style="color:#000;font-size:13px;" contenteditable="true"></div>
-				<div style="color:#000;font-size:13px;" contenteditable="true"></div>
-			</div>
-		</div>
-		<div style="width:5%;float:left;height:1px;margin-top:20px;"></div>
-	</div>
-	<div style="clear:both;"></div>
-	<div style="width:100%;">
-		<table style="width:100%;border-spacing:0;margin-top:30px;" class="invoice4-items">
+		<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-top:30px;" class="invoice4-items">
 			<tr>
 				<td style="width:60%;background-color:#305b98;border:2px solid #305b98;color:#fff;font-size:13px;padding:2px 7px;height:28px;border-right:0;">Item Name</td>
 				<td style="width:10%;background-color:#305b98;border:2px solid #305b98;color:#fff;font-size:13px;padding:2px 7px;height:28px;border-right:0;">Quantity</td>
@@ -492,7 +564,7 @@
 				<td style="width:15%;border:2px solid #999999;color:#000;font-size:13px;padding:2px 7px;height:28px;border-top:0;text-align:right;" class="invoice_item_total">$ 0.00</td>
 			</tr>
 		</table>
-		<table style="width:100%;border-spacing:0;">
+		<table style="width:100%;border-collapse:collapse;table-layout:fixed;">
 			<tr>
 				<td style="width:60%;border:0;color:#000;font-size:13px;padding:2px 7px;height:28px;text-align:right;">Total Quantity:</td>
 				<td style="width:10%;border:0;color:#000;font-size:13px;padding:2px 7px;height:28px;text-align:right;" class="total_amount_itens">0</td>
@@ -500,23 +572,25 @@
 			</tr>
 		</table>
 	</div>
-	<div style="clear:both;"></div>
-	<div style="width:100%;margin-top:20px;">
-		<div style="width:75%;float:left;height:1px;margin-top:30px;"></div>
-		<div style="width:25%;float:left;">
-			<table style="width:100%;border-spacing:0;margin-top:30px;">
-				<tr>
-					<td style="color:#000;padding:2px 7px;font-size:13px;width:50%;font-weight:bold;">Subtotal</td>
-					<td style="color:#000;padding:2px 7px;font-size:13px;width:50%;text-align:right;" class="pdf-subtotal">$ 62,500.00</td>
-				</tr>
-				<tr>
-					<td style="color:#000;padding:2px 7px;font-size:13px;width:50%;font-weight:bold;">Total</td>
-					<td style="color:#000;padding:2px 7px;font-size:13px;width:50%;text-align:right;" class="total_final">$ 62,500.00</td>
-				</tr>
-			</table>
-		</div>
-	</div>
-	<div style="clear:both;"></div>
+
+	{{-- Totais, encostados à direita --}}
+	<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-top:30px;">
+		<tr>
+			<td style="width:75%;border:0;padding:0;"></td>
+			<td style="width:25%;border:0;padding:0;vertical-align:top;">
+				<table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+					<tr>
+						<td style="color:#000;padding:2px 7px;font-size:13px;width:50%;font-weight:bold;border:0;">Subtotal</td>
+						<td style="color:#000;padding:2px 7px;font-size:13px;width:50%;text-align:right;border:0;" class="pdf-subtotal">$ 0.00</td>
+					</tr>
+					<tr>
+						<td style="color:#000;padding:2px 7px;font-size:13px;width:50%;font-weight:bold;border:0;">Total</td>
+						<td style="color:#000;padding:2px 7px;font-size:13px;width:50%;text-align:right;border:0;" class="total_final">$ 0.00</td>
+					</tr>
+				</table>
+			</td>
+		</tr>
+	</table>
 </div>
 
 
@@ -804,18 +878,30 @@
 
             $(".invoice_item_preco, .invoice_item_total, .total_editavel").priceFormat(formatoPreco);
 
+            /*
+             * Todos os modelos são tabelas. O navegador embrulha as linhas do
+             * HTML num <tbody>, então a linha nova precisa entrar nesse mesmo
+             * tbody — se fosse anexada direto na <table>, ela viraria irmã do
+             * tbody e o :last-child da remoção pegaria duas linhas de uma vez.
+             */
+            function adicionaLinha(seletorTabela, html) {
+                var $tabela = $(seletorTabela);
+                if(!$tabela.length) return;
+                var $tbody = $tabela.children('tbody');
+                ($tbody.length ? $tbody.last() : $tabela).append(html);
+            }
+
+            function removeUltimaLinha(seletorTabela, classeLinha) {
+                $(seletorTabela).find(classeLinha).last().remove();
+            }
+
             $(document).on("click", '.add-new-line', function(e){
                 e.preventDefault();
-                $('.invoice5-items > tbody').append('<tr class="invoice5-item" style="page-break-inside:avoid;height:88px;"><td class="scal-row-number" style="font-size:9.5px;color:#343a3f;padding:11px 2px 10px 2px;vertical-align:top;border-bottom:1px solid #e2e6e9;"></td><td style="font-size:9.5px;color:#343a3f;padding:11px 2px 10px 2px;vertical-align:top;border-bottom:1px solid #e2e6e9;" contenteditable="true"></td><td style="font-size:9.5px;color:#343a3f;padding:11px 2px 10px 2px;vertical-align:top;border-bottom:1px solid #e2e6e9;font-weight:bold;" contenteditable="true">Sales</td><td style="font-size:9.5px;color:#343a3f;padding:11px 2px 10px 2px;vertical-align:top;border-bottom:1px solid #e2e6e9;" contenteditable="true"></td><td style="font-size:9.5px;color:#343a3f;padding:11px 2px 10px 2px;vertical-align:top;border-bottom:1px solid #e2e6e9;line-height:13.5px;"><table style="width:100%;border-collapse:collapse;table-layout:fixed;"><tr><td style="font-size:9.5px;line-height:13.5px;padding:0;color:#343a3f;" contenteditable="true">PRODUCT</td></tr><tr><td style="height:18px;padding:0;"></td></tr><tr><td style="font-size:9.5px;line-height:13.5px;padding:0;color:#343a3f;" contenteditable="true">CARRIER UNLOCKED AND</td></tr><tr><td style="font-size:9.5px;line-height:13.5px;padding:0;color:#343a3f;" contenteditable="true">ICLOUD GUARANTEE</td></tr></table></td><td style="font-size:9.5px;color:#343a3f;padding:11px 2px 10px 2px;vertical-align:top;text-align:right;border-bottom:1px solid #e2e6e9;"><input style="width:100%;border:0;background:transparent;font-size:9.5px;color:#343a3f;text-align:right;padding:0;" type="text" class="invoice_item_qtd" maxlength="5"></td><td style="font-size:9.5px;color:#343a3f;padding:11px 2px 10px 2px;vertical-align:top;text-align:right;border-bottom:1px solid #e2e6e9;"><input style="width:100%;border:0;background:transparent;font-size:9.5px;color:#343a3f;text-align:right;padding:0;" type="text" class="invoice_item_preco"></td><td class="invoice_item_total" style="font-size:9.5px;color:#343a3f;padding:11px 2px 10px 2px;vertical-align:top;text-align:right;border-bottom:1px solid #e2e6e9;">$ 0.00</td></tr>');
-                $('.invoice4-items').append('<tr class="invoice4-item"><td style="width:60%;border:2px solid #999999;color:#000;font-size:13px;padding:2px 7px;height:28px;border-top:0;border-right:0;" contenteditable="true">PRODUCT</td><td style="width:10%;border:2px solid #999999;color:#000;font-size:13px;padding:2px 7px;height:28px;border-top:0;border-right:0;text-align:right;"><input type="text" name="" class="invoice_item_qtd" maxlength="5"></td><td style="width:15%;border:2px solid #999999;color:#000;font-size:13px;padding:2px 7px;height:28px;border-top:0;border-right:0;text-align:right;"><input type="text" name="" class="invoice_item_preco"></td><td style="width:15%;border:2px solid #999999;color:#000;font-size:13px;padding:2px 7px;height:28px;border-top:0;text-align:right;" class="invoice_item_total">$ 0.00</td></tr>');
-                $('.invoice3-items').append('<tr class="invoice3-item"><td style="width:10%;border:1px solid #c0c6cb;color:#20262d;font-size:10.5px;padding:6px 8px;"><input type="text" class="invoice_item_qtd" maxlength="5" style="width:100%;border:0;background:transparent;font-size:10.5px;color:#20262d;padding:0;"></td><td style="width:60%;border:1px solid #c0c6cb;color:#20262d;font-size:10.5px;padding:6px 8px;" contenteditable="true">PRODUCT</td><td style="width:15%;border:1px solid #c0c6cb;color:#20262d;font-size:10.5px;padding:6px 8px;text-align:right;"><input type="text" class="invoice_item_preco" style="width:100%;border:0;background:transparent;font-size:10.5px;color:#20262d;text-align:right;padding:0;"></td><td style="width:15%;border:1px solid #c0c6cb;color:#20262d;font-size:10.5px;padding:6px 8px;text-align:right;" class="invoice_item_total">$ 0.00</td></tr>');
-                $('.invoice2-items').append('<div style="width:100%;white-space:nowrap;" class="invoice2-item"><div><input style="margin-bottom:10px;font-size:13px;color:#000;width:10%;float:left;position:unset;" type="text" name="" class="invoice_item_qtd pdf-text" maxlength="5"></div><div style="margin-bottom:10px;font-size:13px;color:#000;width:50%;float:left;" contenteditable="true">PRODUCT</div><div><input style="margin-bottom:10px;font-size:13px;color:#000;width:20%;float:left;text-align:right;position:unset;" type="text" name="" class="invoice_item_preco pdf-text"></div><div style="margin-bottom:10px;font-size:13px;color:#000;width:20%;float:left;text-align:right;" class="invoice_item_total">U$ 0,00</div></div><div style="clear:both;" class="invoice2-both"></div>');
-
-                var last_top = $('.container_invoice .invoice_item:last-child div').css("top").replace('px', '');
-                last_top = parseInt(last_top) + 60;
-                $('.container_invoice').append(
-                    '<div class="invoice_item pdf-container"><div class="pdf-text l-0 ml-20" style="top:' + last_top + 'px;min-width:200px;" contenteditable="true">PRODUCT</div><div class="pdf-text l-0 ml-20" style="top:' + (last_top + 20) + 'px;min-width:200px;" contenteditable="true">COLOR</div><div><input style="top:' + last_top + 'px;left:50%;width:100px;text-align:right;" type="text" name="" class="invoice_item_qtd pdf-text" maxlength="5"></div><div><input style="top:' + last_top + 'px;left:70%;width:90px;text-align:right;display:block;" type="text" name="" class="invoice_item_preco pdf-text"></div><div style="top:' + last_top + 'px;right:0;" class="invoice_item_total pdf-text mr-20">$ 0.00</div><div class="pdf-container" style="position:absolute;height:2px;background-color:#f4f4f4;top:' + (last_top + 50) + 'px;"></div></div>'
-                );
+                adicionaLinha('.invoice5-items', '<tr class="invoice5-item" style="page-break-inside:avoid;height:88px;"><td class="scal-row-number" style="font-size:9.5px;color:#343a3f;padding:11px 2px 10px 2px;vertical-align:top;border-bottom:1px solid #e2e6e9;"></td><td style="font-size:9.5px;color:#343a3f;padding:11px 2px 10px 2px;vertical-align:top;border-bottom:1px solid #e2e6e9;" contenteditable="true"></td><td style="font-size:9.5px;color:#343a3f;padding:11px 2px 10px 2px;vertical-align:top;border-bottom:1px solid #e2e6e9;font-weight:bold;" contenteditable="true">Sales</td><td style="font-size:9.5px;color:#343a3f;padding:11px 2px 10px 2px;vertical-align:top;border-bottom:1px solid #e2e6e9;" contenteditable="true"></td><td style="font-size:9.5px;color:#343a3f;padding:11px 2px 10px 2px;vertical-align:top;border-bottom:1px solid #e2e6e9;line-height:13.5px;"><table style="width:100%;border-collapse:collapse;table-layout:fixed;"><tr><td style="font-size:9.5px;line-height:13.5px;padding:0;color:#343a3f;" contenteditable="true">PRODUCT</td></tr><tr><td style="height:18px;padding:0;"></td></tr><tr><td style="font-size:9.5px;line-height:13.5px;padding:0;color:#343a3f;" contenteditable="true">CARRIER UNLOCKED AND</td></tr><tr><td style="font-size:9.5px;line-height:13.5px;padding:0;color:#343a3f;" contenteditable="true">ICLOUD GUARANTEE</td></tr></table></td><td style="font-size:9.5px;color:#343a3f;padding:11px 2px 10px 2px;vertical-align:top;text-align:right;border-bottom:1px solid #e2e6e9;"><input style="width:100%;border:0;background:transparent;font-size:9.5px;color:#343a3f;text-align:right;padding:0;" type="text" class="invoice_item_qtd" maxlength="5"></td><td style="font-size:9.5px;color:#343a3f;padding:11px 2px 10px 2px;vertical-align:top;text-align:right;border-bottom:1px solid #e2e6e9;"><input style="width:100%;border:0;background:transparent;font-size:9.5px;color:#343a3f;text-align:right;padding:0;" type="text" class="invoice_item_preco"></td><td class="invoice_item_total" style="font-size:9.5px;color:#343a3f;padding:11px 2px 10px 2px;vertical-align:top;text-align:right;border-bottom:1px solid #e2e6e9;">$ 0.00</td></tr>');
+                adicionaLinha('.invoice4-items', '<tr class="invoice4-item"><td style="width:60%;border:2px solid #999999;color:#000;font-size:13px;padding:2px 7px;height:28px;border-top:0;border-right:0;" contenteditable="true">PRODUCT</td><td style="width:10%;border:2px solid #999999;color:#000;font-size:13px;padding:2px 7px;height:28px;border-top:0;border-right:0;text-align:right;"><input type="text" name="" class="invoice_item_qtd" maxlength="5"></td><td style="width:15%;border:2px solid #999999;color:#000;font-size:13px;padding:2px 7px;height:28px;border-top:0;border-right:0;text-align:right;"><input type="text" name="" class="invoice_item_preco"></td><td style="width:15%;border:2px solid #999999;color:#000;font-size:13px;padding:2px 7px;height:28px;border-top:0;text-align:right;" class="invoice_item_total">$ 0.00</td></tr>');
+                adicionaLinha('.invoice3-items', '<tr class="invoice3-item"><td style="width:10%;border:1px solid #c0c6cb;color:#20262d;font-size:10.5px;padding:6px 8px;"><input type="text" class="invoice_item_qtd" maxlength="5" style="width:100%;border:0;background:transparent;font-size:10.5px;color:#20262d;padding:0;"></td><td style="width:60%;border:1px solid #c0c6cb;color:#20262d;font-size:10.5px;padding:6px 8px;" contenteditable="true">PRODUCT</td><td style="width:15%;border:1px solid #c0c6cb;color:#20262d;font-size:10.5px;padding:6px 8px;text-align:right;"><input type="text" class="invoice_item_preco" style="width:100%;border:0;background:transparent;font-size:10.5px;color:#20262d;text-align:right;padding:0;"></td><td style="width:15%;border:1px solid #c0c6cb;color:#20262d;font-size:10.5px;padding:6px 8px;text-align:right;" class="invoice_item_total">$ 0.00</td></tr>');
+                adicionaLinha('.invoice2-items', '<tr class="invoice2-item"><td style="border:0;padding:0 0 10px 0;font-size:13px;color:#000;"><input style="width:100%;border:0;background:transparent;font-size:13px;color:#000;padding:0;" type="text" name="" class="invoice_item_qtd" maxlength="5"></td><td style="border:0;padding:0 0 10px 0;font-size:13px;color:#000;" contenteditable="true">PRODUCT</td><td style="border:0;padding:0 0 10px 0;font-size:13px;color:#000;text-align:right;"><input style="width:100%;border:0;background:transparent;font-size:13px;color:#000;text-align:right;padding:0;" type="text" name="" class="invoice_item_preco"></td><td class="invoice_item_total" style="border:0;padding:0 0 10px 0;font-size:13px;color:#000;text-align:right;">U$ 0,00</td></tr>');
+                adicionaLinha('.container_invoice', '<tr class="invoice_item"><td style="border:0;border-bottom:2px solid #f4f4f4;padding:10px 0 10px 20px;font-size:12px;vertical-align:top;"><div contenteditable="true">PRODUCT</div><div contenteditable="true">COLOR</div></td><td style="border:0;border-bottom:2px solid #f4f4f4;padding:10px 0;font-size:12px;text-align:right;vertical-align:top;"><input style="width:100%;border:0;background:transparent;font-size:12px;color:#000;text-align:right;padding:0;" type="text" name="" class="invoice_item_qtd" maxlength="5"></td><td style="border:0;border-bottom:2px solid #f4f4f4;padding:10px 0;font-size:12px;text-align:right;vertical-align:top;"><input style="width:100%;border:0;background:transparent;font-size:12px;color:#000;text-align:right;padding:0;" type="text" name="" class="invoice_item_preco"></td><td style="border:0;border-bottom:2px solid #f4f4f4;padding:10px 20px 10px 0;font-size:12px;text-align:right;vertical-align:top;" class="invoice_item_total">$ 0.00</td></tr>');
 
                 $(".invoice_item_preco, .invoice_item_total").priceFormat(formatoPreco);
                 $('.invoice_item_qtd').mask('######');
@@ -824,13 +910,11 @@
 
             $(document).on("click", '.remove-new-line', function(e){
                 e.preventDefault();
-                $('.container_invoice .invoice_item:last-child').remove();
-                $('.invoice2-items .invoice2-both:last-child').remove();
-                $('.invoice2-items .invoice2-item:last-child').remove();
-                $('.invoice3-items .invoice3-item:last-child').remove();
-                $('.invoice4-items .invoice4-item:last-child').remove();
-                $('.invoice5-items .invoice5-both:last-child').remove();
-                $('.invoice5-items > tbody > .invoice5-item:last-child').remove();
+                removeUltimaLinha('.container_invoice', '.invoice_item');
+                removeUltimaLinha('.invoice2-items', '.invoice2-item');
+                removeUltimaLinha('.invoice3-items', '.invoice3-item');
+                removeUltimaLinha('.invoice4-items', '.invoice4-item');
+                removeUltimaLinha('.invoice5-items', '.invoice5-item');
                 atualizarNumeracaoScal();
             });
 
@@ -1028,22 +1112,14 @@
                 $clone.find('[contenteditable]').removeAttr('contenteditable');
                 $clone.find('.bottom-3-repair').css({bottom: 'auto'});
 
+                /*
+                 * Todo input vira texto na célula que o contém. O legado tinha
+                 * um segundo caminho que copiava o style do input pro pai e
+                 * marcava .pdf-text (position:absolute) — era pros modelos 1 e
+                 * 2, que hoje também são tabelas, então não existe mais.
+                 */
                 $clone.find('.invoice_item_qtd, .invoice_item_preco, .total_editavel').each(function(){
-                    var valor = $(this).val() || '';
-                    var $parent = $(this).parent();
-
-                    if($(this).hasClass('total_editavel')) {
-                        $parent.text(valor);
-                        return;
-                    }
-
-                    if(seletorPDF == '#conteudo_pdf_3' || seletorPDF == '#conteudo_pdf_4' || seletorPDF == '#conteudo_pdf_5') {
-                        $parent.text(valor);
-                    } else {
-                        $parent.attr('style', $(this).attr('style') || '');
-                        $parent.addClass('pdf-text');
-                        $parent.text(valor);
-                    }
+                    $(this).parent().text($(this).val() || '');
                 });
 
                 $clone.find('input, textarea, select, button').each(function(){
