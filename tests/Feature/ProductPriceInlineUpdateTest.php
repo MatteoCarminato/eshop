@@ -469,7 +469,7 @@ class ProductPriceInlineUpdateTest extends TestCase
         $this->assertSame(1200.0, (float) $fresh->price);
     }
 
-    // ---- preço médio (UCBASE) ---------------------------------------------
+    // ---- preço médio (CUSMED) ---------------------------------------------
 
     public function test_preco_medio_nao_e_editavel(): void
     {

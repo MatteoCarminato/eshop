@@ -119,7 +119,7 @@ class ErpCatalogSyncServiceTest extends TestCase
             'PRECOWEB' => '7999.00',
             'PREVEN' => '7999.000000',
             'PREMIN' => '7000.000000',
-            'UCBASE' => '6850.123400',
+            'CUSMED' => '6850.123400',
             'ESTOQUE' => '10.000000000',
         ], $overrides);
     }
@@ -397,13 +397,13 @@ class ErpCatalogSyncServiceTest extends TestCase
     }
 
     /**
-     * UCBASE é custo médio do estoque, não preço de venda: produto sem
+     * CUSMED é custo médio do estoque, não preço de venda: produto sem
      * movimento de compra vem vazio e fica `null` — não cai pra PRECO3 nem
      * pra nenhum outro preço, diferente de `web_price`.
      */
-    public function test_sync_products_leaves_average_price_null_when_ucbase_is_empty(): void
+    public function test_sync_products_leaves_average_price_null_when_cusmed_is_empty(): void
     {
-        $service = $this->makeService(collect(), collect([$this->productRow(['UCBASE' => null])]), collect());
+        $service = $this->makeService(collect(), collect([$this->productRow(['CUSMED' => null])]), collect());
 
         $service->syncProducts();
 
@@ -417,7 +417,7 @@ class ErpCatalogSyncServiceTest extends TestCase
     {
         $this->makeService(collect(), collect([$this->productRow()]), collect())->syncProducts();
 
-        $this->makeService(collect(), collect([$this->productRow(['UCBASE' => '7100.000000'])]), collect())
+        $this->makeService(collect(), collect([$this->productRow(['CUSMED' => '7100.000000'])]), collect())
             ->syncProducts();
 
         $this->assertSame(7100.0, (float) Product::where('recno', 100)->first()->average_price);

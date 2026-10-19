@@ -34,7 +34,7 @@ class ProductAdminController extends Controller
      *   fica só na base do site.
      */
     public const PRICE_COLUMNS = [
-        // Preço médio (UCBASE): custo médio do estoque, vindo do ERP. Fica
+        // Preço médio (CUSMED): custo médio do estoque, vindo do ERP. Fica
         // antes do atacado de propósito — é contra ele que se confere a
         // margem ao digitar o preço. Só leitura: não há API de escrita no ERP
         // e custo médio não é número que se digita, sai do movimento de compra.

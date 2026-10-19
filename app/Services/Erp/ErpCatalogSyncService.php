@@ -284,11 +284,11 @@ class ErpCatalogSyncService
                     // propósito: é campo só do painel, nasce 0 e o sync nunca
                     // sobrescreve — ver Product::sitePrice().
                     'min_price' => $this->toDecimal($row->PREMIN ?? null),
-                    // Preço médio (UCBASE): custo médio do estoque, não preço
+                    // Preço médio (CUSMED): custo médio do produto, não preço
                     // de venda — por isso não entra em nenhuma cadeia de
                     // fallback dos outros preços. Sem movimento de compra o
                     // ERP traz vazio, e aí fica null mesmo.
-                    'average_price' => $this->toDecimal($row->UCBASE ?? null),
+                    'average_price' => $this->toDecimal($row->CUSMED ?? null),
                     'stock' => $this->toDecimal($row->ESTOQUE, 0),
                     // Atualizados a cada sync (ver docblock da classe): são
                     // classificação do ERP, não há edição manual no site.

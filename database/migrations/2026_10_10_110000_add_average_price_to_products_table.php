@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Espelha o preço médio do ERP (PRODUTO_PRO.UCBASE) para que a grade de
+     * Espelha o preço médio do ERP (PRODUTO_PRO.CUSMED) para que a grade de
      * preços mostre o custo médio ao lado do atacado — é o número que dá a
      * margem de olho ao varrer a lista corrigindo preço.
      *
