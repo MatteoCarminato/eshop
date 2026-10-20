@@ -40,15 +40,6 @@
                     </div>
                     <div class="pa-title">
                         <h1>Produtos × Preços</h1>
-                        <span class="sub">
-                            {{ $products->count() }} produtos carregados — sem paginação
-                            @if ($atacado === '1' && $semAtacado > 0)
-                                · <b>{{ $semAtacado }}</b> sem atacado ocultos
-                            @endif
-                            @if ($estoque === '1' && $semEstoque > 0)
-                                · <b>{{ $semEstoque }}</b> zerados ocultos
-                            @endif
-                        </span>
                         @unless ($canManage)
                             <span class="pa-pill al" title="Falta o módulo products.manage">somente leitura</span>
                         @endunless
