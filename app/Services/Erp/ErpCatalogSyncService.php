@@ -321,7 +321,10 @@ class ErpCatalogSyncService
                     // manualmente no admin do site (categoria/storage/cor são só um
                     // ponto de partida gerado por ProductClassifierService na criação).
                     if (!$dryRun) {
-                        $product->update($syncedAttributes);
+                        $product->update(array_merge(
+                            $syncedAttributes,
+                            $this->reclassifyOnRename($product, $name)
+                        ));
                     }
                     $counts['updated']++;
                 }
@@ -455,6 +458,45 @@ class ErpCatalogSyncService
         }
 
         return $slug;
+    }
+
+    /**
+     * O ERP costuma cadastrar o produto com nome incompleto ("APPLE WATCH SE")
+     * e completar depois ("APPLE WATCH SE 40MM STARLIGHT ..."). Como a
+     * classificação só roda na criação, o produto ficava com categoria/cor/
+     * modelo do nome antigo. Ao detectar renomeação, reclassifica só os campos
+     * que ainda batem com o que o classificador gerou pro nome antigo — campo
+     * diferente disso foi editado no admin e é preservado.
+     *
+     * @return array<string, mixed>
+     */
+    protected function reclassifyOnRename(Product $product, string $newName): array
+    {
+        $oldName = (string) $product->name;
+        if ($oldName === $newName) {
+            return [];
+        }
+
+        $changes = [];
+
+        if ($product->category_id === null
+            || $product->category?->slug === $this->classifier->classifyCategory($oldName)['slug']) {
+            $changes['category_id'] = $this->findOrCreateCategory($this->classifier->classifyCategory($newName));
+        }
+
+        $fields = [
+            'storage' => fn (string $n) => $this->classifier->extractStorage($n),
+            'color_name' => fn (string $n) => $this->classifier->extractColor($n),
+            'model' => fn (string $n) => $this->classifier->extractModel($n),
+        ];
+
+        foreach ($fields as $field => $extract) {
+            if ($product->{$field} === null || $product->{$field} === $extract($oldName)) {
+                $changes[$field] = $extract($newName);
+            }
+        }
+
+        return $changes;
     }
 
     /**

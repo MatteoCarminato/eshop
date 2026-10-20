@@ -32,7 +32,7 @@ class ProductClassifierService
         ],
         'games' => ['name' => 'Games', 'terms' => ['PLAYSTATION']],
         'eletronicos' => ['name' => 'Eletrônicos', 'terms' => ['FIRE STICK', 'LIQUIDIFICADOR', 'OCULOS']],
-        'acessorios' => ['name' => 'Acessórios', 'terms' => ['AIRTAG', 'CABO', 'USB-C']],
+        'acessorios' => ['name' => 'Acessórios', 'terms' => ['AIRTAG', 'CABO', 'USB-C', 'FONE', 'ADAPTADOR']],
     ];
 
     private const FALLBACK_CATEGORY = ['slug' => 'outros', 'name' => 'Outros'];
@@ -65,6 +65,10 @@ class ProductClassifierService
         'BURGUNDY' => 'Burgundy',
         'GLACIER' => 'Glacier',
         'SAGE' => 'Sage',
+        'CITRUS' => 'Citrus',
+        'BLUSH' => 'Blush',
+        'INDIGO' => 'Indigo',
+        'PRETO FOSCO' => 'Black',
         'BLACK' => 'Black',
         'WHITE' => 'White',
         'SILVER' => 'Silver',
@@ -104,10 +108,22 @@ class ProductClassifierService
      * produto no ERP (ex.: "16GB/256GB SSD" vs "256GB/8GB"), mas armazenamento
      * é sempre maior que RAM nos produtos deste catálogo, então o maior valor
      * é sempre o armazenamento real.
+     *
+     * Também aceita tamanho sem unidade ("PROMAX 256", "16GB/256"), comum no
+     * ERP — só os valores típicos de armazenamento (BARE_STORAGE_PATTERN), pra
+     * não confundir com número de modelo ("IPHONE 13", "S11").
      */
     public function extractStorage(string $name): ?string
     {
-        if (!preg_match_all('/(\d+)\s*(GB|TB)\b/i', $name, $matches, PREG_SET_ORDER)) {
+        preg_match_all('/(\d+)\s*(GB|TB)\b/i', $name, $withUnit, PREG_SET_ORDER);
+        preg_match_all(self::BARE_STORAGE_PATTERN, $name, $bare, PREG_SET_ORDER);
+
+        $matches = array_merge(
+            $withUnit,
+            array_map(fn ($m) => [$m[0], $m[1], 'GB'], $bare)
+        );
+
+        if ($matches === []) {
             return null;
         }
 
@@ -127,6 +143,18 @@ class ProductClassifierService
 
         return $best;
     }
+
+    /**
+     * Número solto (sem GB/TB) tratado como armazenamento em GB.
+     */
+    private const BARE_STORAGE_PATTERN = '#(?<![\w.])(64|128|256|512)(?![\w.])#';
+
+    /**
+     * Part number da Apple (ex.: "MJKY4LW/A", "MU9D3LL/A", "MEWM4AF/A") —
+     * muda a cada cor/tamanho, então precisa sair do "modelo" senão as cores
+     * do mesmo relógio/notebook nunca viram variantes uma da outra.
+     */
+    private const APPLE_PART_NUMBER_PATTERN = '#\b[A-Z0-9]{5}[A-Z]{2}/A\b#i';
 
     public function extractColor(string $name): ?string
     {
@@ -181,6 +209,8 @@ class ProductClassifierService
         // extractStorage), pra sumir tanto o armazenamento quanto a RAM
         // quando os dois aparecem juntos (ex.: "16GB/256GB").
         $model = preg_replace('/\d+\s*(GB|TB)\b/i', '', $model) ?? $model;
+        $model = preg_replace(self::BARE_STORAGE_PATTERN, '', $model) ?? $model;
+        $model = preg_replace(self::APPLE_PART_NUMBER_PATTERN, '', $model) ?? $model;
 
         if ($colorTerm = $this->matchedColorTerm($name)) {
             $model = str_ireplace($colorTerm, '', $model);
