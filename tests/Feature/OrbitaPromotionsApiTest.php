@@ -49,9 +49,12 @@ class OrbitaPromotionsApiTest extends TestCase
         $data = $this->promotions(['limit' => 10])->assertOk()->json('data');
 
         $this->assertSame(['desconto-50', 'desconto-10'], array_column($data, 'slug'));
-        // Promoção vira o preço e o Preço Web vai como "de" riscado.
-        $this->assertEquals(500, $data[0]['price']);
-        $this->assertEquals(1000, $data[0]['compareAtPrice']);
+        // Promoção vira o preço e o Preço Web vai como "de" riscado. A asserção
+        // é no par em dólar porque é nele que o valor do painel sai intacto:
+        // `price`/`compareAtPrice` são a conversão pra real e variam com o
+        // câmbio do dia.
+        $this->assertEquals(500, $data[0]['priceUsd']);
+        $this->assertEquals(1000, $data[0]['compareAtPriceUsd']);
     }
 
     public function test_promo_acima_do_preco_web_e_ignorada(): void

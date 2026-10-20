@@ -358,9 +358,14 @@ class OrbitaCatalogService
         return $this->exchangeRateService->getUsdBrlRate()['rate'] ?? self::FALLBACK_USD_RATE;
     }
 
-    public function toUsd(float $brlAmount, float $usdRate): float
+    /**
+     * O preço do ERP (PRECOWEB/PRECO3) já está em dólar — é a moeda em que a
+     * loja negocia. Real e guarani são conversões de exibição a partir dele,
+     * não o contrário.
+     */
+    public function toBrl(float $usdAmount, float $usdRate): float
     {
-        return $usdRate > 0 ? round($brlAmount / $usdRate, 2) : 0.0;
+        return round($usdAmount * $usdRate, 2);
     }
 
     public function toPyg(float $usdAmount): float

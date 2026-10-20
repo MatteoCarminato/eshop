@@ -35,10 +35,13 @@ class ProductResource extends JsonResource
         /** @var OrbitaCatalogService $catalog */
         $catalog = app(OrbitaCatalogService::class);
         $usdRate = $catalog->usdRate();
-        $price = $product->sitePrice();
-        $priceUsd = $catalog->toUsd($price, $usdRate);
-        $compareAt = $product->siteCompareAtPrice();
-        $compareAtUsd = $compareAt !== null ? $catalog->toUsd($compareAt, $usdRate) : null;
+        // O preço do painel/ERP já está em dólar: é ele o `priceUsd`, e real e
+        // guarani saem dele. Antes o valor era tratado como real e dividido
+        // pelo câmbio, o que mostrava um iPhone de US$ 1.320 como US$ 263.
+        $priceUsd = $product->sitePrice();
+        $price = $catalog->toBrl($priceUsd, $usdRate);
+        $compareAtUsd = $product->siteCompareAtPrice();
+        $compareAt = $compareAtUsd !== null ? $catalog->toBrl($compareAtUsd, $usdRate) : null;
 
         // Alt com nome do produto + marca da loja — texto alternativo real
         // em vez de só o nome, melhor pra SEO de busca de imagens.
