@@ -14,6 +14,23 @@
         <div class="container-fluid">
             @include('admin.products.partials.style-admin')
 
+            {{-- Retorno das ações da toolbar (hoje só "Atualizar XML"): esta
+                 tela tem layout próprio e não herda o bloco de flash das
+                 outras, então precisa do seu. --}}
+            @if (session('success'))
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <strong>Sucesso!</strong> {{ session('success') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+                </div>
+            @endif
+
+            @if (session('error'))
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <strong>Erro!</strong> {{ session('error') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+                </div>
+            @endif
+
             <div class="pa">
                 <div class="pa-head">
                     <div class="pa-crumb">
@@ -47,6 +64,15 @@
                         <div class="pa-toolbar">
                             <a href="{{ route('products-admin.export') }}" class="pa-act">Exportar</a>
                             <a href="{{ route('products.index') }}" class="pa-act ghost">Catálogo completo</a>
+                            @if ($canManage)
+                                {{-- O feed do ComprasPY se regenera sozinho de hora em hora; este
+                                     botão é pra publicar na hora quem acabou de mexer em preço/estoque. --}}
+                                <form method="POST" action="{{ route('compraspy.feed.refresh') }}" style="display:contents">
+                                    @csrf
+                                    <button type="submit" class="pa-act ghost"
+                                        title="Republica o feed XML do ComprasPY agora (ele também é atualizado automaticamente a cada hora)">Atualizar XML</button>
+                                </form>
+                            @endif
                         </div>
                     </div>
                 </div>

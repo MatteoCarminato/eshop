@@ -1,10 +1,28 @@
 <?php
 
 use App\Http\Controllers\AiController;
+use App\Http\Controllers\ComprasPyFeedController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome')->name('home');
+
+// Feed XML do ComprasPY — rota PÚBLICA, sem auth (o agregador busca sem
+// credencial). O caminho repete o do arquivo estático que o cron legado
+// publicava, porque é a URL já cadastrada no ComprasPY; quem a serve no
+// domínio da loja é um proxy no Orbita — ver docs/ComprasPy-Feed.md.
+// Sem sessão/cookie: a resposta é um XML público e cacheável, e o grupo `web`
+// grava cookie de sessão + XSRF-TOKEN em toda resposta — o que, além de ser
+// ruído pro agregador, impede cache compartilhado (CDN/proxy) do feed.
+Route::get('/compraspy/feedseshop.xml', [ComprasPyFeedController::class, 'show'])
+    ->name('compraspy.feed')
+    ->withoutMiddleware([
+        \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
+    ]);
 
 
 Route::get('/dashboard', function () {
@@ -74,6 +92,12 @@ Route::middleware('auth')->group(function () {
     Route::post('products-admin/export/pdf', [\App\Http\Controllers\ProductAdminController::class, 'exportPdf'])
         ->name('products-admin.export-pdf')
         ->middleware('module:products.view');
+
+    // Botão "Atualizar XML" da grade de preços: regenera o feed do ComprasPY
+    // na hora, sem esperar o ciclo do scheduler.
+    Route::post('products-admin/feed/refresh', [ComprasPyFeedController::class, 'refresh'])
+        ->name('compraspy.feed.refresh')
+        ->middleware('module:products.manage');
 
     // Edição inline de um preço — ver é products.view, gravar exige manage
     Route::patch('products-admin/{product}/prices', [\App\Http\Controllers\ProductAdminController::class, 'updatePrices'])

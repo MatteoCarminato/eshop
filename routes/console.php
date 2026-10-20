@@ -68,3 +68,11 @@ Schedule::command('erp:sync-catalog')
     ->everyMinute()
     ->withoutOverlapping()
     ->name('erp-sync-catalog');
+
+// Reaquece o cache do feed XML do ComprasPY (substitui o cron legado
+// `gerar_feed_compraspy.php`). De hora em hora, mesmo ciclo do TTL do cache —
+// ver config/feeds.php e docs/ComprasPy-Feed.md.
+Schedule::command('compraspy:feed')
+    ->hourly()
+    ->withoutOverlapping()
+    ->name('compraspy-feed');
