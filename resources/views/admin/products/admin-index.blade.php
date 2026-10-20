@@ -107,7 +107,7 @@
                     <table class="pa-rows" id="paTable">
                         <thead>
                             <tr>
-                                <th class="pa-idx" scope="col" data-k="idx" title="Ordenar pela posição original">#</th>
+                                <th class="pa-idx" scope="col" data-k="idx" title="ID do produto — ordenar por ID">ID</th>
                                 <th scope="col" data-k="name">Produto <span class="ar"></span></th>
                                 <th class="r pa-est" scope="col" data-k="stock" style="width:74px"
                                     title="Estoque no ERP (ESTOQUE)">Estoque <span class="ar"></span></th>
@@ -118,13 +118,13 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse ($products as $i => $product)
+                            @forelse ($products as $product)
                                 <tr class="pa-row {{ $product->active ? '' : 'off' }}"
                                     data-id="{{ $product->id }}"
-                                    data-idx="{{ $i + 1 }}"
+                                    data-idx="{{ $product->id }}"
                                     data-busca="{{ mb_strtolower($product->name . ' ' . $product->short_name . ' ' . ($product->brand->name ?? '')) }}"
                                     data-v-name="{{ $product->name }}">
-                                    <td class="pa-idx">{{ $i + 1 }}</td>
+                                    <td class="pa-idx">{{ $product->id }}</td>
                                     <td>
                                         <span class="pa-name">{{ $product->name }}</span>
                                         @if ($product->brand)
@@ -654,7 +654,8 @@
                 let n = 0;
                 rows.forEach(r => {
                     const texto = r.dataset.busca;
-                    const bate = alvos.every(t => texto.includes(t));
+                    // Termo igual ao ID do produto também casa (ex.: "259").
+                    const bate = alvos.every(t => texto.includes(t) || t === r.dataset.id);
                     r.classList.toggle('pa-hide', !bate);
                     if (bate) n++;
                 });

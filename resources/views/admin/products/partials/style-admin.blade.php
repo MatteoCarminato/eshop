@@ -101,7 +101,8 @@
 .pa table.pa-rows td{border-bottom:1px solid var(--pa-line3);padding:3px 8px;height:22px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pa table.pa-rows tbody tr{transition:background .08s}
-.pa table.pa-rows tbody tr:hover td{background:#f8fafd}
+.pa table.pa-rows tbody tr:hover td,
+.pa table.pa-rows tbody tr:hover td.pa-cell.ro{background:#d9e2ee}
 .pa table.pa-rows tbody tr.cur td{background:var(--pa-accent-w) !important}
 .pa table.pa-rows tbody tr.cur td:first-child{box-shadow:inset 2px 0 0 var(--pa-accent)}
 .pa table.pa-rows tbody tr.pa-hide{display:none}

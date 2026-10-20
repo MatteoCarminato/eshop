@@ -210,10 +210,14 @@
             }
 
             // ---- texto da lista -------------------------------------------------
-            // "BLUE U$ 1.215,00 (138)" — preço e estoque entram conforme o modo.
+            // Negrito do WhatsApp: texto entre asteriscos.
+            // Sem trim, espaço colado no asterisco quebra o negrito.
+            const negrito = t => '*' + String(t).trim() + '*';
+
+            // "BLUE *U$ 1.215,00* (138)" — preço e estoque entram conforme o modo.
             function linhaDe(p) {
                 const partes = [p.nome];
-                if (MODOS[modo].preco) partes.push(fmtPreco(ajustar(p.preco)));
+                if (MODOS[modo].preco) partes.push(negrito(fmtPreco(ajustar(p.preco))));
                 if (MODOS[modo].estoque) partes.push('(' + fmtEstoque(p.estoque) + ')');
                 return partes.join(' ');
             }
@@ -228,11 +232,11 @@
                 .filter(g => g.produtos.length > 0);
 
             function montarTexto() {
-                // Cada bloco é "subgrupo + itens"; os blocos são separados por
-                // duas linhas em branco.
+                // Cada bloco é "subgrupo (em negrito) + itens"; os blocos são
+                // separados por duas linhas em branco.
                 return selecao().map(g => {
                     const itens = g.produtos.map(linhaDe);
-                    return [g.nome, ...itens].join('\n');
+                    return [negrito(g.nome), ...itens].join('\n');
                 }).join('\n\n\n');
             }
 
