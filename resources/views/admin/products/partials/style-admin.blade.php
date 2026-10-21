@@ -109,7 +109,7 @@
 
 .pa-idx{font-family:var(--pa-code);font-size:var(--pa-fs-mi);color:#98a2ae;text-align:right;width:40px}
 .pa-name{font-weight:700;color:var(--pa-ink);white-space:nowrap}
-.pa-brand{font-size:var(--pa-fs-mi);color:var(--pa-muted);margin-left:6px;font-weight:400}
+.pa-grupo{font-size:var(--pa-fs-mi);color:var(--pa-muted);margin-left:6px;font-weight:400}
 .pa-num{text-align:right;white-space:nowrap;font-family:var(--pa-code);letter-spacing:-.02em}
 .pa table.pa-rows tbody tr.off .pa-name{color:var(--pa-muted);font-weight:400}
 

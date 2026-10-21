@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\ErpWriteException;
-use App\Models\Brand;
 use App\Models\Product;
+use App\Models\ProductGroup;
 use App\Services\Erp\ErpPriceWriter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -125,7 +125,7 @@ class ProductAdminController extends Controller
      */
     public function index(Request $request): View
     {
-        $brand = $request->get('brand');
+        $group = $request->get('group');
         $active = $request->get('active', '1');
         // '1' = só com preço de atacado (padrão), '0' = só sem, '' = todos.
         // Padrão esconde os sem atacado: é o preço que o negócio usa, e boa
@@ -142,7 +142,7 @@ class ProductAdminController extends Controller
         // as três não divergirem. Atacado e estoque ficam em closures separadas
         // porque cada contagem precisa aplicar um sem aplicar o outro.
         $base = fn () => Product::query()
-            ->when($brand !== null && $brand !== '', fn ($q) => $q->where('brand_id', (int) $brand))
+            ->when($group !== null && $group !== '', fn ($q) => $q->where('product_group_id', (int) $group))
             ->when($active === '1', fn ($q) => $q->where('active', true))
             ->when($active === '0', fn ($q) => $q->where('active', false));
 
@@ -170,20 +170,20 @@ class ProductAdminController extends Controller
             ->select(array_merge(
                 // `stock` vem sempre: a coluna de estoque da grade é só um
                 // liga/desliga visual, não vale recarregar a tela pra isso.
-                ['id', 'brand_id', 'name', 'short_name', 'active', 'stock'],
+                ['id', 'product_group_id', 'name', 'short_name', 'active', 'stock'],
                 // Sem as calculadas (Diferença): no banco elas não existem.
                 array_keys(self::storedGridColumns()),
             ))
-            ->with('brand:id,name')
+            ->with('productGroup:id,name')
             ->where($filtroAtacado)
             ->where($filtroEstoque)
             ->orderBy('name')
             ->get();
 
-        $brands = Brand::orderBy('name')->get(['id', 'name']);
+        $groups = ProductGroup::orderBy('name')->get(['id', 'name']);
 
         // Quantos ficariam de fora por cada filtro, dentro dos mesmos filtros de
-        // marca/situação — mostrado nos chips "Sem preço" e "Zerados".
+        // grupo/situação — mostrado nos chips "Sem preço" e "Zerados".
         $semAtacado = $base()
             ->where($filtroEstoque)
             ->where(fn ($q) => $q->whereNull('wholesale_price')->orWhere('wholesale_price', '<=', 0))
@@ -195,7 +195,7 @@ class ProductAdminController extends Controller
             ->count();
 
         return view('admin.products.admin-index', compact(
-            'products', 'brands', 'brand', 'active', 'atacado', 'estoque', 'cols',
+            'products', 'groups', 'group', 'active', 'atacado', 'estoque', 'cols',
             'semAtacado', 'semEstoque',
         ));
     }

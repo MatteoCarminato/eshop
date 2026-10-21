@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Product;
+use App\Models\ProductGroup;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -182,6 +183,51 @@ class ProductPriceInlineUpdateTest extends TestCase
             ->get(route('products-admin.index'))
             ->assertOk()
             ->assertSee('readonly', false);
+    }
+
+    /**
+     * A grade filtra e rotula por grupo de produto do ERP (GRUPO), não por
+     * marca.
+     */
+    public function test_grade_filtra_e_rotula_por_grupo_de_produto(): void
+    {
+        $celular = ProductGroup::create(['code' => 6, 'name' => 'CELULAR', 'slug' => 'celular', 'active' => true]);
+        $tablet = ProductGroup::create(['code' => 3, 'name' => 'TABLET', 'slug' => 'tablet', 'active' => true]);
+
+        $this->product(['name' => 'IPHONE 16 PRO', 'product_group_id' => $celular->id]);
+        $this->product(['name' => 'IPAD AIR', 'product_group_id' => $tablet->id]);
+
+        $this->actingAs($this->admin())
+            ->get(route('products-admin.index'))
+            ->assertOk()
+            ->assertSee('IPHONE 16 PRO')
+            ->assertSee('IPAD AIR')
+            // O grupo aparece ao lado do nome, no lugar onde a marca aparecia.
+            ->assertSee('CELULAR')
+            ->assertSee('TABLET')
+            ->assertSee('Todos os grupos')
+            ->assertDontSee('Todas as marcas');
+
+        $this->actingAs($this->admin())
+            ->get(route('products-admin.index', ['group' => $celular->id]))
+            ->assertOk()
+            ->assertSee('IPHONE 16 PRO')
+            ->assertDontSee('IPAD AIR');
+    }
+
+    /**
+     * Trocar de situação/estoque/atacado não pode perder o grupo escolhido —
+     * os chips carregam o filtro atual na própria URL.
+     */
+    public function test_chips_preservam_o_filtro_de_grupo(): void
+    {
+        $grupo = ProductGroup::create(['code' => 6, 'name' => 'CELULAR', 'slug' => 'celular', 'active' => true]);
+
+        $this->actingAs($this->admin())
+            ->get(route('products-admin.index', ['group' => $grupo->id]))
+            ->assertOk()
+            ->assertSee('group=' . $grupo->id, false)
+            ->assertDontSee('brand=', false);
     }
 
     public function test_grade_mostra_medio_atacado_diferenca_e_web(): void
@@ -586,7 +632,7 @@ class ProductPriceInlineUpdateTest extends TestCase
         $this->assertSame(['ATACADO NULO', 'ATACADO ZERO'], $nomes);
     }
 
-    public function test_filtro_de_atacado_combina_com_situacao_e_marca(): void
+    public function test_filtro_de_atacado_combina_com_situacao(): void
     {
         $this->product(['name' => 'ATIVO COM', 'slug' => 'ativo-com', 'wholesale_price' => 100, 'active' => true]);
         $this->product(['name' => 'INATIVO COM', 'slug' => 'inativo-com', 'wholesale_price' => 100, 'active' => false]);

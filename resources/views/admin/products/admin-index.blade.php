@@ -71,14 +71,14 @@
                 <div class="pa-chips">
                     <span class="pa-flab">Situação</span>
                     @foreach (['1' => 'Ativos', '0' => 'Inativos', '' => 'Todos'] as $v => $label)
-                        <a href="{{ route('products-admin.index', ['active' => $v, 'brand' => $brand, 'atacado' => $atacado, 'estoque' => $estoque]) }}"
+                        <a href="{{ route('products-admin.index', ['active' => $v, 'group' => $group, 'atacado' => $atacado, 'estoque' => $estoque]) }}"
                             class="pa-chip {{ (string) $active === (string) $v ? 'on' : '' }}"
                             style="text-decoration:none">{{ $label }}</a>
                     @endforeach
 
                     <span class="pa-flab" style="margin-left:10px">Estoque</span>
                     @foreach (['1' => 'Com estoque', '0' => 'Zerados', '' => 'Mostrar todos'] as $v => $label)
-                        <a href="{{ route('products-admin.index', ['active' => $active, 'brand' => $brand, 'atacado' => $atacado, 'estoque' => $v]) }}"
+                        <a href="{{ route('products-admin.index', ['active' => $active, 'group' => $group, 'atacado' => $atacado, 'estoque' => $v]) }}"
                             class="pa-chip {{ (string) $estoque === (string) $v ? 'on' : '' }}"
                             style="text-decoration:none"
                             @if ($v === '0') title="Produtos com saldo zerado no ERP — fora da lista por padrão" @endif>
@@ -91,7 +91,7 @@
 
                     <span class="pa-flab" style="margin-left:10px">Atacado</span>
                     @foreach (['1' => 'Com preço', '0' => 'Sem preço', '' => 'Mostrar todos'] as $v => $label)
-                        <a href="{{ route('products-admin.index', ['active' => $active, 'brand' => $brand, 'atacado' => $v, 'estoque' => $estoque]) }}"
+                        <a href="{{ route('products-admin.index', ['active' => $active, 'group' => $group, 'atacado' => $v, 'estoque' => $estoque]) }}"
                             class="pa-chip {{ (string) $atacado === (string) $v ? 'on' : '' }}"
                             style="text-decoration:none"
                             @if ($v === '0') title="Produtos sem PREATAC no ERP — os que precisam de preço" @endif>
@@ -102,16 +102,16 @@
                         </a>
                     @endforeach
 
-                    <span class="pa-flab" style="margin-left:10px">Marca</span>
+                    <span class="pa-flab" style="margin-left:10px">Grupo</span>
                     <form method="GET" action="{{ route('products-admin.index') }}" style="display:contents">
                         <input type="hidden" name="active" value="{{ $active }}">
                         <input type="hidden" name="atacado" value="{{ $atacado }}">
                         <input type="hidden" name="estoque" value="{{ $estoque }}">
-                        <select name="brand" class="pa-sel {{ $brand ? 'on' : '' }}" onchange="this.form.submit()">
-                            <option value="">Todas as marcas</option>
-                            @foreach ($brands as $b)
-                                <option value="{{ $b->id }}" {{ (string) $brand === (string) $b->id ? 'selected' : '' }}>
-                                    {{ $b->name }}
+                        <select name="group" class="pa-sel {{ $group ? 'on' : '' }}" onchange="this.form.submit()">
+                            <option value="">Todos os grupos</option>
+                            @foreach ($groups as $g)
+                                <option value="{{ $g->id }}" {{ (string) $group === (string) $g->id ? 'selected' : '' }}>
+                                    {{ $g->name }}
                                 </option>
                             @endforeach
                         </select>
@@ -139,13 +139,13 @@
                                 <tr class="pa-row {{ $product->active ? '' : 'off' }}"
                                     data-id="{{ $product->id }}"
                                     data-idx="{{ $product->id }}"
-                                    data-busca="{{ mb_strtolower($product->name . ' ' . $product->short_name . ' ' . ($product->brand->name ?? '')) }}"
+                                    data-busca="{{ mb_strtolower($product->name . ' ' . $product->short_name . ' ' . ($product->productGroup->name ?? '')) }}"
                                     data-v-name="{{ $product->name }}">
                                     <td class="pa-idx">{{ $product->id }}</td>
                                     <td>
                                         <span class="pa-name">{{ $product->name }}</span>
-                                        @if ($product->brand)
-                                            <span class="pa-brand">{{ $product->brand->name }}</span>
+                                        @if ($product->productGroup)
+                                            <span class="pa-grupo">{{ $product->productGroup->name }}</span>
                                         @endif
                                         @unless ($product->active)
                                             <span class="pa-pill bad" title="Produto inativo">inativo</span>
