@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\ProductImage;
 use App\Http\Requests\Product\StoreProductRequest;
 use App\Http\Requests\Product\UpdateProductRequest;
+use App\Services\Orbita\OrbitaRevalidator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -14,6 +15,10 @@ use Illuminate\Support\Str;
 
 class ProductService
 {
+    public function __construct(private OrbitaRevalidator $orbita)
+    {
+    }
+
     /**
      * List all products.
      *
@@ -101,6 +106,7 @@ class ProductService
         $product = Product::create($data);
 
         $this->addGalleryImages($product, $request->file('gallery', []));
+        $this->revalidarOrbita($product);
 
         return $product;
     }
@@ -132,6 +138,7 @@ class ProductService
         }
 
         $this->addGalleryImages($product, $request->file('gallery', []));
+        $this->revalidarOrbita($product);
 
         return $product->fresh();
     }
@@ -145,7 +152,27 @@ class ProductService
      */
     public function delete(Product $product): bool
     {
-        return $product->delete();
+        $apagado = $product->delete();
+
+        if ($apagado) {
+            $this->revalidarOrbita($product);
+        }
+
+        return $apagado;
+    }
+
+    /**
+     * Avisa o frontend Orbita pra derrubar o cache deste produto e das
+     * listagens — preço, promoção, estoque, foto e o próprio "ativo" saem
+     * daqui e precisam aparecer na loja na hora, não quando o ISR vencer (ver
+     * OrbitaRevalidator). Vai depois da resposta pra não somar latência ao
+     * salvar o formulário, e falhar nele não desfaz nada.
+     */
+    private function revalidarOrbita(Product $product): void
+    {
+        $orbita = $this->orbita;
+
+        dispatch(fn () => $orbita->product($product))->afterResponse();
     }
 
     /**

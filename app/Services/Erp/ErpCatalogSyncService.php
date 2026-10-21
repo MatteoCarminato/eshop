@@ -20,9 +20,14 @@ use Illuminate\Support\Str;
  * Regras de sincronização (ver docs/Erp-Sync.md para detalhes):
  * - Idempotente: upsert por `recno`.
  * - Não destrutiva: campos "próprios do site" (slug, description, image_url,
- *   featured, category_id, storage, color_name e, em produtos, active/brand_id)
- *   só são definidos na primeira criação do registro local — nunca são
- *   sobrescritos numa atualização.
+ *   featured, category_id, storage, color_name e, em produtos, active/brand_id
+ *   e web_price) só são definidos na primeira criação do registro local —
+ *   nunca são sobrescritos numa atualização.
+ * - O Preço Web (`web_price`, o que a loja cobra) é um desses: o PRECOWEB do
+ *   ERP saiu da integração. Ele era reescrito a cada sync, o que apagava o
+ *   preço digitado em /products-admin na primeira rodada seguinte. Agora o
+ *   sync só o semeia na criação (com o preço principal do ERP, pra o produto
+ *   novo não nascer invisível na loja) e nunca mais toca nele.
  * - Marcas, grupos e subgrupos devem ser sincronizados antes de produtos, pois
  *   a resolução de `brand_id`/`product_group_id`/`product_subgroup_id` de um
  *   produto depende desses registros já terem sido gravados.
@@ -260,7 +265,6 @@ class ErpCatalogSyncService
 
                 $preco3 = $this->toDecimal($row->PRECO3, 0);
                 $preven = $this->toDecimal($row->PREVEN ?? null);
-                $webPrice = $this->toDecimal($row->PRECOWEB ?? null);
 
                 // PRECO3 às vezes também vem zerado (produto ainda sem preço
                 // principal cadastrado no ERP) mas com PREVEN preenchido —
@@ -275,14 +279,13 @@ class ErpCatalogSyncService
                     'short_name' => $shortName,
                     'price' => $price,
                     'wholesale_price' => $this->toDecimal($row->PREATAC ?? null),
-                    // PRECOWEB costuma vir zerado/vazio no ERP para a maioria dos
-                    // produtos — nesse caso cai para o preço principal já resolvido
-                    // acima em vez de exibir R$ 0.
-                    'web_price' => $webPrice !== null && $webPrice > 0 ? $webPrice : $price,
                     'sale_price' => $preven,
-                    // `promo_price` (promoção da loja) NÃO entra aqui de
-                    // propósito: é campo só do painel, nasce 0 e o sync nunca
-                    // sobrescreve — ver Product::sitePrice().
+                    // `web_price` (Preço Web, o que a loja cobra) e
+                    // `promo_price` (promoção da loja) NÃO entram aqui de
+                    // propósito: são campos só do painel. O web_price nasce
+                    // semeado com $price na criação (abaixo) e a partir daí
+                    // quem manda é /products-admin; o PRECOWEB do ERP ficou
+                    // fora da integração — ver Product::sitePrice().
                     'min_price' => $this->toDecimal($row->PREMIN ?? null),
                     // Preço médio (CUSMED): custo médio do produto, não preço
                     // de venda — por isso não entra em nenhuma cadeia de
@@ -305,6 +308,11 @@ class ErpCatalogSyncService
 
                         Product::create(array_merge($syncedAttributes, [
                             'recno' => $recno,
+                            // Semente do Preço Web: produto novo já entra na
+                            // loja com o preço principal do ERP em vez de 0
+                            // (que o esconderia). Só aqui — nenhum sync
+                            // posterior reescreve essa coluna.
+                            'web_price' => $price,
                             'brand_id' => $brandId,
                             'category_id' => $this->findOrCreateCategory($category),
                             'storage' => $this->classifier->extractStorage($name),

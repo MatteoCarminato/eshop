@@ -91,7 +91,27 @@ mesmo número no resto do catálogo.
 `PREATAC`/`PREVEN`/`PREMIN` no `PRODUTO_PRO` pela conexão `erp_update` (ver
 acima) e só então grava na base local — recusa do ERP significa nada gravado
 dos dois lados. Web e Varejo ficam só na base local, que é o que a grade e a
-tela de exportar leem, até o próximo sync sobrescrever.
+tela de exportar leem.
+
+### O `PRECOWEB` saiu da integração
+
+O Preço Web (`products.web_price`) é o preço que a loja online cobra, e quem o
+define é o painel, em `/products-admin`. Até então o sync reescrevia a coluna a
+partir do `PRECOWEB` do ERP em toda rodada — ou seja, o preço digitado na grade
+vivia até o próximo sync e depois voltava sozinho ao valor do ERP.
+
+Hoje o `PRECOWEB` não é lido em lugar nenhum. O sync só **semeia** `web_price`
+na criação do produto, com o `price` já resolvido, pra o produto novo não
+nascer com preço `0` (que o esconderia da loja — ver docs/Orbita-Api.md), e
+nunca mais toca nessa coluna. Na prática `web_price` virou irmão de
+`promo_price`: campo só do painel.
+
+Salvar o Preço Web também avisa o frontend Orbita pra derrubar o cache dele na
+hora (`App\Services\Orbita\OrbitaRevalidator` → `POST /api/revalidate` no
+Next.js, autenticado pelo segredo `ORBITA_REVALIDATE_SECRET`). Sem esse aviso o
+preço novo só apareceria na vitrine quando o ISR do Orbita vencesse, minutos
+depois. O aviso é melhor-esforço: sai depois da resposta e, falhando, só vai
+pro log — a base do site continua sendo a fonte de verdade.
 
 ### Grupo e subgrupo não são hierárquicos
 
@@ -138,20 +158,23 @@ edições feitas por um admin no site. Ela faz upsert por `recno`:
     `stock`, `slug` (slugificado e deduplicado a partir de `NOMELONG`),
     `active = (ATIVO === 'S' && ENVIA_SITE === 'S')` e `synced_at = now()`.
   - Produto já existente: atualiza **apenas** `name`, `short_name`, os
-    preços, `stock`, `product_group_id`, `product_subgroup_id` e `synced_at`.
-    **Nunca** sobrescreve `slug`,
-    `description`, `image_url`, `active`, `featured` nem `brand_id` — se um
-    admin reatribuiu manualmente a marca de um produto ou o marcou como
-    destaque/inativo pelo admin do site, um re-sync não desfaz isso.
+    preços do ERP (`price`, `wholesale_price`, `sale_price`, `min_price`,
+    `average_price`), `stock`, `product_group_id`, `product_subgroup_id` e
+    `synced_at`. **Nunca** sobrescreve `slug`,
+    `description`, `image_url`, `active`, `featured`, `brand_id` nem
+    `web_price` — se um admin reatribuiu manualmente a marca de um produto,
+    o marcou como destaque/inativo ou digitou o Preço Web pelo admin do site,
+    um re-sync não desfaz isso.
   - Preços/estoque zerados no ERP são gravados como `0`, nunca convertidos
     para `null` — só ficam `null` quando o próprio ERP traz o campo vazio.
   - Exceções (cadeia de fallback para preços zerados/vazios no ERP):
     - `price` (= `PRECO3`): se vier `0`, cai para `PREVEN` (preço de venda)
       quando este for `> 0`. Alguns produtos no ERP ainda não têm `PRECO3`
       cadastrado mas já têm `PREVEN` preenchido.
-    - `web_price` (= `PRECOWEB`): se vier `0`/vazio, cai para o `price` já
-      resolvido acima (`PRECO3` ou, na ausência dele, `PREVEN`). Na prática
-      o ERP não alimenta `PRECOWEB` para a maior parte do catálogo.
+    - `web_price`: **não** vem do ERP (o `PRECOWEB` ficou fora da
+      integração — ver acima). Na criação recebe o `price` já resolvido acima
+      como semente; em qualquer atualização é ignorado, porque quem manda
+      nele é `/products-admin`.
     - Sem nenhum desses valores preenchidos no ERP, o produto fica mesmo com
       preço `0` — não há de onde puxar um valor melhor.
     - `average_price` (= `UCBASE`) **não** entra em nenhuma cadeia de

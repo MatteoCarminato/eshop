@@ -7,6 +7,7 @@ use App\Models\ProductGroup;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 /**
@@ -688,5 +689,78 @@ class ProductPriceInlineUpdateTest extends TestCase
             ->assertOk()
             ->assertSee('Produtos × Preços', false)
             ->assertSee('data-orig', false);
+    }
+
+    /**
+     * Configura a revalidação do Orbita e finge a chamada HTTP — sem isso o
+     * OrbitaRevalidator se desliga sozinho (ver enabled()).
+     */
+    private function fingeOrbita(): void
+    {
+        config([
+            'services.orbita.revalidate_url' => 'https://orbita.test/api/revalidate',
+            'services.orbita.revalidate_secret' => 'segredo-de-teste',
+        ]);
+
+        Http::fake(['orbita.test/*' => Http::response(['revalidated' => true])]);
+    }
+
+    /**
+     * O Preço Web é o preço que a loja cobra, e o Orbita cacheia as respostas
+     * da API: salvar a célula tem de avisar o site pra derrubar o cache do
+     * produto e das listagens na hora.
+     */
+    public function test_preco_web_avisa_o_orbita_pra_revalidar(): void
+    {
+        $product = $this->product(['slug' => 'iphone-16-pro-max-256gb-web']);
+        $this->fingeOrbita();
+
+        $this->actingAs($this->admin())
+            ->patchJson(route('products-admin.prices', $product), ['column' => 'web_price', 'value' => 1499])
+            ->assertOk();
+
+        Http::assertSent(function ($request) {
+            return $request->url() === 'https://orbita.test/api/revalidate'
+                && $request->hasHeader('X-Orbita-Revalidate', 'segredo-de-teste')
+                && $request['tags'] === ['catalog', 'product:iphone-16-pro-max-256gb-web'];
+        });
+    }
+
+    /**
+     * Atacado, promo, mínimo e varejo são preços internos — não aparecem na
+     * loja, então não há cache do Orbita pra invalidar.
+     */
+    public function test_atacado_nao_avisa_o_orbita(): void
+    {
+        $product = $this->product();
+        $this->fingeOrbita();
+
+        $this->actingAs($this->admin())
+            ->patchJson(route('products-admin.prices', $product), ['column' => 'wholesale_price', 'value' => 1050])
+            ->assertOk();
+
+        Http::assertNothingSent();
+    }
+
+    /**
+     * Orbita fora do ar não pode derrubar o salvamento do preço: a base do
+     * site é a fonte de verdade e o cache dele vence sozinho de qualquer jeito.
+     */
+    public function test_falha_do_orbita_nao_desfaz_a_gravacao(): void
+    {
+        $product = $this->product();
+
+        config([
+            'services.orbita.revalidate_url' => 'https://orbita.test/api/revalidate',
+            'services.orbita.revalidate_secret' => 'segredo-de-teste',
+        ]);
+        Http::fake(['orbita.test/*' => Http::response('nginx: 502', 502)]);
+
+        $this->actingAs($this->admin())
+            ->patchJson(route('products-admin.prices', $product), ['column' => 'web_price', 'value' => 1499])
+            ->assertOk()
+            ->assertJson(['success' => true]);
+
+        $this->assertSame(1499.0, (float) $product->fresh()->web_price);
     }
 }

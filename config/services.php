@@ -69,8 +69,16 @@ return [
 
     // API pública somente-leitura consumida pelo frontend Orbita (Next.js),
     // autenticada via header X-Orbita-Token. Ver routes/api.php.
+    //
+    // O caminho de volta é o revalidate: o Orbita cacheia as respostas da API
+    // (ISR), então quando um preço muda aqui avisamos ele pra jogar o cache
+    // fora na hora — ver App\Services\Orbita\OrbitaRevalidator e, no outro
+    // repositório, web/src/app/api/revalidate/route.ts. Vazio desliga o aviso
+    // (local/testes), e aí o cache do Orbita só vence pelo tempo.
     'orbita' => [
         'token' => env('ORBITA_API_TOKEN'),
+        'revalidate_url' => env('ORBITA_REVALIDATE_URL'),
+        'revalidate_secret' => env('ORBITA_REVALIDATE_SECRET'),
     ],
 
 ];

@@ -19,7 +19,7 @@ class ProductServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->productService = new ProductService();
+        $this->productService = app(ProductService::class);
     }
 
     /**

@@ -6,6 +6,7 @@ use App\Exceptions\ErpWriteException;
 use App\Models\Product;
 use App\Models\ProductGroup;
 use App\Services\Erp\ErpPriceWriter;
+use App\Services\Orbita\OrbitaRevalidator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -434,9 +435,21 @@ class ProductAdminController extends Controller
      * duas bases nunca ficam diferentes por causa de uma gravação que só
      * funcionou de um lado.
      *
+     * O Preço Web é o preço que a loja cobra (Product::sitePrice()), e o
+     * frontend Orbita cacheia as respostas da API. Por isso, salvar essa
+     * coluna avisa o Orbita pra revalidar o cache do produto e das listagens
+     * (OrbitaRevalidator) — o preço novo aparece na vitrine na hora, e não no
+     * fim do cache. O aviso vai depois da resposta (`dispatchAfterResponse`),
+     * então não atrasa a célula, e falhar nele não desfaz a gravação.
+     *
      * Os valores são em USD (o catálogo do ERP é todo em dólar).
      */
-    public function updatePrices(Request $request, Product $product, ErpPriceWriter $erp): JsonResponse
+    public function updatePrices(
+        Request $request,
+        Product $product,
+        ErpPriceWriter $erp,
+        OrbitaRevalidator $orbita,
+    ): JsonResponse
     {
         $data = $request->validate([
             'column' => ['required', 'string', Rule::in(array_keys(self::editableColumns()))],
@@ -469,6 +482,13 @@ class ProductAdminController extends Controller
         }
 
         $product->update(array_fill_keys($gravadas, $value));
+
+        // Só o Preço Web muda o que a loja cobra — atacado/promo/mínimo/varejo
+        // são preços internos e não aparecem no Orbita, então não há cache a
+        // invalidar por causa deles.
+        if ($column === 'web_price') {
+            dispatch(fn () => $orbita->product($product))->afterResponse();
+        }
 
         $fresh = $product->fresh();
         // Devolve os valores já normalizados pelo banco para a grade confirmar

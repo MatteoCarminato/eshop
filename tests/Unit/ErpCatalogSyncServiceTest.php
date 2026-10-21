@@ -343,36 +343,13 @@ class ErpCatalogSyncServiceTest extends TestCase
         $this->assertNull($product->wholesale_price);
     }
 
-    public function test_sync_products_falls_back_web_price_to_preco3_when_precoweb_is_zero(): void
-    {
-        $service = $this->makeService(
-            collect(),
-            collect([$this->productRow(['PRECOWEB' => '0.00'])]),
-            collect()
-        );
-
-        $service->syncProducts();
-
-        $product = Product::where('recno', 100)->first();
-        $this->assertSame(7999.0, (float) $product->price);
-        $this->assertSame(7999.0, (float) $product->web_price);
-    }
-
-    public function test_sync_products_falls_back_web_price_to_preco3_when_precoweb_is_null(): void
-    {
-        $service = $this->makeService(
-            collect(),
-            collect([$this->productRow(['PRECOWEB' => null])]),
-            collect()
-        );
-
-        $service->syncProducts();
-
-        $product = Product::where('recno', 100)->first();
-        $this->assertSame(7999.0, (float) $product->web_price);
-    }
-
-    public function test_sync_products_keeps_precoweb_when_greater_than_zero(): void
+    /**
+     * O Preço Web é do painel: na criação o sync só o semeia com o preço
+     * principal, pra o produto novo não nascer invisível na loja (o catálogo
+     * do Orbita exige web_price > 0). O PRECOWEB do ERP é ignorado — mesmo
+     * preenchido, e mesmo diferente do PRECO3.
+     */
+    public function test_sync_products_seeds_web_price_from_price_and_ignores_precoweb(): void
     {
         $service = $this->makeService(
             collect(),
@@ -383,7 +360,35 @@ class ErpCatalogSyncServiceTest extends TestCase
         $service->syncProducts();
 
         $product = Product::where('recno', 100)->first();
-        $this->assertSame(1230.0, (float) $product->web_price);
+        $this->assertSame(1390.0, (float) $product->price);
+        $this->assertSame(1390.0, (float) $product->web_price);
+    }
+
+    /**
+     * O caso que motivou tirar o PRECOWEB da integração: o preço digitado em
+     * /products-admin tem de sobreviver a todo sync seguinte, inclusive quando
+     * o ERP mexe no PRECO3 e quando tem PRECOWEB preenchido.
+     */
+    public function test_sync_products_never_overwrites_web_price_on_update(): void
+    {
+        $this->makeService(collect(), collect([$this->productRow()]), collect())->syncProducts();
+
+        // preço definido no painel, depois do produto já existir
+        Product::where('recno', 100)->update(['web_price' => 8499]);
+
+        $segundo = $this->makeService(
+            collect(),
+            collect([$this->productRow(['PRECO3' => '1390.000000', 'PRECOWEB' => '1230.00'])]),
+            collect()
+        );
+        $result = $segundo->syncProducts();
+
+        $this->assertSame(1, $result['updated']);
+
+        $product = Product::where('recno', 100)->first();
+        $this->assertSame(8499.0, (float) $product->web_price);
+        // o resto do sync continua valendo
+        $this->assertSame(1390.0, (float) $product->price);
     }
 
     public function test_sync_products_maps_ucbase_to_average_price(): void

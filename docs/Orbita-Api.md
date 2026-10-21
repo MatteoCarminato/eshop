@@ -40,7 +40,7 @@ Query params aceitos: `q`, `category`, `brand`, `model`, `storage`, `color`, `pr
 
 ### Qual preço a loja usa
 
-A loja cobra o **Preço Web** (`products.web_price`), não o `price` (= `PRECO3`/varejo do ERP). Promoção é um campo só do painel: `products.promo_price`, que nasce `0` (= sem promoção) e **nunca** vem do ERP nem é tocada pelo sync. Com ela preenchida, o preço exibido passa a ser a promoção e o Preço Web vira o `compareAtPrice` (riscado).
+A loja cobra o **Preço Web** (`products.web_price`), não o `price` (= `PRECO3`/varejo do ERP). Tanto o Preço Web quanto a promoção (`products.promo_price`, que nasce `0` = sem promoção) são campos **só do painel**: nenhum dos dois vem do ERP numa atualização — o `PRECOWEB` ficou fora da integração justamente porque reescrevia o preço digitado em `/products-admin` a cada sync (ver docs/Erp-Sync.md). Com a promoção preenchida, o preço exibido passa a ser ela e o Preço Web vira o `compareAtPrice` (riscado).
 
 Não confundir com `sale_price`: esse é o `PREVEN` do ERP (espelhado do atacado pela grade de preços — ver docs/Product-Module.md) e **não** aparece na loja.
 
@@ -72,6 +72,18 @@ Promoção só vale se for **menor** que o Preço Web: promo maior ou igual é e
 | `promotion`, `model` (agrupamento de variante), `colorHex`, `tag`, `rating`, `specs`, `variants`, `gtin`, `mpn` | **omitidos** — sem equivalente no eshop |
 
 `category`/`storage`/`colorName` vêm de `App\Services\Catalog\ProductClassifierService`, rodado uma vez sobre o catálogo existente (`php artisan products:classify`) e automaticamente em todo produto novo criado pelo `erp:sync-catalog`. Ver `docs/Product-Classification.md`.
+
+## ⚡ Revalidação de cache do Orbita
+
+O frontend lê esta API com ISR: `colmeiaFetch` (em `web/src/lib/api.ts`, no repositório do Orbita) guarda cada resposta por alguns minutos e marca com tags de cache — `catalog` em listagem/busca/promoções/categorias e `product:<slug>` no detalhe.
+
+Por causa disso, salvar um preço aqui não bastaria: o preço novo só apareceria na vitrine quando aquele cache vencesse. Então o painel avisa o site:
+
+- `App\Services\Orbita\OrbitaRevalidator` faz `POST {ORBITA_REVALIDATE_URL}` com `{"tags": ["catalog", "product:<slug>"]}` e o header `X-Orbita-Revalidate: {ORBITA_REVALIDATE_SECRET}`.
+- Do outro lado, `web/src/app/api/revalidate/route.ts` confere o segredo (`REVALIDATE_SECRET`) e chama `revalidateTag()` em cada tag.
+- Quem dispara: a edição do Preço Web na grade (`ProductAdminController::updatePrices`) e o formulário de produto (`ProductService` — criar, editar e excluir, que mexem em promoção, estoque, foto e "ativo").
+
+Duas garantias de propósito: o aviso sai **depois** da resposta (não atrasa salvar a célula) e é **melhor-esforço** — Orbita fora do ar, sem segredo configurado ou devolvendo erro só gera log, nunca desfaz a gravação. Sem as variáveis configuradas o aviso nem é tentado, e aí vale só o tempo de cache, como antes.
 
 ## 🔮 Próximos passos (se/quando fizer sentido)
 
