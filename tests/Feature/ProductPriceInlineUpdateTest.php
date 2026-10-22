@@ -743,6 +743,96 @@ class ProductPriceInlineUpdateTest extends TestCase
     }
 
     /**
+     * Configura a API de importação do ComprasPY e finge a chamada — sem
+     * credencial o ComprasPyImportService se desliga sozinho.
+     */
+    private function fingeComprasPy(): void
+    {
+        config([
+            'feeds.compraspy.store_url' => 'https://eshopcell.com',
+            'feeds.compraspy.minimum_price' => 0.10,
+            'feeds.compraspy.api.url' => 'https://products.comprasparaguai.test/api/products/import/',
+            'feeds.compraspy.api.token' => 'token-da-loja',
+            'feeds.compraspy.api.timeout' => 15,
+        ]);
+
+        Http::fake(['products.comprasparaguai.test/*' => Http::response(['products_failed' => 0], 207)]);
+    }
+
+    /**
+     * O mesmo Preço Web que vai pra loja tem de chegar no ComprasPY na hora:
+     * fora disso, o anúncio lá só mudaria quando eles lessem o feed XML de
+     * novo, até uma hora depois.
+     */
+    public function test_preco_web_vai_para_o_compraspy(): void
+    {
+        $product = $this->product([
+            'slug' => 'iphone-16-pro-max-256gb-cpy',
+            'erp_code' => '1618',
+            'image_url' => 'https://cdn.exemplo.com/iphone.webp',
+            'stock' => 7,
+        ]);
+        $this->fingeComprasPy();
+
+        $this->actingAs($this->admin())
+            ->patchJson(route('products-admin.prices', $product), ['column' => 'web_price', 'value' => 1499])
+            ->assertOk();
+
+        Http::assertSent(function ($request) {
+            if (! str_contains($request->url(), 'comprasparaguai')) {
+                return false;
+            }
+
+            $item = $request->data()[0];
+
+            return $request->hasHeader('token', 'token-da-loja')
+                && $item['code'] === '1618'
+                && $item['price'] === 1499.0
+                && $item['stock'] === 1
+                && $item['link'] === 'https://eshopcell.com/produtos/iphone-16-pro-max-256gb-cpy';
+        });
+    }
+
+    /**
+     * Atacado é preço interno: não vai pra loja nem pro ComprasPY.
+     */
+    public function test_atacado_nao_vai_para_o_compraspy(): void
+    {
+        $product = $this->product(['erp_code' => '1618', 'image_url' => 'https://cdn.exemplo.com/i.webp']);
+        $this->fingeComprasPy();
+
+        $this->actingAs($this->admin())
+            ->patchJson(route('products-admin.prices', $product), ['column' => 'wholesale_price', 'value' => 1050])
+            ->assertOk();
+
+        Http::assertNothingSent();
+    }
+
+    /**
+     * ComprasPY fora do ar também não derruba o salvamento — e não impede o
+     * aviso ao Orbita, que é o canal da própria loja.
+     */
+    public function test_falha_do_compraspy_nao_desfaz_a_gravacao_nem_impede_o_orbita(): void
+    {
+        $product = $this->product(['erp_code' => '1618', 'image_url' => 'https://cdn.exemplo.com/i.webp']);
+        $this->fingeOrbita();
+        config([
+            'feeds.compraspy.api.url' => 'https://products.comprasparaguai.test/api/products/import/',
+            'feeds.compraspy.api.token' => 'token-da-loja',
+            'feeds.compraspy.api.timeout' => 15,
+        ]);
+        Http::fake(['products.comprasparaguai.test/*' => Http::response('erro', 500)]);
+
+        $this->actingAs($this->admin())
+            ->patchJson(route('products-admin.prices', $product), ['column' => 'web_price', 'value' => 1499])
+            ->assertOk()
+            ->assertJson(['success' => true]);
+
+        $this->assertSame(1499.0, (float) $product->fresh()->web_price);
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'orbita.test'));
+    }
+
+    /**
      * Orbita fora do ar não pode derrubar o salvamento do preço: a base do
      * site é a fonte de verdade e o cache dele vence sozinho de qualquer jeito.
      */

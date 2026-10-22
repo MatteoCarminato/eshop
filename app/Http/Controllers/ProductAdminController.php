@@ -6,6 +6,7 @@ use App\Exceptions\ErpWriteException;
 use App\Models\Product;
 use App\Models\ProductGroup;
 use App\Services\Erp\ErpPriceWriter;
+use App\Services\Feed\ComprasPyImportService;
 use App\Services\Orbita\OrbitaRevalidator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -435,12 +436,20 @@ class ProductAdminController extends Controller
      * duas bases nunca ficam diferentes por causa de uma gravação que só
      * funcionou de um lado.
      *
-     * O Preço Web é o preço que a loja cobra (Product::sitePrice()), e o
-     * frontend Orbita cacheia as respostas da API. Por isso, salvar essa
-     * coluna avisa o Orbita pra revalidar o cache do produto e das listagens
-     * (OrbitaRevalidator) — o preço novo aparece na vitrine na hora, e não no
-     * fim do cache. O aviso vai depois da resposta (`dispatchAfterResponse`),
-     * então não atrasa a célula, e falhar nele não desfaz a gravação.
+     * O Preço Web é o preço que a loja cobra (Product::sitePrice()), e dois
+     * canais de fora precisam saber que ele mudou:
+     *
+     * - o frontend Orbita, que cacheia as respostas da API — avisamos pra ele
+     *   revalidar o cache do produto e das listagens (OrbitaRevalidator), e o
+     *   preço novo aparece na vitrine na hora em vez de no fim do cache;
+     * - o ComprasPY, que fora disso só veria o preço novo quando lesse o feed
+     *   XML de novo (até uma hora depois) — mandamos o produto pela API de
+     *   importação deles (ComprasPyImportService).
+     *
+     * Os dois vão depois da resposta (`dispatchAfterResponse`), então não
+     * atrasam a célula, e falhar em qualquer um deles não desfaz a gravação:
+     * a base do site é a fonte de verdade e os dois canais se corrigem
+     * sozinhos (cache vence, feed é lido de novo).
      *
      * Os valores são em USD (o catálogo do ERP é todo em dólar).
      */
@@ -449,6 +458,7 @@ class ProductAdminController extends Controller
         Product $product,
         ErpPriceWriter $erp,
         OrbitaRevalidator $orbita,
+        ComprasPyImportService $comprasPy,
     ): JsonResponse
     {
         $data = $request->validate([
@@ -483,11 +493,14 @@ class ProductAdminController extends Controller
 
         $product->update(array_fill_keys($gravadas, $value));
 
-        // Só o Preço Web muda o que a loja cobra — atacado/promo/mínimo/varejo
-        // são preços internos e não aparecem no Orbita, então não há cache a
-        // invalidar por causa deles.
+        // Só o Preço Web sai do site — atacado/promo/mínimo/varejo são preços
+        // internos, não aparecem nem na loja nem no ComprasPY, então não há
+        // cache a invalidar nem anúncio a atualizar por causa deles.
         if ($column === 'web_price') {
-            dispatch(fn () => $orbita->product($product))->afterResponse();
+            dispatch(function () use ($orbita, $comprasPy, $product) {
+                $orbita->product($product);
+                $comprasPy->pushProduct($product);
+            })->afterResponse();
         }
 
         $fresh = $product->fresh();
