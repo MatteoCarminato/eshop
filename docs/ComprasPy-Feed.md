@@ -115,7 +115,7 @@ seguinte.
 
 | Campo deles | De onde sai |
 | --- | --- |
-| `code` | `products.erp_code` (CODNNN) — mesmo código do `<codigo>` do XML |
+| `code` | `Product::feedCode()`: `products.web_code` (CODWEB) — mesmo código do `<codigo>` do XML |
 | `name.pt` | `products.name`. Sem `name.es`: não há tradução no catálogo, e o campo é opcional |
 | `price`, `price_iva`, `price_ecommerce_br` | **`products.web_price`**, em dólar, os três com o mesmo valor |
 | `stock` | `1` quando vendável; **`0`** quando não é mais (é assim que se derruba um anúncio) |
@@ -207,9 +207,11 @@ Duas mudanças de conteúdo em relação ao legado:
   (`promo_price` preenchida e abaixo do Preço Web), senão o Preço Web. Já está
   em USD — o preço do ERP é negociado em dólar.
 
-`<codigo>` continua sendo o código do ERP (`erp_code`, o `CODNNN` do legado),
-pra não quebrar quem casa anúncio por esse campo; sem ele, cai no `recno` e
-por último no id local.
+`<codigo>` é o **CODWEB** do ERP (`products.web_code`), o código do produto
+nas integrações — o mesmo `code` mandado pela API de importação, os dois saem
+de `Product::feedCode()`. Sem CODWEB cai no CODNNN (`erp_code`), depois no
+`recno` e por último no id local. Hoje CODWEB e CODNNN têm o mesmo valor em
+todos os produtos, então a troca não mudou nenhum código publicado.
 
 ## Deploy
 

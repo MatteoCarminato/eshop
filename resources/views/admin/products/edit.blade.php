@@ -472,6 +472,13 @@
                                                                 produto
                                                             </small>
                                                         </li>
+                                                        <li>
+                                                            Código Web (CODWEB):
+                                                            {{ $product->web_code ?: '—' }}
+                                                            <small class="text-muted">
+                                                                — é o código do anúncio no ComprasPY
+                                                            </small>
+                                                        </li>
                                                     </ul>
                                                 </div>
                                             </div>

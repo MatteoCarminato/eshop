@@ -189,6 +189,7 @@ alternativo descritivo, com marca, pra buscadores e leitores de tela).
 Ver `database/migrations/2026_09_27_100100_create_products_table.php`. Destaques:
 - `recno` (nullable, unique) — chave do PRODUTO_PRO do ERP; nulo = produto cadastrado manualmente no site.
 - `erp_code` (nullable, indexado) — o CODNNN do ERP; é por ele que a gravação de preço encontra a linha
+- `web_code` (nullable, indexado) — o CODWEB do ERP; é o código do anúncio no ComprasPY (feed XML e API), ver `Product::feedCode()`
   no PRODUTO_PRO (o usuário de escrita não enxerga RECNO — ver `App\Services\Erp\ErpPriceWriter`).
   Aparece nas "Informações do Registro" das telas de edição e visualização.
 - `brand_id` (nullable, `nullOnDelete`) — marca associada.

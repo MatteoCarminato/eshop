@@ -92,6 +92,7 @@ class ComprasPyFeedTest extends TestCase
             'name' => 'IPHONE 17 256GB LL BLACK',
             'slug' => 'iphone-17-256gb-ll-black',
             'erp_code' => '1618',
+            'web_code' => 'W1618',
             'web_price' => 915,
             'promo_price' => 0,
             'stock' => 49,
@@ -104,7 +105,7 @@ class ComprasPyFeedTest extends TestCase
 
         $this->assertSame('IPHONE 17 256GB LL BLACK', $item['title']);
         $this->assertSame('https://eshopcell.com/produtos/iphone-17-256gb-ll-black', $item['link']);
-        $this->assertSame('1618', $item['codigo']);
+        $this->assertSame('W1618', $item['codigo']);
         $this->assertSame('915.00 USD', $item['preco']);
         $this->assertSame('49', $item['estoque']);
         $this->assertSame('em estoque', $item['disponibilidade']);
@@ -164,15 +165,20 @@ class ComprasPyFeedTest extends TestCase
         $this->assertSame([], $this->titles($this->feedXml()));
     }
 
-    public function test_codigo_cai_no_recno_e_no_id_quando_nao_ha_codigo_do_erp(): void
+    public function test_codigo_cai_no_codnnn_no_recno_e_no_id_quando_nao_ha_codweb(): void
     {
         $product = Product::factory()->create([
-            'name' => 'SEM CODIGO DO ERP',
-            'erp_code' => null,
+            'name' => 'SEM CODWEB',
+            'web_code' => null,
+            'erp_code' => '1618',
             'recno' => 4321,
             'web_price' => 100,
             'stock' => 1,
         ]);
+
+        $this->assertSame('1618', $this->firstItem($this->feedXml())['codigo']);
+
+        $product->update(['erp_code' => null]);
 
         $this->assertSame('4321', $this->firstItem($this->feedXml())['codigo']);
 

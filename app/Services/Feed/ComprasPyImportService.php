@@ -111,15 +111,15 @@ class ComprasPyImportService
      */
     public function payloadFor(Product $product): ?array
     {
-        $code = trim((string) $product->erp_code);
+        $code = $product->feedCode();
         $name = trim((string) $product->name);
         $image = $this->imageUrl($product);
         $price = round((float) $product->web_price, 2);
 
-        if ($code === '' || $name === '' || $image === null || $price <= 0) {
+        if ($name === '' || $image === null || $price <= 0) {
             Log::warning('Produto não enviado ao ComprasPY: falta campo obrigatório', [
                 'product_id' => $product->id,
-                'erp_code' => $code,
+                'code' => $code,
                 'tem_imagem' => $image !== null,
                 'web_price' => $price,
             ]);

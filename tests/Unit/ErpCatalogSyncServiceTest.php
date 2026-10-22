@@ -106,6 +106,8 @@ class ErpCatalogSyncServiceTest extends TestCase
             // CODNNN é o código que o UPDATE de preço usa pra achar a linha no
             // ERP — ver ErpPriceWriter.
             'CODNNN' => '1007',
+            // CODWEB é o código do anúncio no ComprasPY.
+            'CODWEB' => '1007',
             'IS_DELETED' => 'N',
             'GRUPRO' => 6,
             'SGRUPRO' => 8,
@@ -135,6 +137,17 @@ class ErpCatalogSyncServiceTest extends TestCase
         $service->syncProducts();
 
         $this->assertSame('2523', Product::where('recno', 100)->first()->erp_code);
+    }
+
+    public function test_sync_products_guarda_o_codweb(): void
+    {
+        $service = $this->makeService(collect(), collect([$this->productRow(['CODNNN' => '2523', 'CODWEB' => 'W2523'])]));
+
+        $service->syncProducts();
+
+        $product = Product::where('recno', 100)->first();
+        $this->assertSame('W2523', $product->web_code);
+        $this->assertSame('2523', $product->erp_code);
     }
 
     public function test_sync_brands_creates_new_brand(): void

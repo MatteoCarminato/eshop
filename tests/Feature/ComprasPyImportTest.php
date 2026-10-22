@@ -60,6 +60,7 @@ class ComprasPyImportTest extends TestCase
             'name' => 'IPHONE 17 256GB LL BLACK',
             'slug' => 'iphone-17-256gb-ll-black',
             'erp_code' => '1618',
+            'web_code' => 'W1618',
             'web_price' => 915,
             'promo_price' => 0,
             'stock' => 49,
@@ -101,7 +102,8 @@ class ComprasPyImportTest extends TestCase
 
         $item = $this->itemEnviado();
 
-        $this->assertSame('1618', $item['code']);
+        // Código do anúncio é o CODWEB, não o CODNNN.
+        $this->assertSame('W1618', $item['code']);
         $this->assertSame(['pt' => 'IPHONE 17 256GB LL BLACK'], $item['name']);
         $this->assertSame('Apple', $item['brand']);
         $this->assertSame('https://cdn.exemplo.com/iphone-17.webp', $item['url_image']);
@@ -236,11 +238,11 @@ class ComprasPyImportTest extends TestCase
         $this->assertSame('https://eshopcell.com/storage/products/iphone.jpg', $this->itemEnviado()['url_image']);
     }
 
-    public function test_produto_sem_codigo_do_erp_nao_e_enviado(): void
+    public function test_sem_codweb_o_codigo_cai_no_codnnn(): void
     {
-        $this->assertFalse($this->service()->pushProduct($this->product(['erp_code' => null])));
+        $this->assertTrue($this->service()->pushProduct($this->product(['web_code' => null])));
 
-        Http::assertNothingSent();
+        $this->assertSame('1618', $this->itemEnviado()['code']);
     }
 
     public function test_produto_sem_preco_web_nao_e_enviado(): void
@@ -294,10 +296,10 @@ class ComprasPyImportTest extends TestCase
     public function test_envio_em_lote_manda_todos_no_mesmo_request(): void
     {
         $produtos = collect([
-            $this->product(['slug' => 'um', 'erp_code' => '1']),
-            $this->product(['slug' => 'dois', 'erp_code' => '2']),
+            $this->product(['slug' => 'um', 'web_code' => '1']),
+            $this->product(['slug' => 'dois', 'web_code' => '2']),
             // Esse não tem foto: é pulado sem derrubar o lote.
-            $this->product(['slug' => 'tres', 'erp_code' => '3', 'image_url' => null]),
+            $this->product(['slug' => 'tres', 'web_code' => '3', 'image_url' => null]),
         ]);
 
         $this->assertSame(2, $this->service()->pushMany($produtos));

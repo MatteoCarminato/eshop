@@ -166,6 +166,7 @@
                                                     @if ($product->recno)
                                                         <li>Origem: ERP — RECNO {{ $product->recno }}</li>
                                                         <li>Código ERP (CODNNN): {{ $product->erp_code ?: '—' }}</li>
+                                                        <li>Código Web (CODWEB): {{ $product->web_code ?: '—' }}</li>
                                                         <li>
                                                             Sincronizado em:
                                                             {{ $product->synced_at ? $product->synced_at->displayTz()->format('d/m/Y H:i') : '—' }}

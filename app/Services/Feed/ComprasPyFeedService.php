@@ -162,7 +162,7 @@ class ComprasPyFeedService
         $this->appendText($dom, $item, 'title', $name);
         $this->appendText($dom, $item, 'link', $this->productUrl($storeUrl, $product));
         $this->appendText($dom, $item, 'description', $this->cleanDescription($product->description));
-        $this->appendText($dom, $item, 'codigo', $this->productCode($product));
+        $this->appendText($dom, $item, 'codigo', $product->feedCode());
         $this->appendText($dom, $item, 'preco', number_format($product->sitePrice(), 2, '.', '') . ' USD');
         $this->appendText($dom, $item, 'estoque', (string) $stock);
         $this->appendText($dom, $item, 'disponibilidade', $stock > 0 ? 'em estoque' : 'fora de estoque');
@@ -188,22 +188,6 @@ class ComprasPyFeedService
     private function productUrl(string $storeUrl, Product $product): string
     {
         return $storeUrl . '/produtos/' . $product->slug;
-    }
-
-    /**
-     * Código do anúncio. Prioriza o código do ERP (o mesmo `CODNNN` que o
-     * feed legado publicava em `<codigo>`), pra não quebrar quem já casa
-     * anúncio por esse campo do lado do ComprasPY; sem ele, cai no recno e por
-     * último no id local.
-     */
-    private function productCode(Product $product): string
-    {
-        $erpCode = trim((string) $product->erp_code);
-        if ($erpCode !== '') {
-            return $erpCode;
-        }
-
-        return (string) ($product->recno ?? $product->id);
     }
 
     private function cleanDescription(?string $text): string

@@ -275,6 +275,9 @@ class ErpCatalogSyncService
                     // CODNNN: é por ele que o UPDATE de preço no ERP casa a
                     // linha (o usuário de escrita não enxerga RECNO).
                     'erp_code' => trim((string) ($row->CODNNN ?? '')) ?: null,
+                    // CODWEB: código do produto nas integrações (ComprasPY) —
+                    // ver Product::feedCode().
+                    'web_code' => trim((string) ($row->CODWEB ?? '')) ?: null,
                     'name' => $name,
                     'short_name' => $shortName,
                     'price' => $price,

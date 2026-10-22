@@ -21,6 +21,7 @@ class Product extends Model
     protected $fillable = [
         'recno',
         'erp_code',
+        'web_code',
         'brand_id',
         'category_id',
         'product_group_id',
@@ -171,6 +172,24 @@ class Product extends Model
         $promo = (float) $this->promo_price;
 
         return $promo > 0 && $promo < (float) $this->web_price;
+    }
+
+    /**
+     * Código do anúncio nas integrações de fora (`<codigo>` do feed XML e
+     * `code` da API do ComprasPY): o CODWEB do ERP. Sem ele, cai no CODNNN,
+     * depois no recno e por último no id local — os dois canais sempre
+     * mandam o mesmo código pro mesmo produto.
+     */
+    public function feedCode(): string
+    {
+        foreach ([$this->web_code, $this->erp_code] as $code) {
+            $code = trim((string) $code);
+            if ($code !== '') {
+                return $code;
+            }
+        }
+
+        return (string) ($this->recno ?? $this->id);
     }
 
     /**
