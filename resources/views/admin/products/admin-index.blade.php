@@ -71,14 +71,14 @@
                 <div class="pa-chips">
                     <span class="pa-flab">Situação</span>
                     @foreach (['1' => 'Ativos', '0' => 'Inativos', '' => 'Todos'] as $v => $label)
-                        <a href="{{ route('products-admin.index', ['active' => $v, 'group' => $group, 'atacado' => $atacado, 'estoque' => $estoque]) }}"
+                        <a href="{{ route('products-admin.index', ['active' => $v, 'subgroup' => $subgroup, 'atacado' => $atacado, 'estoque' => $estoque]) }}"
                             class="pa-chip {{ (string) $active === (string) $v ? 'on' : '' }}"
                             style="text-decoration:none">{{ $label }}</a>
                     @endforeach
 
                     <span class="pa-flab" style="margin-left:10px">Estoque</span>
                     @foreach (['1' => 'Com estoque', '0' => 'Zerados', '' => 'Mostrar todos'] as $v => $label)
-                        <a href="{{ route('products-admin.index', ['active' => $active, 'group' => $group, 'atacado' => $atacado, 'estoque' => $v]) }}"
+                        <a href="{{ route('products-admin.index', ['active' => $active, 'subgroup' => $subgroup, 'atacado' => $atacado, 'estoque' => $v]) }}"
                             class="pa-chip {{ (string) $estoque === (string) $v ? 'on' : '' }}"
                             style="text-decoration:none"
                             @if ($v === '0') title="Produtos com saldo zerado no ERP — fora da lista por padrão" @endif>
@@ -91,7 +91,7 @@
 
                     <span class="pa-flab" style="margin-left:10px">Atacado</span>
                     @foreach (['1' => 'Com preço', '0' => 'Sem preço', '' => 'Mostrar todos'] as $v => $label)
-                        <a href="{{ route('products-admin.index', ['active' => $active, 'group' => $group, 'atacado' => $v, 'estoque' => $estoque]) }}"
+                        <a href="{{ route('products-admin.index', ['active' => $active, 'subgroup' => $subgroup, 'atacado' => $v, 'estoque' => $estoque]) }}"
                             class="pa-chip {{ (string) $atacado === (string) $v ? 'on' : '' }}"
                             style="text-decoration:none"
                             @if ($v === '0') title="Produtos sem PREATAC no ERP — os que precisam de preço" @endif>
@@ -102,16 +102,16 @@
                         </a>
                     @endforeach
 
-                    <span class="pa-flab" style="margin-left:10px">Grupo</span>
+                    <span class="pa-flab" style="margin-left:10px">Categoria</span>
                     <form method="GET" action="{{ route('products-admin.index') }}" style="display:contents">
                         <input type="hidden" name="active" value="{{ $active }}">
                         <input type="hidden" name="atacado" value="{{ $atacado }}">
                         <input type="hidden" name="estoque" value="{{ $estoque }}">
-                        <select name="group" class="pa-sel {{ $group ? 'on' : '' }}" onchange="this.form.submit()">
-                            <option value="">Todos os grupos</option>
-                            @foreach ($groups as $g)
-                                <option value="{{ $g->id }}" {{ (string) $group === (string) $g->id ? 'selected' : '' }}>
-                                    {{ $g->name }}
+                        <select name="subgroup" class="pa-sel {{ $subgroup ? 'on' : '' }}" onchange="this.form.submit()">
+                            <option value="">Todas as categorias</option>
+                            @foreach ($subgroups as $sg)
+                                <option value="{{ $sg->id }}" {{ (string) $subgroup === (string) $sg->id ? 'selected' : '' }}>
+                                    {{ $sg->name }}
                                 </option>
                             @endforeach
                         </select>
@@ -135,78 +135,84 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse ($products as $product)
-                                <tr class="pa-row {{ $product->active ? '' : 'off' }}"
-                                    data-id="{{ $product->id }}"
-                                    data-idx="{{ $product->id }}"
-                                    data-busca="{{ mb_strtolower($product->name . ' ' . $product->short_name . ' ' . ($product->productGroup->name ?? '')) }}"
-                                    data-v-name="{{ $product->name }}">
-                                    <td class="pa-idx">{{ $product->id }}</td>
-                                    <td>
-                                        <span class="pa-name">{{ $product->name }}</span>
-                                        @if ($product->productGroup)
-                                            <span class="pa-grupo">{{ $product->productGroup->name }}</span>
-                                        @endif
-                                        @unless ($product->active)
-                                            <span class="pa-pill bad" title="Produto inativo">inativo</span>
-                                        @endunless
+                            @forelse ($categorias as $ci => $categoria)
+                                <tr class="pa-cat-row" data-cat="{{ $ci }}">
+                                    <td class="pa-cat-td" colspan="{{ count($cols) + 3 }}">
+                                        <span class="pa-cat-name">{{ $categoria['nome'] }}</span>
+                                        <span class="pa-cat-count">{{ count($categoria['produtos']) }}</span>
                                     </td>
-                                    @php
-                                        $est = (float) $product->stock;
-                                        // Estoque é inteiro na prática (decimal no banco por
-                                        // causa do ERP), então só mostra centavos se existirem.
-                                        $estFmt = number_format($est, $est == (int) $est ? 0 : 2, '.', ',');
-                                    @endphp
-                                    <td class="r pa-est {{ $est <= 0 ? 'zero' : '' }}" data-col="stock" data-v="{{ $est }}">
-                                        {{ $estFmt }}
-                                    </td>
-                                    @foreach ($cols as $key => $col)
-                                        @php
-                                            $calc = ! empty($col['calc']);
-                                            // Diferença = Atacado − Médio. Só vale com os dois lados
-                                            // preenchidos: sem um deles ela viraria o negativo do
-                                            // outro número, e a célula mostra "—" em vez de mentir.
-                                            $temDiff = $calc
-                                                && (float) $product->wholesale_price > 0
-                                                && (float) $product->average_price > 0;
-                                            $val = $calc
-                                                ? (float) $product->wholesale_price - (float) $product->average_price
-                                                : (float) $product->{$key};
-                                            $fmt = number_format($val, 2, '.', ',');
-                                            // Tom e "zerado" são classes independentes: ao digitar
-                                            // numa célula zerada o JS só tira `zero`, e o tom da
-                                            // coluna volta sozinho.
-                                            $tom = trim($col['tom'] . ($val <= 0 ? ' zero' : ''));
-                                        @endphp
-                                        @if ($calc)
-                                            {{-- Coluna calculada (Diferença): nunca é input e não tem
-                                                 coluna no banco. O `data-v` é o número cru (vazio
-                                                 quando não dá pra comparar), usado pela ordenação; o
-                                                 JS reescreve a célula a cada atacado digitado. --}}
-                                            <td class="pa-cell ro" data-col="{{ $key }}"
-                                                data-v="{{ $temDiff ? $val : '' }}" title="Atacado − Médio">
-                                                <span class="pa-cur">$</span>
-                                                <span class="pa-ro diff {{ $temDiff ? ($val > 0 ? 'pos' : ($val < 0 ? 'neg' : '')) : 'nulo' }}">{{ $temDiff ? $fmt : '—' }}</span>
-                                            </td>
-                                        @elseif ($col['edit'])
-                                            <td class="pa-cell" data-col="{{ $key }}">
-                                                <span class="pa-cur">$</span>
-                                                <input type="text" class="pa-inp {{ $tom }}" value="{{ $fmt }}"
-                                                    data-orig="{{ $fmt }}" data-col="{{ $key }}" placeholder="{{ $fmt }}"
-                                                    inputmode="decimal" autocomplete="off" spellcheck="false" tabindex="-1"
-                                                    @unless ($canManage) readonly @endunless>
-                                            </td>
-                                        @else
-                                            {{-- Coluna de leitura (Médio): texto, não input — fora do
-                                                 Tab e sem endpoint de gravação. O `data-v` é o número
-                                                 cru, usado pela ordenação. --}}
-                                            <td class="pa-cell ro" data-col="{{ $key }}" data-v="{{ $val }}">
-                                                <span class="pa-cur">$</span>
-                                                <span class="pa-ro {{ $tom }}">{{ $fmt }}</span>
-                                            </td>
-                                        @endif
-                                    @endforeach
                                 </tr>
+                                @foreach ($categoria['produtos'] as $product)
+                                    <tr class="pa-row {{ $product->active ? '' : 'off' }}"
+                                        data-id="{{ $product->id }}"
+                                        data-idx="{{ $product->id }}"
+                                        data-cat="{{ $ci }}"
+                                        data-busca="{{ mb_strtolower($product->name . ' ' . $product->short_name . ' ' . $categoria['nome']) }}"
+                                        data-v-name="{{ $product->name }}">
+                                        <td class="pa-idx">{{ $product->id }}</td>
+                                        <td>
+                                            <span class="pa-name">{{ $product->name }}</span>
+                                            @unless ($product->active)
+                                                <span class="pa-pill bad" title="Produto inativo">inativo</span>
+                                            @endunless
+                                        </td>
+                                        @php
+                                            $est = (float) $product->stock;
+                                            // Estoque é inteiro na prática (decimal no banco por
+                                            // causa do ERP), então só mostra centavos se existirem.
+                                            $estFmt = number_format($est, $est == (int) $est ? 0 : 2, '.', ',');
+                                        @endphp
+                                        <td class="r pa-est {{ $est <= 0 ? 'zero' : '' }}" data-col="stock" data-v="{{ $est }}">
+                                            {{ $estFmt }}
+                                        </td>
+                                        @foreach ($cols as $key => $col)
+                                            @php
+                                                $calc = ! empty($col['calc']);
+                                                // Diferença = Atacado − Médio. Só vale com os dois lados
+                                                // preenchidos: sem um deles ela viraria o negativo do
+                                                // outro número, e a célula mostra "—" em vez de mentir.
+                                                $temDiff = $calc
+                                                    && (float) $product->wholesale_price > 0
+                                                    && (float) $product->average_price > 0;
+                                                $val = $calc
+                                                    ? (float) $product->wholesale_price - (float) $product->average_price
+                                                    : (float) $product->{$key};
+                                                $fmt = number_format($val, 2, '.', ',');
+                                                // Tom e "zerado" são classes independentes: ao digitar
+                                                // numa célula zerada o JS só tira `zero`, e o tom da
+                                                // coluna volta sozinho.
+                                                $tom = trim($col['tom'] . ($val <= 0 ? ' zero' : ''));
+                                            @endphp
+                                            @if ($calc)
+                                                {{-- Coluna calculada (Diferença): nunca é input e não tem
+                                                     coluna no banco. O `data-v` é o número cru (vazio
+                                                     quando não dá pra comparar), usado pela ordenação; o
+                                                     JS reescreve a célula a cada atacado digitado. --}}
+                                                <td class="pa-cell ro" data-col="{{ $key }}"
+                                                    data-v="{{ $temDiff ? $val : '' }}" title="Atacado − Médio">
+                                                    <span class="pa-cur">$</span>
+                                                    <span class="pa-ro diff {{ $temDiff ? ($val > 0 ? 'pos' : ($val < 0 ? 'neg' : '')) : 'nulo' }}">{{ $temDiff ? $fmt : '—' }}</span>
+                                                </td>
+                                            @elseif ($col['edit'])
+                                                <td class="pa-cell" data-col="{{ $key }}">
+                                                    <span class="pa-cur">$</span>
+                                                    <input type="text" class="pa-inp {{ $tom }}" value="{{ $fmt }}"
+                                                        data-orig="{{ $fmt }}" data-col="{{ $key }}" placeholder="{{ $fmt }}"
+                                                        inputmode="decimal" autocomplete="off" spellcheck="false" tabindex="-1"
+                                                        @unless ($canManage) readonly @endunless>
+                                                </td>
+                                            @else
+                                                {{-- Coluna de leitura (Médio): texto, não input — fora do
+                                                     Tab e sem endpoint de gravação. O `data-v` é o número
+                                                     cru, usado pela ordenação. --}}
+                                                <td class="pa-cell ro" data-col="{{ $key }}" data-v="{{ $val }}">
+                                                    <span class="pa-cur">$</span>
+                                                    <span class="pa-ro {{ $tom }}">{{ $fmt }}</span>
+                                                </td>
+                                            @endif
+                                        @endforeach
+                                    </tr>
+                                @endforeach
                             @empty
                                 <tr>
                                     <td colspan="{{ count($cols) + 3 }}">
@@ -261,6 +267,11 @@
             const counter = document.getElementById('paCnt');
             const sujos   = document.getElementById('paSujos');
             const rows    = Array.from(tbody.querySelectorAll('tr.pa-row'));
+            // Cabeçalhos de categoria: ficam de fora da navegação/ordenação de
+            // linhas (não são `.pa-row`), mas precisam somar junto na busca
+            // (esconder categoria sem nenhum produto visível) e na ordenação
+            // (cada categoria ordena os seus produtos, sem se misturar).
+            const catRows = Array.from(tbody.querySelectorAll('tr.pa-cat-row'));
             // Navegação só pelas colunas digitáveis: Médio, Diferença e Estoque
             // são texto. A ordem é lida da tela, não da constante do PHP: as
             // colunas podem ser arrastadas, e ← → têm que seguir o que se vê.
@@ -677,6 +688,13 @@
                     if (bate) n++;
                 });
 
+                // Categoria sem nenhum produto visível some junto — senão
+                // ficaria um cabeçalho pendurado sem linha nenhuma embaixo.
+                catRows.forEach(cat => {
+                    const temVisivel = rows.some(r => r.dataset.cat === cat.dataset.cat && !r.classList.contains('pa-hide'));
+                    cat.classList.toggle('pa-hide', !temVisivel);
+                });
+
                 counter.textContent = n === rows.length
                     ? rows.length + ' produtos'
                     : n + ' de ' + rows.length + ' produtos';
@@ -699,13 +717,19 @@
                     return td ? parseFloat(td.dataset.v) || 0 : 0;
                 };
 
-                const ordenados = rows.slice().sort((a, b) => {
-                    const va = valor(a), vb = valor(b);
-                    if (va < vb) return -1 * sortDir;
-                    if (va > vb) return 1 * sortDir;
-                    return 0;
+                // Ordena DENTRO de cada categoria, sem misturar linhas de
+                // categorias diferentes — reconstrói a tbody categoria por
+                // categoria, na ordem em que os cabeçalhos já estão.
+                catRows.forEach(cat => {
+                    tbody.appendChild(cat);
+                    const doGrupo = rows.filter(r => r.dataset.cat === cat.dataset.cat);
+                    doGrupo.slice().sort((a, b) => {
+                        const va = valor(a), vb = valor(b);
+                        if (va < vb) return -1 * sortDir;
+                        if (va > vb) return 1 * sortDir;
+                        return 0;
+                    }).forEach(r => tbody.appendChild(r));
                 });
-                ordenados.forEach(r => tbody.appendChild(r));
 
                 table.querySelectorAll('thead th .ar').forEach(s => s.textContent = '');
                 const th = table.querySelector('thead th[data-k="' + key + '"] .ar');

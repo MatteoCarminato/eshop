@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\ErpWriteException;
 use App\Models\Product;
-use App\Models\ProductGroup;
+use App\Models\ProductSubgroup;
 use App\Services\Erp\ErpPriceWriter;
 use App\Services\Feed\ComprasPyImportService;
 use App\Services\Orbita\OrbitaRevalidator;
@@ -124,10 +124,14 @@ class ProductAdminController extends Controller
      * ações), esta tela carrega só nome e preços de todos os produtos de uma
      * vez — a ideia é varrer e corrigir preços de cima a baixo pelo teclado,
      * sem paginação e sem precisar abrir cada produto.
+     *
+     * Agrupada por categoria (subgrupo do ERP), igual à tela de Exportar —
+     * cada categoria vira uma seção com cabeçalho, em vez de uma lista única
+     * com o grupo como etiqueta ao lado do nome.
      */
     public function index(Request $request): View
     {
-        $group = $request->get('group');
+        $subgroup = $request->get('subgroup');
         $active = $request->get('active', '1');
         // '1' = só com preço de atacado (padrão), '0' = só sem, '' = todos.
         // Padrão esconde os sem atacado: é o preço que o negócio usa, e boa
@@ -144,7 +148,7 @@ class ProductAdminController extends Controller
         // as três não divergirem. Atacado e estoque ficam em closures separadas
         // porque cada contagem precisa aplicar um sem aplicar o outro.
         $base = fn () => Product::query()
-            ->when($group !== null && $group !== '', fn ($q) => $q->where('product_group_id', (int) $group))
+            ->when($subgroup !== null && $subgroup !== '', fn ($q) => $q->where('product_subgroup_id', (int) $subgroup))
             ->when($active === '1', fn ($q) => $q->where('active', true))
             ->when($active === '0', fn ($q) => $q->where('active', false));
 
@@ -172,20 +176,38 @@ class ProductAdminController extends Controller
             ->select(array_merge(
                 // `stock` vem sempre: a coluna de estoque da grade é só um
                 // liga/desliga visual, não vale recarregar a tela pra isso.
-                ['id', 'product_group_id', 'name', 'short_name', 'active', 'stock'],
+                ['id', 'product_subgroup_id', 'name', 'short_name', 'active', 'stock'],
                 // Sem as calculadas (Diferença): no banco elas não existem.
                 array_keys(self::storedGridColumns()),
             ))
-            ->with('productGroup:id,name')
+            ->with('productSubgroup:id,name')
             ->where($filtroAtacado)
             ->where($filtroEstoque)
             ->orderBy('name')
             ->get();
 
-        $groups = ProductGroup::orderBy('name')->get(['id', 'name']);
+        // Agrupa por categoria (subgrupo do ERP) igual à tela de Exportar, com
+        // os sem categoria num bloco só no fim — a grade deixa de ser uma
+        // lista única pra virar uma lista por categoria.
+        $categorias = $products
+            ->groupBy(fn (Product $p) => $p->productSubgroup?->name ?? '')
+            ->map(fn ($itens, $nome) => [
+                'nome' => $nome === '' ? 'SEM CATEGORIA' : $nome,
+                'sem_categoria' => $nome === '',
+                'produtos' => $itens->values(),
+            ])
+            ->sortBy(fn (array $g) => ($g['sem_categoria'] ? '1' : '0') . mb_strtolower($g['nome']))
+            ->values();
+
+        // Só entram no filtro as categorias com pelo menos um produto ativo
+        // e com estoque — não adianta listar categoria que não vai aparecer
+        // na grade (padrão da tela já esconde inativo e zerado).
+        $subgroups = ProductSubgroup::orderBy('name')
+            ->whereHas('products', fn ($q) => $q->where('active', true)->where('stock', '>', 0))
+            ->get(['id', 'name']);
 
         // Quantos ficariam de fora por cada filtro, dentro dos mesmos filtros de
-        // grupo/situação — mostrado nos chips "Sem preço" e "Zerados".
+        // categoria/situação — mostrado nos chips "Sem preço" e "Zerados".
         $semAtacado = $base()
             ->where($filtroEstoque)
             ->where(fn ($q) => $q->whereNull('wholesale_price')->orWhere('wholesale_price', '<=', 0))
@@ -197,7 +219,7 @@ class ProductAdminController extends Controller
             ->count();
 
         return view('admin.products.admin-index', compact(
-            'products', 'groups', 'group', 'active', 'atacado', 'estoque', 'cols',
+            'categorias', 'subgroups', 'subgroup', 'active', 'atacado', 'estoque', 'cols',
             'semAtacado', 'semEstoque',
         ));
     }

@@ -107,9 +107,15 @@
 .pa table.pa-rows tbody tr.cur td:first-child{box-shadow:inset 2px 0 0 var(--pa-accent)}
 .pa table.pa-rows tbody tr.pa-hide{display:none}
 
+/* cabeçalho de categoria (subgrupo do ERP) — uma linha cheia entre blocos */
+.pa table.pa-rows tbody tr.pa-cat-row td{background:var(--pa-panel2);border-bottom:1px solid var(--pa-line);
+  padding:5px 8px;height:auto}
+.pa table.pa-rows tbody tr.pa-cat-row:first-child td{border-top:0}
+.pa-cat-name{font-size:var(--pa-fs-h);letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:var(--pa-accent)}
+.pa-cat-count{font-size:var(--pa-fs-mi);color:var(--pa-muted);margin-left:8px}
+
 .pa-idx{font-family:var(--pa-code);font-size:var(--pa-fs-mi);color:#98a2ae;text-align:right;width:40px}
 .pa-name{font-weight:700;color:var(--pa-ink);white-space:nowrap}
-.pa-grupo{font-size:var(--pa-fs-mi);color:var(--pa-muted);margin-left:6px;font-weight:400}
 .pa-num{text-align:right;white-space:nowrap;font-family:var(--pa-code);letter-spacing:-.02em}
 .pa table.pa-rows tbody tr.off .pa-name{color:var(--pa-muted);font-weight:400}
 
