@@ -33,6 +33,7 @@ class ProductPriceInlineUpdateTest extends TestCase
             'min_price' => 1000,
             'average_price' => 950,
             'stock' => 5,
+            'store_stock' => 5,
             'active' => true,
         ], $overrides));
     }
@@ -299,8 +300,8 @@ class ProductPriceInlineUpdateTest extends TestCase
      */
     public function test_esconde_produto_com_estoque_zerado_por_padrao(): void
     {
-        $this->product(['name' => 'COM SALDO', 'stock' => 3]);
-        $this->product(['name' => 'ZERADO', 'stock' => 0]);
+        $this->product(['name' => 'COM SALDO', 'store_stock' => 3]);
+        $this->product(['name' => 'ZERADO', 'store_stock' => 0]);
 
         $admin = $this->admin();
 
@@ -319,15 +320,31 @@ class ProductPriceInlineUpdateTest extends TestCase
     }
 
     /**
+     * O estoque da grade é só o da loja ARMANDO ATACADO: saldo que está só
+     * nos depósitos (soma em `stock`) não conta.
+     */
+    public function test_estoque_da_grade_e_so_o_da_loja(): void
+    {
+        $this->product(['name' => 'NA LOJA', 'stock' => 3, 'store_stock' => 1]);
+        $this->product(['name' => 'SO NO DEPOSITO', 'stock' => 7, 'store_stock' => 0]);
+
+        $r = $this->actingAs($this->admin())->get(route('products-admin.index'))->assertOk();
+
+        $nomes = $r->viewData('categorias')->flatMap(fn (array $c) => $c['produtos'])->pluck('name')->all();
+        $this->assertSame(['NA LOJA'], $nomes);
+        $this->assertSame(1, $r->viewData('semEstoque'));
+    }
+
+    /**
      * As duas contagens dos chips olham uma pelo filtro da outra: o "sem
      * atacado" só conta o que o filtro de estoque deixaria aparecer, e
      * vice-versa.
      */
     public function test_contagens_dos_chips_respeitam_o_outro_filtro(): void
     {
-        $this->product(['name' => 'ZERADO SEM ATACADO', 'stock' => 0, 'wholesale_price' => 0]);
-        $this->product(['name' => 'COM SALDO SEM ATACADO', 'stock' => 4, 'wholesale_price' => 0]);
-        $this->product(['name' => 'COM SALDO E ATACADO', 'stock' => 4, 'wholesale_price' => 900]);
+        $this->product(['name' => 'ZERADO SEM ATACADO', 'store_stock' => 0, 'wholesale_price' => 0]);
+        $this->product(['name' => 'COM SALDO SEM ATACADO', 'store_stock' => 4, 'wholesale_price' => 0]);
+        $this->product(['name' => 'COM SALDO E ATACADO', 'store_stock' => 4, 'wholesale_price' => 900]);
 
         $r = $this->actingAs($this->admin())->get(route('products-admin.index'))->assertOk();
 
@@ -557,7 +574,7 @@ class ProductPriceInlineUpdateTest extends TestCase
 
     public function test_grade_mostra_a_coluna_de_estoque_antes_do_medio(): void
     {
-        $this->product(['stock' => 14]);
+        $this->product(['store_stock' => 14]);
 
         $html = $this->actingAs($this->admin())
             ->get(route('products-admin.index'))
@@ -577,7 +594,7 @@ class ProductPriceInlineUpdateTest extends TestCase
 
     public function test_coluna_de_estoque_nao_mostra_centavos_de_quantidade_inteira(): void
     {
-        $this->product(['stock' => 14]);
+        $this->product(['store_stock' => 14]);
 
         $html = $this->actingAs($this->admin())->get(route('products-admin.index'))->getContent();
 

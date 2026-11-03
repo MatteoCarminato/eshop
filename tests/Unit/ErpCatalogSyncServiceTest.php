@@ -30,14 +30,16 @@ class ErpCatalogSyncServiceTest extends TestCase
         ?Collection $brandCodeMap = null,
         ?Collection $groups = null,
         ?Collection $subgroups = null,
+        ?Collection $storeStock = null,
     ): ErpCatalogSyncService {
-        return new class($brands, $products, $brandCodeMap, $groups, $subgroups) extends ErpCatalogSyncService {
+        return new class($brands, $products, $brandCodeMap, $groups, $subgroups, $storeStock) extends ErpCatalogSyncService {
             public function __construct(
                 private Collection $brands,
                 private Collection $products,
                 private ?Collection $brandCodeMap,
                 private ?Collection $groups,
                 private ?Collection $subgroups,
+                private ?Collection $storeStock,
             ) {
                 parent::__construct(new ProductClassifierService());
             }
@@ -65,6 +67,11 @@ class ErpCatalogSyncServiceTest extends TestCase
             protected function fetchErpBrandCodeMap(): Collection
             {
                 return $this->brandCodeMap ?? collect();
+            }
+
+            protected function fetchErpStoreStock(): Collection
+            {
+                return $this->storeStock ?? collect();
             }
         };
     }
@@ -103,6 +110,8 @@ class ErpCatalogSyncServiceTest extends TestCase
     {
         return (object) array_merge([
             'RECNO' => 100,
+            // CODPRO junta com LOCAL.PROLOC (estoque por local).
+            'CODPRO' => 19,
             // CODNNN é o código que o UPDATE de preço usa pra achar a linha no
             // ERP — ver ErpPriceWriter.
             'CODNNN' => '1007',
@@ -402,6 +411,36 @@ class ErpCatalogSyncServiceTest extends TestCase
         $this->assertSame(8499.0, (float) $product->web_price);
         // o resto do sync continua valendo
         $this->assertSame(1390.0, (float) $product->price);
+    }
+
+    /**
+     * ESTOQUE soma todos os locais; `store_stock` é só o da loja ARMANDO
+     * ATACADO, vindo da LOCAL pelo CODPRO.
+     */
+    public function test_sync_products_guarda_estoque_da_loja_separado_do_total(): void
+    {
+        $service = $this->makeService(
+            collect(), collect([$this->productRow(['ESTOQUE' => '10.000000000'])]),
+            storeStock: collect([19 => '4.000000000']),
+        );
+
+        $service->syncProducts();
+
+        $product = Product::where('recno', 100)->first();
+        $this->assertSame(10.0, (float) $product->stock);
+        $this->assertSame(4.0, (float) $product->store_stock);
+    }
+
+    public function test_sync_products_zera_estoque_da_loja_sem_linha_na_local(): void
+    {
+        $this->makeService(
+            collect(), collect([$this->productRow()]),
+            storeStock: collect([19 => '4.000000000']),
+        )->syncProducts();
+
+        $this->makeService(collect(), collect([$this->productRow()]))->syncProducts();
+
+        $this->assertSame(0.0, (float) Product::where('recno', 100)->value('store_stock'));
     }
 
     public function test_sync_products_maps_ucbase_to_average_price(): void

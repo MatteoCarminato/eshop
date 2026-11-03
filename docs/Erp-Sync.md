@@ -71,7 +71,13 @@ estoque ou sem custo.
   `SUB.CODSGRU`), `NOMELONG` (nome completo), `NOMPRO` (nome curto), `PRECO3`
   (preço principal), `PREATAC` (preço atacado), `PRECOWEB` (preço web),
   `PREVEN` (preço de venda), `PREMIN` (preço mínimo), `UCBASE` (preço médio —
-  custo médio do estoque), `ESTOQUE` (quantidade em estoque).
+  custo médio do estoque), `ESTOQUE` (quantidade em estoque, soma de todos
+  os locais).
+- `LOCAL` → estoque por local: `PROLOC` (junta com `PRODUTO_PRO.CODPRO`),
+  `LOCLOC` (junta com `LOJAS.CODEMP`: 1 = ARMANDO ATACADO, 2 = DEPOSITO,
+  3 = DEPOSITO 2, 4 = ASSISTENCIA), `QUALOC` (quantidade). Só o local 1 é
+  lido, e vai para `products.store_stock` — o estoque que a grade de
+  `/products-admin` mostra e filtra. `stock` segue sendo o `ESTOQUE` total.
 
 ### `PREATAC`, `PREVEN` e `PREMIN` andam juntos
 

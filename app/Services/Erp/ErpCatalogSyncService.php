@@ -41,6 +41,9 @@ use Illuminate\Support\Str;
  */
 class ErpCatalogSyncService
 {
+    /** LOJAS.CODEMP da loja ARMANDO ATACADO — ver fetchErpStoreStock(). */
+    public const STORE_LOCATION = 1;
+
     public function __construct(private ProductClassifierService $classifier)
     {
     }
@@ -240,6 +243,7 @@ class ErpCatalogSyncService
             $groupMap = ProductGroup::pluck('id', 'code')->all();
             $subgroupMap = ProductSubgroup::pluck('id', 'code')->all();
             $rows = $this->fetchErpProducts();
+            $storeStock = $this->fetchErpStoreStock();
 
             foreach ($rows as $row) {
                 if ($this->isDeleted($row)) {
@@ -296,6 +300,9 @@ class ErpCatalogSyncService
                     // ERP traz vazio, e aí fica null mesmo.
                     'average_price' => $this->toDecimal($row->CUSMED ?? null),
                     'stock' => $this->toDecimal($row->ESTOQUE, 0),
+                    // Só o saldo da loja ARMANDO ATACADO — ESTOQUE acima soma
+                    // todos os locais. Sem linha na LOCAL para a loja = 0.
+                    'store_stock' => $this->toDecimal($storeStock[(int) ($row->CODPRO ?? 0)] ?? null, 0),
                     // Atualizados a cada sync (ver docblock da classe): são
                     // classificação do ERP, não há edição manual no site.
                     'product_group_id' => $groupId,
@@ -403,6 +410,26 @@ class ErpCatalogSyncService
     protected function fetchErpProducts(): Collection
     {
         return DB::connection('erp')->table('PRODUTO_PRO')->get();
+    }
+
+    /**
+     * Estoque da loja ARMANDO ATACADO por produto, `CODPRO => quantidade`.
+     *
+     * A view LOCAL tem uma linha por produto × local (LOCLOC junta com
+     * LOJAS.CODEMP: 1 = ARMANDO ATACADO, 2 = DEPOSITO, 3 = DEPOSITO 2,
+     * 4 = ASSISTENCIA); a soma dos locais é o PRODUTO_PRO.ESTOQUE.
+     * Sobrescrevível pelo mesmo motivo de fetchErpBrands().
+     *
+     * @return \Illuminate\Support\Collection<int|string, int|string>
+     */
+    protected function fetchErpStoreStock(): Collection
+    {
+        return DB::connection('erp')->table('LOCAL')
+            ->where('LOCLOC', self::STORE_LOCATION)
+            ->where('IS_DELETED', '<>', 'Y')
+            ->groupBy('PROLOC')
+            ->selectRaw('PROLOC, SUM(QUALOC) AS qtd')
+            ->pluck('qtd', 'PROLOC');
     }
 
     /**

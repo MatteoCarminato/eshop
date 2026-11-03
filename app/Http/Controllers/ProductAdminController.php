@@ -140,6 +140,8 @@ class ProductAdminController extends Controller
         // '1' = só com estoque (padrão), '0' = só os zerados, '' = todos.
         // Padrão esconde os zerados: a grade serve pra conferir o preço do que
         // está à venda, e o catálogo do ERP arrasta muito item sem saldo.
+        // Estoque aqui é só o da loja ARMANDO ATACADO (`store_stock`), não a
+        // soma dos depósitos que fica em `stock`.
         $estoque = $request->get('estoque', '1');
 
         $cols = self::gridColumns();
@@ -165,18 +167,18 @@ class ProductAdminController extends Controller
 
         $filtroEstoque = function ($q) use ($estoque) {
             if ($estoque === '1') {
-                $q->where('stock', '>', 0);
+                $q->where('store_stock', '>', 0);
             }
             if ($estoque === '0') {
-                $q->where('stock', '<=', 0);
+                $q->where('store_stock', '<=', 0);
             }
         };
 
         $products = $base()
             ->select(array_merge(
-                // `stock` vem sempre: a coluna de estoque da grade é só um
+                // `store_stock` vem sempre: a coluna de estoque da grade é só um
                 // liga/desliga visual, não vale recarregar a tela pra isso.
-                ['id', 'product_subgroup_id', 'name', 'short_name', 'active', 'stock'],
+                ['id', 'product_subgroup_id', 'name', 'short_name', 'active', 'store_stock'],
                 // Sem as calculadas (Diferença): no banco elas não existem.
                 array_keys(self::storedGridColumns()),
             ))
@@ -203,7 +205,7 @@ class ProductAdminController extends Controller
         // e com estoque — não adianta listar categoria que não vai aparecer
         // na grade (padrão da tela já esconde inativo e zerado).
         $subgroups = ProductSubgroup::orderBy('name')
-            ->whereHas('products', fn ($q) => $q->where('active', true)->where('stock', '>', 0))
+            ->whereHas('products', fn ($q) => $q->where('active', true)->where('store_stock', '>', 0))
             ->get(['id', 'name']);
 
         // Quantos ficariam de fora por cada filtro, dentro dos mesmos filtros de
@@ -215,7 +217,7 @@ class ProductAdminController extends Controller
 
         $semEstoque = $base()
             ->where($filtroAtacado)
-            ->where('stock', '<=', 0)
+            ->where('store_stock', '<=', 0)
             ->count();
 
         return view('admin.products.admin-index', compact(

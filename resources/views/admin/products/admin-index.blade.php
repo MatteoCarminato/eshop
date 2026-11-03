@@ -81,7 +81,7 @@
                         <a href="{{ route('products-admin.index', ['active' => $active, 'subgroup' => $subgroup, 'atacado' => $atacado, 'estoque' => $v]) }}"
                             class="pa-chip {{ (string) $estoque === (string) $v ? 'on' : '' }}"
                             style="text-decoration:none"
-                            @if ($v === '0') title="Produtos com saldo zerado no ERP — fora da lista por padrão" @endif>
+                            @if ($v === '0') title="Produtos sem saldo na loja ARMANDO ATACADO — fora da lista por padrão" @endif>
                             {{ $label }}
                             @if ($v === '0' && $semEstoque > 0)
                                 <b>{{ $semEstoque }}</b>
@@ -127,7 +127,7 @@
                                 <th class="pa-idx" scope="col" data-k="idx" title="ID do produto — ordenar por ID">ID</th>
                                 <th scope="col" data-k="name">Produto <span class="ar"></span></th>
                                 <th class="r pa-est" scope="col" data-k="stock" style="width:74px"
-                                    title="Estoque no ERP (ESTOQUE)">Estoque <span class="ar"></span></th>
+                                    title="Estoque da loja ARMANDO ATACADO (sem os depósitos)">Estoque <span class="ar"></span></th>
                                 @foreach ($cols as $key => $col)
                                     <th class="r {{ $col['tom'] === 'pri' ? 'pri' : '' }}" scope="col"
                                         data-k="{{ $key }}" style="width:104px">{{ $col['label'] }} <span class="ar"></span></th>
@@ -157,7 +157,7 @@
                                             @endunless
                                         </td>
                                         @php
-                                            $est = (float) $product->stock;
+                                            $est = (float) $product->store_stock;
                                             // Estoque é inteiro na prática (decimal no banco por
                                             // causa do ERP), então só mostra centavos se existirem.
                                             $estFmt = number_format($est, $est == (int) $est ? 0 : 2, '.', ',');
