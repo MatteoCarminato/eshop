@@ -41,6 +41,7 @@
 	<div class="seletor-invoice-item" data-id="conteudo_pdf_3"><img src="{{ asset('assets/images/invoice/modelo3.png') }}"></div>
 	<div class="seletor-invoice-item" data-id="conteudo_pdf_4"><img src="{{ asset('assets/images/invoice/modelo4.png') }}"></div>
 	<div class="seletor-invoice-item" data-id="conteudo_pdf_5"><img src="{{ asset('assets/images/invoice/modelo5.png') }}"></div>
+	<div class="seletor-invoice-item" data-id="conteudo_pdf_6"><img src="{{ asset('assets/images/invoice/modelo6.png') }}"></div>
 </div>
 
 {{-- Modelo clássico. No painel legado a folha inteira era montada com
@@ -758,6 +759,119 @@
 	</div>
 </div>
 
+<div class="pdf-container pdf-container-6" id="conteudo_pdf_6" style="width:100%;font-family:Arial, Helvetica, sans-serif;display:none;color:#333;font-size:11px;">
+	<div style="margin:0 30px;padding-top:30px;">
+
+		<!-- CABECALHO - logo à esquerda, número e saldo à direita -->
+		<table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+			<tr>
+				<td style="width:50%;border:0;padding:60px 0 0 30px;vertical-align:top;">
+					<img src="{{ asset('assets/images/invoice/logo_freezia.png') }}" style="width:215px;height:auto;border:0;">
+				</td>
+				<td style="width:50%;border:0;padding:0;vertical-align:top;text-align:right;">
+					<table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+						<tr><td style="border:0;padding:0;font-size:36px;line-height:40px;color:#3d5b63;text-align:right;">Invoice</td></tr>
+						<tr><td style="border:0;padding:2px 0 0 0;font-size:11.5px;font-weight:bold;color:#333;text-align:right;"># <span contenteditable="true">INV-{{ $invoiceCod }}</span></td></tr>
+						<tr><td style="border:0;padding:28px 0 0 0;font-size:9.5px;font-weight:bold;color:#333;text-align:right;">Balance Due</td></tr>
+						<tr><td class="total_final" style="border:0;padding:2px 0 0 0;font-size:15px;font-weight:bold;color:#333;text-align:right;">$ 0.00</td></tr>
+					</table>
+				</td>
+			</tr>
+		</table>
+
+		<!-- EMITENTE -->
+		<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-top:85px;">
+			<tr><td style="border:0;padding:0;font-size:10.5px;line-height:14px;color:#333;" contenteditable="true">10893 NW 17TH STREET UNIT 127</td></tr>
+			<tr><td style="border:0;padding:0;font-size:10.5px;line-height:14px;color:#333;" contenteditable="true">Doral Florida 33172</td></tr>
+			<tr><td style="border:0;padding:0;font-size:10.5px;line-height:14px;color:#333;" contenteditable="true">+1 (645) 248-7778</td></tr>
+			<tr><td style="border:0;padding:0;font-size:10.5px;line-height:14px;color:#333;" contenteditable="true">+1 (645) 246-4267</td></tr>
+			<tr><td style="border:0;padding:0;font-size:10.5px;line-height:14px;color:#333;" contenteditable="true">SALES-MANAGER@FREEZIATRADING.COM</td></tr>
+		</table>
+
+		<!-- BILL TO + DADOS DA INVOICE -->
+		<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-top:30px;">
+			<tr>
+				<td style="width:55%;border:0;padding:0;vertical-align:bottom;">
+					<table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+						<tr><td style="border:0;padding:0;font-size:10.5px;line-height:15px;height:15px;font-weight:bold;color:#2c4f5a;" contenteditable="true" id="modelo_6_1">{{ $textos6['txt1'] }}</td></tr>
+						<tr><td style="border:0;padding:0;font-size:10.5px;line-height:15px;height:15px;color:#333;" contenteditable="true" id="modelo_6_2">{{ $textos6['txt2'] }}</td></tr>
+						<tr><td style="border:0;padding:0;font-size:10.5px;line-height:15px;height:15px;color:#333;" contenteditable="true" id="modelo_6_3">{{ $textos6['txt3'] }}</td></tr>
+					</table>
+				</td>
+				<td style="width:45%;border:0;padding:0;vertical-align:top;">
+					<table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+						<tr>
+							<td style="width:55%;border:0;padding:0 18px 12px 0;font-size:11.5px;color:#333;text-align:right;">Invoice Date :</td>
+							<td style="width:45%;border:0;padding:0 0 12px 0;font-size:10.5px;color:#333;text-align:right;" contenteditable="true">{{ $dataExtenso }}</td>
+						</tr>
+						<tr>
+							<td style="border:0;padding:0 18px 12px 0;font-size:11.5px;color:#333;text-align:right;">Terms :</td>
+							<td style="border:0;padding:0 0 12px 0;font-size:10.5px;color:#333;text-align:right;" contenteditable="true">Due on Receipt</td>
+						</tr>
+						<tr>
+							<td style="border:0;padding:0 18px 12px 0;font-size:11.5px;color:#333;text-align:right;">Due Date :</td>
+							<td style="border:0;padding:0 0 12px 0;font-size:10.5px;color:#333;text-align:right;" contenteditable="true">{{ $dataExtenso }}</td>
+						</tr>
+						<tr>
+							<td style="border:0;padding:0 18px 0 0;font-size:11.5px;color:#333;text-align:right;">Sales person :</td>
+							<td style="border:0;padding:0;font-size:10.5px;color:#333;text-align:right;" contenteditable="true">Cindy</td>
+						</tr>
+					</table>
+				</td>
+			</tr>
+		</table>
+
+		<!-- TABELA DE ITENS -->
+		<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-top:20px;" class="invoice6-items">
+			<tr>
+				<td style="width:8%;background-color:#3f5f66;color:#fff;font-size:10.5px;padding:9px 6px;text-align:center;border:0;">#</td>
+				<td style="width:50%;background-color:#3f5f66;color:#fff;font-size:10.5px;padding:9px 6px;border:0;">Description</td>
+				<td style="width:12%;background-color:#3f5f66;color:#fff;font-size:10.5px;padding:9px 6px;text-align:right;border:0;">Qty</td>
+				<td style="width:14%;background-color:#3f5f66;color:#fff;font-size:10.5px;padding:9px 6px;text-align:right;border:0;">Rate</td>
+				<td style="width:16%;background-color:#3f5f66;color:#fff;font-size:10.5px;padding:9px 8px 9px 6px;text-align:right;border:0;">Amount</td>
+			</tr>
+			<tr class="invoice6-item">
+				<td class="freezia-row-number" style="border:0;border-bottom:1px solid #333;font-size:10.5px;color:#333;padding:10px 6px;text-align:center;vertical-align:top;">1</td>
+				<td style="border:0;border-bottom:1px solid #333;font-size:10.5px;color:#333;padding:10px 6px;vertical-align:top;" contenteditable="true">PRODUCT</td>
+				<td class="freezia-qtd" style="border:0;border-bottom:1px solid #333;font-size:10.5px;color:#333;padding:10px 6px 6px 6px;text-align:right;vertical-align:top;"><input type="text" class="invoice_item_qtd" maxlength="5" style="width:100%;border:0;background:transparent;font-size:10.5px;color:#333;text-align:right;padding:0;"><div style="font-size:9px;color:#333;text-align:right;">pcs</div></td>
+				<td class="freezia-preco" style="border:0;border-bottom:1px solid #333;font-size:10.5px;color:#333;padding:10px 6px;text-align:right;vertical-align:top;"><input type="text" class="invoice_item_preco" style="width:100%;border:0;background:transparent;font-size:10.5px;color:#333;text-align:right;padding:0;"></td>
+				<td class="invoice_item_total" style="border:0;border-bottom:1px solid #333;font-size:10.5px;color:#333;padding:10px 8px 10px 6px;text-align:right;vertical-align:top;">$ 0.00</td>
+			</tr>
+		</table>
+
+		<!-- TOTAIS -->
+		<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-top:8px;">
+			<tr>
+				<td style="width:40%;border:0;padding:6px 0 0 3px;font-size:10.5px;color:#333;vertical-align:top;">QTY <span class="freezia-qtd-total" style="color:#555;">0.00</span></td>
+				<td style="width:60%;border:0;padding:0;vertical-align:top;">
+					<table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+						<tr>
+							<td style="width:67%;border:0;padding:6px 18px 12px 0;font-size:10.5px;color:#333;text-align:right;">Sub Total</td>
+							<td class="pdf-subtotal freezia-sem-cifrao" style="width:33%;border:0;padding:6px 8px 12px 0;font-size:10.5px;color:#333;text-align:right;">$ 0.00</td>
+						</tr>
+						<tr>
+							<td style="border:0;padding:6px 18px 12px 0;font-size:10.5px;font-weight:bold;color:#000;text-align:right;">Total</td>
+							<td class="total_final" style="border:0;padding:6px 8px 12px 0;font-size:10.5px;font-weight:bold;color:#000;text-align:right;">$ 0.00</td>
+						</tr>
+						<tr>
+							<td style="border:0;background-color:#f5f9fa;padding:13px 18px 13px 0;font-size:10.5px;font-weight:bold;color:#000;text-align:right;">Balance Due</td>
+							<td class="total_final" style="border:0;background-color:#f5f9fa;padding:13px 8px 13px 0;font-size:10.5px;font-weight:bold;color:#000;text-align:right;">$ 0.00</td>
+						</tr>
+					</table>
+				</td>
+			</tr>
+		</table>
+
+		<!-- RODAPÉ -->
+		<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-top:60px;page-break-inside:avoid;">
+			<tr><td style="border:0;padding:0;font-size:9px;line-height:12px;color:#333;" contenteditable="true">ALL SALES ARE FINAL. NO RETURNS, EXCHANGES, OR REFUNDS WILL BE ACCEPTED ONCE THE MERCHANDISE HAS BEEN PICKED UP OR DELIVERED. CUSTOMERS ARE RESPONSIBLE FOR INSPECTING ALL MERCHANDISE UPON PICKUP OR DELIVERY. PAYMENT MUST BE RECEIVED WITHIN *3 HOURS* OF THE INVOICE BEING ISSUED; OTHERWISE, THE INVOICE MAY BE CANCELLED WITHOUT FURTHER NOTICE.</td></tr>
+			<tr><td style="border:0;padding:12px 0 0 0;font-size:9px;line-height:12px;color:#333;" contenteditable="true">THANK YOU FOR YOUR VALUED BUSINESS. WE VALUE YOUR TRUST AND CONFIDENT IN US AND SINCERELY APPRECIATE YOU!</td></tr>
+			<tr><td style="border:0;border-bottom:1.5px solid #333;padding:0;height:45px;"></td></tr>
+		</table>
+
+	</div>
+</div>
+
                 </div>
             </div>
 
@@ -870,6 +984,12 @@
             }
             atualizarNumeracaoScal();
 
+            function atualizarNumeracaoFreezia(){
+                $('.invoice6-items .invoice6-item').each(function(index){
+                    $(this).find('.freezia-row-number').text(index + 1);
+                });
+            }
+
             $(document).on('click', '.seletor-invoice-item', function(e){
                 $('.seletor-invoice').hide();
                 $('#' + $(this).attr('data-id')).css('display', 'block');
@@ -903,9 +1023,12 @@
                 adicionaLinha('.invoice2-items', '<tr class="invoice2-item"><td style="border:0;padding:0 0 10px 0;font-size:13px;color:#000;"><input style="width:100%;border:0;background:transparent;font-size:13px;color:#000;padding:0;" type="text" name="" class="invoice_item_qtd" maxlength="5"></td><td style="border:0;padding:0 0 10px 0;font-size:13px;color:#000;" contenteditable="true">PRODUCT</td><td style="border:0;padding:0 0 10px 0;font-size:13px;color:#000;text-align:right;"><input style="width:100%;border:0;background:transparent;font-size:13px;color:#000;text-align:right;padding:0;" type="text" name="" class="invoice_item_preco"></td><td class="invoice_item_total" style="border:0;padding:0 0 10px 0;font-size:13px;color:#000;text-align:right;">U$ 0,00</td></tr>');
                 adicionaLinha('.container_invoice', '<tr class="invoice_item"><td style="border:0;border-bottom:2px solid #f4f4f4;padding:10px 0 10px 20px;font-size:12px;vertical-align:top;"><div contenteditable="true">PRODUCT</div><div contenteditable="true">COLOR</div></td><td style="border:0;border-bottom:2px solid #f4f4f4;padding:10px 0;font-size:12px;text-align:right;vertical-align:top;"><input style="width:100%;border:0;background:transparent;font-size:12px;color:#000;text-align:right;padding:0;" type="text" name="" class="invoice_item_qtd" maxlength="5"></td><td style="border:0;border-bottom:2px solid #f4f4f4;padding:10px 0;font-size:12px;text-align:right;vertical-align:top;"><input style="width:100%;border:0;background:transparent;font-size:12px;color:#000;text-align:right;padding:0;" type="text" name="" class="invoice_item_preco"></td><td style="border:0;border-bottom:2px solid #f4f4f4;padding:10px 20px 10px 0;font-size:12px;text-align:right;vertical-align:top;" class="invoice_item_total">$ 0.00</td></tr>');
 
+                adicionaLinha('.invoice6-items', '<tr class="invoice6-item"><td class="freezia-row-number" style="border:0;border-bottom:1px solid #333;font-size:10.5px;color:#333;padding:10px 6px;text-align:center;vertical-align:top;"></td><td style="border:0;border-bottom:1px solid #333;font-size:10.5px;color:#333;padding:10px 6px;vertical-align:top;" contenteditable="true">PRODUCT</td><td class="freezia-qtd" style="border:0;border-bottom:1px solid #333;font-size:10.5px;color:#333;padding:10px 6px 6px 6px;text-align:right;vertical-align:top;"><input type="text" class="invoice_item_qtd" maxlength="5" style="width:100%;border:0;background:transparent;font-size:10.5px;color:#333;text-align:right;padding:0;"><div style="font-size:9px;color:#333;text-align:right;">pcs</div></td><td class="freezia-preco" style="border:0;border-bottom:1px solid #333;font-size:10.5px;color:#333;padding:10px 6px;text-align:right;vertical-align:top;"><input type="text" class="invoice_item_preco" style="width:100%;border:0;background:transparent;font-size:10.5px;color:#333;text-align:right;padding:0;"></td><td class="invoice_item_total" style="border:0;border-bottom:1px solid #333;font-size:10.5px;color:#333;padding:10px 8px 10px 6px;text-align:right;vertical-align:top;">$ 0.00</td></tr>');
+
                 $(".invoice_item_preco, .invoice_item_total").priceFormat(formatoPreco);
                 $('.invoice_item_qtd').mask('######');
                 atualizarNumeracaoScal();
+                atualizarNumeracaoFreezia();
             });
 
             $(document).on("click", '.remove-new-line', function(e){
@@ -915,7 +1038,9 @@
                 removeUltimaLinha('.invoice3-items', '.invoice3-item');
                 removeUltimaLinha('.invoice4-items', '.invoice4-item');
                 removeUltimaLinha('.invoice5-items', '.invoice5-item');
+                removeUltimaLinha('.invoice6-items', '.invoice6-item');
                 atualizarNumeracaoScal();
+                atualizarNumeracaoFreezia();
             });
 
             $(document).on("click", '.salvar-pdf', function(e){
@@ -1081,6 +1206,7 @@
                     soma_total += parseInt($(this).val());
                 });
                 $(".total_amount_itens").text(soma_total);
+                $(".freezia-qtd-total").text(soma_total.toFixed(2));
             });
 
             $(document).on("keyup", ".invoice_item_preco, .invoice_item_qtd", function(e){
@@ -1097,7 +1223,7 @@
             });
 
             function getInvoiceAtivaSelector() {
-                var modelos = ['#conteudo_pdf', '#conteudo_pdf_2', '#conteudo_pdf_3', '#conteudo_pdf_4', '#conteudo_pdf_5'];
+                var modelos = ['#conteudo_pdf', '#conteudo_pdf_2', '#conteudo_pdf_3', '#conteudo_pdf_4', '#conteudo_pdf_5', '#conteudo_pdf_6'];
                 for(var i = 0; i < modelos.length; i++) {
                     if($(modelos[i]).length && $(modelos[i]).css('display') != 'none') {
                         return modelos[i];
@@ -1111,6 +1237,27 @@
                 $clone.css('display', 'block');
                 $clone.find('[contenteditable]').removeAttr('contenteditable');
                 $clone.find('.bottom-3-repair').css({bottom: 'auto'});
+
+                /*
+                 * O modelo Freezia imprime a quantidade com duas casas e o
+                 * "pcs" embaixo, e Rate/Amount/Sub Total sem o "$" — só o
+                 * Total e o Balance Due levam o cifrão, colado no número.
+                 * A quantidade sai antes do loop genérico abaixo, que
+                 * trocaria a célula inteira (e o "pcs") pelo valor.
+                 */
+                $clone.find('.freezia-qtd .invoice_item_qtd').each(function(){
+                    var qtd = parseInt($(this).val(), 10);
+                    $(this).replaceWith(document.createTextNode(isNaN(qtd) ? '' : qtd.toFixed(2)));
+                });
+                $clone.find('.freezia-preco .invoice_item_preco').each(function(){
+                    $(this).parent().text(($(this).val() || '').replace('$ ', ''));
+                });
+                $clone.find('.invoice6-items .invoice_item_total, .freezia-sem-cifrao').each(function(){
+                    $(this).text($(this).text().replace('$ ', ''));
+                });
+                $clone.filter('#conteudo_pdf_6').find('.total_final').each(function(){
+                    $(this).text($(this).text().replace('$ ', '$'));
+                });
 
                 /*
                  * Todo input vira texto na célula que o contém. O legado tinha
@@ -1140,13 +1287,14 @@
             }
 
             /*
-             * Persiste os textos de Bill To / Ship To dos três modelos, pra que
+             * Persiste os textos de Bill To / Ship To dos modelos, pra que
              * a próxima invoice já abra preenchida.
              */
             function preparaPDF() {
                 $.post(ROTAS.texts, { modelo: 1, txt: textosDe('texto', 6) });
                 $.post(ROTAS.texts, { modelo: 3, txt: textosDe('modelo_3_', 14) });
                 $.post(ROTAS.texts, { modelo: 5, txt: textosDe('modelo_5_', 10) });
+                $.post(ROTAS.texts, { modelo: 6, txt: textosDe('modelo_6_', 3) });
             }
 
             $(document).on('change', '.total_editavel:not(.total_decremento)', function(){

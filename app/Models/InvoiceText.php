@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
  * Textos editáveis de um modelo de invoice (`tb_invoice` no painel legado).
  *
  * Os ids são fixos e batem com os do legado: 1 = modelo clássico,
- * 3 = PCS Wireless, 5 = SCal Mobile. Por isso o incremento é desligado.
+ * 3 = PCS Wireless, 5 = SCal Mobile, 6 = Freezia Trading. Por isso o incremento é desligado.
  */
 class InvoiceText extends Model
 {
@@ -16,6 +16,7 @@ class InvoiceText extends Model
     public const MODELO_CLASSICO = 1;
     public const MODELO_PCS = 3;
     public const MODELO_SCAL = 5;
+    public const MODELO_FREEZIA = 6;
 
     protected $table = 'invoice_texts';
 

@@ -35,6 +35,7 @@ class InvoiceController extends Controller
         InvoiceText::MODELO_CLASSICO => 6,
         InvoiceText::MODELO_PCS => 14,
         InvoiceText::MODELO_SCAL => 10,
+        InvoiceText::MODELO_FREEZIA => 3,
     ];
 
     /**
@@ -46,9 +47,12 @@ class InvoiceController extends Controller
             'textos1' => InvoiceText::doModelo(InvoiceText::MODELO_CLASSICO)->textos(6),
             'textos3' => InvoiceText::doModelo(InvoiceText::MODELO_PCS)->textos(14),
             'textos5' => InvoiceText::doModelo(InvoiceText::MODELO_SCAL)->textos(10),
+            'textos6' => InvoiceText::doModelo(InvoiceText::MODELO_FREEZIA)->textos(3),
             'invoiceCod' => $this->proximoCodigo(),
             // O legado imprime a data no formato americano (m/d/Y).
             'dataAtual' => now()->format('m/d/Y'),
+            // O modelo Freezia escreve a data por extenso (04 Nov 2026).
+            'dataExtenso' => now()->format('d M Y'),
         ]);
     }
 
