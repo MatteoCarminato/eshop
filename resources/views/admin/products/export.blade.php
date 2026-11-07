@@ -50,7 +50,19 @@
                     <button type="button" class="pa-chip on pa-ajm" data-ajuste="pct" aria-pressed="true"
                         title="Valor percentual">%</button>
                     <button type="button" class="pa-chip pa-ajm" data-ajuste="fixo" aria-pressed="false"
-                        title="Valor fixo em dólar">U$</button>
+                        id="paAjFixo" title="Valor fixo na moeda da lista">U$</button>
+
+                    <span class="pa-flab" style="margin-left:10px">Moeda</span>
+                    <button type="button" class="pa-chip on pa-moe" data-moeda="usd" aria-pressed="true"
+                        title="Preço em dólar, como está no ERP">U$</button>
+                    <button type="button" class="pa-chip pa-moe" data-moeda="brl" aria-pressed="false"
+                        title="Converte o preço pra real pela cotação informada">R$</button>
+                    <span class="pa-aj" id="paCot" style="display:none">
+                        <i>cotação</i>
+                        <input type="text" id="paCotVal" value="" inputmode="decimal" placeholder="5,40"
+                            autocomplete="off" spellcheck="false"
+                            title="Quantos reais vale 1 dólar. O preço em U$ é multiplicado por ela.">
+                    </span>
 
                     <span class="pa-flab" style="margin-left:10px">Subgrupos</span>
                     <button type="button" class="pa-chip" id="paTodos">Todos</button>
@@ -115,12 +127,14 @@
                         <input type="hidden" name="modo" id="paPdfModo">
                         <input type="hidden" name="ajuste_tipo" id="paPdfAjTipo">
                         <input type="hidden" name="ajuste_valor" id="paPdfAjVal">
+                        <input type="hidden" name="moeda" id="paPdfMoeda">
+                        <input type="hidden" name="cotacao" id="paPdfCot">
                         <span id="paPdfIds"></span>
                     </form>
 
                     <div class="pa-foot">
                         <span class="l">Formato</span>
-                        <span>nome do subgrupo, depois <b>NOMPRO</b> + preço em <b>U$</b></span>
+                        <span>nome do subgrupo, depois <b>NOMPRO</b> + preço em <b>U$</b> ou <b>R$</b> (pela cotação)</span>
                         <span>preço de <b>atacado</b> (PREATAC)</span>
                         <span>estoque sai entre parênteses, ex.: <b>(14)</b></span>
                         <span>o ajuste vale <b>só nesta lista</b> — não grava no produto</span>
@@ -148,6 +162,9 @@
             const inpAj    = document.getElementById('paAjVal');
             const sinalAj  = document.getElementById('paAjSinal');
             const rotuloAj = document.getElementById('paAjRot');
+            const inpCot   = document.getElementById('paCotVal');
+            const caixaCot = document.getElementById('paCot');
+            const btAjFixo = document.getElementById('paAjFixo');
 
             // Checkboxes indexados na carga: a lista inteira é estática, então
             // não vale varrer o DOM a cada tecla do ajuste.
@@ -169,11 +186,14 @@
             };
 
             let modo = 'preco';
-            let tipoAjuste = 'pct';   // 'pct' = percentual, 'fixo' = em dólar
+            let tipoAjuste = 'pct';   // 'pct' = percentual, 'fixo' = na moeda da lista
+            let moeda = 'usd';        // 'usd' = atacado cru, 'brl' = atacado × cotação
+
+            const simbolo = () => moeda === 'brl' ? 'R$' : 'U$';
 
             // U$ 1.190,00 — formato pt-BR (ponto no milhar, vírgula nos centavos),
             // que é como a lista é lida do outro lado.
-            const fmtPreco = v => 'U$ ' + v.toLocaleString('pt-BR', {
+            const fmtPreco = v => simbolo() + ' ' + v.toLocaleString('pt-BR', {
                 minimumFractionDigits: 2, maximumFractionDigits: 2,
             });
 
@@ -193,20 +213,38 @@
                 return Number.isFinite(n) ? n : 0;
             }
 
+            // ---- moeda -----------------------------------------------------------
+            // Cotação = quantos reais vale 1 dólar. Inválida/vazia vale 0, e em
+            // R$ isso trava a exportação (ver faltaCotacao) em vez de zerar tudo.
+            function valorCotacao() {
+                const n = parseFloat(String(inpCot.value).replace(/\s/g, '').replace(',', '.'));
+                return Number.isFinite(n) && n > 0 ? n : 0;
+            }
+
+            const faltaCotacao = () => MODOS[modo].preco && moeda === 'brl' && valorCotacao() === 0;
+
+            // Converte primeiro e ajusta depois: assim o ajuste fixo é na moeda
+            // que sai na lista ("+10" em R$ soma 10 reais, não 10 dólares).
             // Nunca devolve negativo: 100% de desconto zera, não inverte o preço.
             function ajustar(preco) {
+                const base = moeda === 'brl' ? preco * valorCotacao() : preco;
                 const a = valorAjuste();
-                if (a === 0) return preco;
-                const novo = tipoAjuste === 'pct' ? preco * (1 + a / 100) : preco + a;
+                const novo = a === 0 ? base : (tipoAjuste === 'pct' ? base * (1 + a / 100) : base + a);
                 return Math.max(0, Math.round(novo * 100) / 100);
             }
 
             function rotuloAjuste() {
+                const partes = [];
+                if (moeda === 'brl' && valorCotacao() > 0) {
+                    partes.push('R$ (cotação ' + valorCotacao().toLocaleString('pt-BR', { maximumFractionDigits: 4 }) + ')');
+                }
                 const a = valorAjuste();
-                if (a === 0) return '';
-                const sinal = a > 0 ? '+' : '−';
-                const abs = Math.abs(a).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
-                return tipoAjuste === 'pct' ? ' · ' + sinal + abs + '%' : ' · ' + sinal + 'U$ ' + abs;
+                if (a !== 0) {
+                    const sinal = a > 0 ? '+' : '−';
+                    const abs = Math.abs(a).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+                    partes.push(tipoAjuste === 'pct' ? sinal + abs + '%' : sinal + simbolo() + ' ' + abs);
+                }
+                return partes.map(p => ' · ' + p).join('');
             }
 
             // ---- texto da lista -------------------------------------------------
@@ -242,15 +280,17 @@
 
             // ---- pintura --------------------------------------------------------
             function render() {
-                const texto = montarTexto();
-                saida.textContent = texto;
+                const bloqueado = faltaCotacao();
+                const texto = bloqueado ? '' : montarTexto();
+                saida.textContent = bloqueado ? 'Informe a cotação do dólar pra converter os preços em R$.' : texto;
+                saida.classList.toggle('dim', bloqueado);
 
                 // A lista da esquerda mostra o preço já ajustado — é ela que
-                // confere o que vai sair. Nos modos sem preço o ajuste não se
-                // aplica, então volta a mostrar o atacado cru.
+                // confere o que vai sair. Nos modos sem preço (ou sem cotação)
+                // o ajuste não se aplica, então volta a mostrar o atacado cru.
                 precos.forEach(el => {
                     const cru = parseFloat(el.dataset.preco) || 0;
-                    el.textContent = fmtNum(MODOS[modo].preco ? ajustar(cru) : cru);
+                    el.textContent = fmtNum(MODOS[modo].preco && !bloqueado ? ajustar(cru) : cru);
                 });
 
                 const sel = selecao();
@@ -264,8 +304,8 @@
 
                 btCopiar.disabled = texto === '';
                 btCopiar.classList.toggle('dim', texto === '');
-                btPdf.disabled = nProdutos === 0;
-                btPdf.classList.toggle('dim', nProdutos === 0);
+                btPdf.disabled = nProdutos === 0 || bloqueado;
+                btPdf.classList.toggle('dim', nProdutos === 0 || bloqueado);
             }
 
             // Marca do subgrupo = resumo dos filhos: cheio, vazio ou traço (parcial).
@@ -315,8 +355,9 @@
                         o.classList.toggle('on', on);
                         o.setAttribute('aria-pressed', on ? 'true' : 'false');
                     });
-                    // Sem preço na linha, o ajuste não tem o que fazer.
+                    // Sem preço na linha, o ajuste e a moeda não têm o que fazer.
                     document.getElementById('paAj').classList.toggle('dim', !MODOS[modo].preco);
+                    caixaCot.classList.toggle('dim', !MODOS[modo].preco);
                     render();
                 });
             });
@@ -329,10 +370,36 @@
                         o.classList.toggle('on', on);
                         o.setAttribute('aria-pressed', on ? 'true' : 'false');
                     });
-                    sinalAj.textContent = tipoAjuste === 'pct' ? '%' : 'U$';
+                    sinalAj.textContent = tipoAjuste === 'pct' ? '%' : simbolo();
                     render();
                 });
             });
+
+            // Cotação lembrada entre visitas: costuma ser a mesma do dia inteiro.
+            try { inpCot.value = localStorage.getItem('paExportCotacao') || ''; } catch (e) { /* sem storage */ }
+
+            document.querySelectorAll('.pa-moe').forEach(bt => {
+                bt.addEventListener('click', () => {
+                    moeda = bt.dataset.moeda;
+                    document.querySelectorAll('.pa-moe').forEach(o => {
+                        const on = o === bt;
+                        o.classList.toggle('on', on);
+                        o.setAttribute('aria-pressed', on ? 'true' : 'false');
+                    });
+                    caixaCot.style.display = moeda === 'brl' ? '' : 'none';
+                    btAjFixo.textContent = simbolo();
+                    if (tipoAjuste === 'fixo') sinalAj.textContent = simbolo();
+                    if (moeda === 'brl' && valorCotacao() === 0) inpCot.focus();
+                    render();
+                });
+            });
+
+            inpCot.addEventListener('input', () => {
+                try { localStorage.setItem('paExportCotacao', inpCot.value); } catch (e) { /* sem storage */ }
+                render();
+            });
+            inpCot.addEventListener('focus', () => inpCot.select());
+            inpCot.addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); });
 
             // Entrar no campo tira o 0: digitar "20" com o 0 já lá daria "020", e
             // o zero não é um valor que alguém quis escrever, é o estado "sem
@@ -395,13 +462,15 @@
             // produtos por id e monta o catálogo (ver ProductAdminController@exportPdf).
             btPdf.addEventListener('click', () => {
                 const ids = selecao().flatMap(g => g.produtos.map(p => p.id));
-                if (ids.length === 0) return;
+                if (ids.length === 0 || faltaCotacao()) return;
 
                 const form = document.getElementById('paPdfForm');
                 document.getElementById('paPdfModo').value = modo;
                 document.getElementById('paPdfAjTipo').value = tipoAjuste;
                 // Sem preço na linha, o ajuste não se aplica — nem no PDF.
                 document.getElementById('paPdfAjVal').value = MODOS[modo].preco ? valorAjuste() : 0;
+                document.getElementById('paPdfMoeda').value = MODOS[modo].preco ? moeda : 'usd';
+                document.getElementById('paPdfCot').value = valorCotacao();
                 document.getElementById('paPdfIds').innerHTML = ids
                     .map(id => '<input type="hidden" name="ids[]" value="' + id + '">')
                     .join('');

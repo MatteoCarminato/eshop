@@ -300,7 +300,7 @@
             @if ($mostraPreco)
                 @if ($produto['preco'] > 0)
                     <div class="preco">
-                        <span class="moeda">US$</span> <span class="valor">{{ number_format($produto['preco'], 2, ',', '.') }}</span>
+                        <span class="moeda">{{ $moeda }}</span> <span class="valor">{{ number_format($produto['preco'], 2, ',', '.') }}</span>
                     </div>
                 @else
                     <div class="sem-preco">CONSULTE</div>

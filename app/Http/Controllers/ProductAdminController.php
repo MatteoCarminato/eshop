@@ -313,7 +313,13 @@ class ProductAdminController extends Controller
             'modo' => ['required', Rule::in(array_keys(self::MODOS_EXPORT))],
             'ajuste_tipo' => ['required', Rule::in(['pct', 'fixo'])],
             'ajuste_valor' => ['required', 'numeric', 'between:-100000,100000'],
+            'moeda' => ['required', Rule::in(['usd', 'brl'])],
+            // Quantos reais vale 1 dólar. Só obrigatória quando a lista sai em R$.
+            'cotacao' => ['nullable', 'required_if:moeda,brl', 'numeric', 'gt:0', 'max:1000'],
         ]);
+
+        // Sem preço na linha a moeda não importa — a tela já manda 'usd' nesse caso.
+        $cotacao = $dados['moeda'] === 'brl' ? (float) $dados['cotacao'] : 1.0;
 
         $modo = self::MODOS_EXPORT[$dados['modo']];
 
@@ -350,7 +356,7 @@ class ProductAdminController extends Controller
                 // CODNNN é o código que o cliente usa pra pedir; sem ele, o
                 // RECNO ainda identifica a linha do ERP.
                 'codigo' => $p->erp_code ?: ($p->recno ? (string) $p->recno : null),
-                'preco' => $this->ajustarPreco((float) $p->wholesale_price, $dados['ajuste_tipo'], (float) $dados['ajuste_valor']),
+                'preco' => $this->ajustarPreco((float) $p->wholesale_price * $cotacao, $dados['ajuste_tipo'], (float) $dados['ajuste_valor']),
                 'estoque' => (float) $p->stock,
                 'foto' => $p->image_url,
             ])
@@ -362,6 +368,7 @@ class ProductAdminController extends Controller
             'total' => $products->count(),
             'mostraPreco' => $modo['preco'],
             'mostraEstoque' => $modo['estoque'],
+            'moeda' => $dados['moeda'] === 'brl' ? 'R$' : 'US$',
             'gerado' => now()->displayTz(),
             // Versão sem o fundo preto do PNG original: o hero do catálogo é
             // azul-escuro, e o logo com fundo deixaria um retângulo preto nele.
@@ -421,8 +428,9 @@ class ProductAdminController extends Controller
     }
 
     /**
-     * Ajuste de valor da tela de exportação: percentual ou valor fixo em
-     * dólar, nunca negativo (100% de desconto zera o preço, não inverte).
+     * Ajuste de valor da tela de exportação: percentual ou valor fixo na moeda
+     * da lista (o preço chega já convertido pela cotação), nunca negativo
+     * (100% de desconto zera o preço, não inverte).
      * Espelha `ajustar()` do JS da tela — os dois precisam dar o mesmo número.
      */
     private function ajustarPreco(float $preco, string $tipo, float $valor): float
