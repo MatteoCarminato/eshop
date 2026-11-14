@@ -20,8 +20,8 @@
                 </div>
             </div>
 
-            <div class="row g-3 mb-3">
-                <div class="col-md-6 col-xl-3">
+            <div class="row g-3 mb-3 wallet-kpis row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-{{ $canViewPnl ? 5 : 4 }}">
+                <div class="col">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body">
                             <h6 class="text-muted text-uppercase mb-2">Saldo total em Reais</h6>
@@ -34,7 +34,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6 col-xl-3">
+                <div class="col">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body">
                             <h6 class="text-muted text-uppercase mb-2">Saldo total em Dólar</h6>
@@ -45,7 +45,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6 col-xl-3">
+                <div class="col">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body">
                             <h6 class="text-muted text-uppercase mb-2">Devo aos clientes</h6>
@@ -55,7 +55,7 @@
                     </div>
                 </div>
                 @if($canViewPnl)
-                    <div class="col-md-6 col-xl-3">
+                    <div class="col">
                         <div class="card border-0 shadow-sm h-100">
                             <div class="card-body">
                                 <h6 class="text-muted text-uppercase mb-2">Lucro realizado</h6>
@@ -73,6 +73,22 @@
                         </div>
                     </div>
                 @endif
+                <div class="col">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="text-muted text-uppercase mb-2">Vendido sem compra</h6>
+                            <h3 class="mb-0 text-danger">R$ {{ number_format($totals['RED_BRL'] ?? 0, 2, ',', '.') }}</h3>
+                            <small class="text-muted d-block">
+                                US$ {{ number_format($totals['RED_USD'] ?? 0, 2, ',', '.') }}
+                                em {{ $totals['RED_COUNT'] ?? 0 }} {{ ($totals['RED_COUNT'] ?? 0) === 1 ? 'depósito' : 'depósitos' }} (linhas vermelhas)
+                            </small>
+                            <small class="text-muted d-block">
+                                Média do dólar:
+                                <strong>{{ $totals['RED_RATE'] ? number_format($totals['RED_RATE'], 4, ',', '.') : '—' }}</strong>
+                            </small>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="d-flex flex-wrap mt-2 mb-2">
                 <div class="col-md-9">
@@ -426,4 +442,17 @@
             fetchUsdBrlRate();
         });
     </script>
+    <style>
+        /* 5 cards lado a lado no desktop: o valor encolhe junto com a coluna pra não quebrar */
+        .wallet-kpis h3 { font-size: clamp(1.15rem, 1.5vw, 1.5rem); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .wallet-kpis h6 { font-size: .75rem; }
+        @media (min-width: 576px) and (max-width: 991.98px) {
+            .wallet-kpis > .col:last-child:nth-child(odd) { flex: 0 0 100%; max-width: 100%; }
+        }
+        @media (min-width: 992px) and (max-width: 1199.98px) {
+            .wallet-kpis > .col:nth-last-child(2):nth-child(3n+1),
+            .wallet-kpis > .col:last-child:nth-child(3n+2) { flex: 0 0 50%; max-width: 50%; }
+            .wallet-kpis > .col:last-child:nth-child(3n+1) { flex: 0 0 100%; max-width: 100%; }
+        }
+    </style>
 @endsection

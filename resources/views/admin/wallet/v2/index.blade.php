@@ -60,6 +60,14 @@
                             </div>
                         </div>
                     @endif
+                    <div>
+                        <div class="l">Vendido sem compra</div>
+                        <div class="v neg">R$ {{ number_format($totals['RED_BRL'] ?? 0, 2, ',', '.') }}</div>
+                        <div class="hint">
+                            Média do dólar: {{ $totals['RED_RATE'] ? number_format($totals['RED_RATE'], 4, ',', '.') : '—' }}
+                            · US$ {{ number_format($totals['RED_USD'] ?? 0, 2, ',', '.') }}
+                        </div>
+                    </div>
                 </div>
 
                 <div class="wv2-head" style="padding:8px 14px;border-bottom:0">

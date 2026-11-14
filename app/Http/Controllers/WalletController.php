@@ -166,6 +166,28 @@ class WalletController extends Controller
         $totals['CLIENTE_DEVE_BRL'] = 0.0; // saldo BRL negativo (cliente está negativo → me deve)
         $totals['CLIENTE_DEVE_USD'] = 0.0; // idem em USD
 
+        // "Vendido sem compra" = soma das linhas vermelhas das carteiras: depósitos BRL
+        // abertos que já têm pré-venda e nenhuma pré-compra. Mesma conta do resumo de
+        // seleção da carteira do cliente: R$ vendido (brl_pre_sold) e US$ dos lotes de
+        // venda em aberto; a taxa média é R$ / US$ (ponderada, não média simples).
+        $redDeposits = Transaction::query()
+            ->whereIn('client_id', $clientIds)
+            ->where('type', 'deposit')
+            ->where('currency', 'BRL')
+            ->where('amount', '>', 0)
+            ->where(fn ($q) => $q->whereNull('status')->orWhereNotIn('status', ['fechado', 'finalizado']))
+            ->where('brl_pre_sold', '>', 0.005)
+            ->where(fn ($q) => $q->whereNull('brl_pre_purchased')->orWhere('brl_pre_purchased', '<=', 0.005))
+            ->get(['id', 'brl_pre_sold']);
+
+        $totals['RED_COUNT'] = $redDeposits->count();
+        $totals['RED_BRL']   = (float) $redDeposits->sum(fn ($tx) => (float) $tx->brl_pre_sold);
+        $totals['RED_USD']   = $redDeposits->isEmpty() ? 0.0 : (float) \App\Models\WalletPreSell::query()
+            ->whereIn('source_transaction_id', $redDeposits->pluck('id'))
+            ->whereIn('status', ['open', 'partial'])
+            ->sum('usd_remaining');
+        $totals['RED_RATE']  = $totals['RED_USD'] > 0 ? $totals['RED_BRL'] / $totals['RED_USD'] : null;
+
         foreach ($clientIds as $cid) {
             $totals['DEVO_BRL'] += $prePurchaseByClient[$cid]['devido_ao_cliente'] ?? 0;
             $totals['USD_PRE']  += $prePurchaseByClient[$cid]['usd_pre_comprado'] ?? 0;
