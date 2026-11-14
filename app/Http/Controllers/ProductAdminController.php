@@ -251,44 +251,11 @@ class ProductAdminController extends Controller
      */
     public function export(Request $request): View
     {
-        $products = Product::query()
-            ->select(['id', 'name', 'short_name', 'wholesale_price', 'stock', 'product_subgroup_id'])
-            ->with('productSubgroup:id,name,code')
-            ->where('stock', '>', 0)
-            ->get();
-
-        // Agrupa em PHP (não no banco) pra manter a ordenação dos itens e
-        // jogar os sem subgrupo num bloco próprio no fim.
-        $grupos = $products
-            ->groupBy(fn (Product $p) => $p->productSubgroup?->name ?? '')
-            ->map(fn ($itens, $nome) => [
-                'nome' => $nome === '' ? 'SEM SUBGRUPO' : $nome,
-                'sem_subgrupo' => $nome === '',
-                'produtos' => $itens
-                    ->map(fn (Product $p) => [
-                        // O id vai junto porque a tela devolve a seleção pro
-                        // PDF (exportPdf) — lá os produtos são relidos do banco
-                        // por id, não pelo que o cliente mandou.
-                        'id' => $p->id,
-                        // Cai pro nome longo se algum produto vier sem NOMPRO.
-                        'nome' => $p->short_name ?: $p->name,
-                        // PREATAC. Fica 0 se o ERP não tiver preço de atacado
-                        // cadastrado — a tela sinaliza esses casos em vez de
-                        // inventar um fallback para o PRECO3.
-                        'preco' => round((float) $p->wholesale_price, 2),
-                        'estoque' => (float) $p->stock,
-                    ])
-                    ->sortBy('nome', SORT_NATURAL | SORT_FLAG_CASE)
-                    ->values()
-                    ->all(),
-            ])
-            // Subgrupos em ordem alfabética; "SEM SUBGRUPO" sempre por último.
-            ->sortBy(fn (array $g) => ($g['sem_subgrupo'] ? '1' : '0') . mb_strtolower($g['nome']))
-            ->values();
+        $grupos = app(\App\Services\ProductExportListService::class)->grupos();
 
         return view('admin.products.export', [
             'grupos' => $grupos,
-            'totalProdutos' => $products->count(),
+            'totalProdutos' => $grupos->sum(fn (array $g) => count($g['produtos'])),
         ]);
     }
 

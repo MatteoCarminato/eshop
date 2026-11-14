@@ -42,49 +42,7 @@ class WalletController extends Controller
 
     protected function calculateDisplayedBalances(\App\Models\Client $client): array
     {
-        $brlTransactions = Transaction::query()
-            ->where('client_id', $client->id)
-            ->where('currency', 'BRL')
-            ->get();
-
-        $brl = 0.0;
-        foreach ($brlTransactions as $transaction) {
-            $amount = (float) $transaction->amount;
-
-            if ($transaction->type === 'deposit') {
-                if (in_array($transaction->status, ['fechado', 'finalizado'], true)) {
-                    continue;
-                }
-
-                $brl += abs($amount);
-                continue;
-            }
-
-            if ($transaction->type === 'withdraw' || $transaction->type === 'exchange_out') {
-                $brl -= abs($amount);
-                continue;
-            }
-
-            $brl += $amount;
-        }
-
-        $usd = round((float) Transaction::query()
-            ->where('client_id', $client->id)
-            ->where('currency', 'USD')
-            ->sum('amount'), 2);
-
-        $brlPreSoldOpen = (float) Transaction::query()
-            ->where('client_id', $client->id)
-            ->where('type', 'deposit')
-            ->where('currency', 'BRL')
-            ->where('amount', '>', 0)
-            ->where(fn ($q) => $q->whereNull('status')->orWhereNotIn('status', ['fechado', 'finalizado']))
-            ->sum('brl_pre_sold');
-
-        return [
-            'BRL' => round($brl - $brlPreSoldOpen, 2),
-            'USD' => $usd,
-        ];
+        return $this->walletService->displayedBalances($client->id);
     }
 
     /**

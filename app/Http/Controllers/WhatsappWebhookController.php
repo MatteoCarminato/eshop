@@ -50,6 +50,19 @@ class WhatsappWebhookController extends Controller
         }
         Log::info('WhatsappWebhook: payload recebido', ['event' => $event, 'payload' => $debugPayload]);
 
+        // Mensagem que é só "#lista" (#lista, #LISTA, #Lista...) em grupo ou conversa privada, em qualquer número do eshop → manda a
+        // lista de produtos da tela de exportação, pelo mesmo número que recebeu.
+        if (in_array($event, ['group.message', 'message.received'], true)
+            && !($payload['from_me'] ?? false)
+            && empty($payload['media']['data_base64'])
+            && !empty($payload['chat_id'])
+            && preg_match('/^\s*#lista\s*$/iu', (string) ($payload['body'] ?? ''))
+        ) {
+            $this->replyProductList((string) $request->input('instance_id'), $payload['chat_id']);
+
+            return response()->json(['ok' => true]);
+        }
+
         if ($event !== 'group.message') {
             return response()->json(['ok' => true]);
         }
@@ -63,6 +76,14 @@ class WhatsappWebhookController extends Controller
 
         $chatId = $payload['chat_id'] ?? null;
         $media  = $payload['media'] ?? null;
+
+        // Mensagem que é só "#saldo" (#saldo, #SALDO, #Saldo...) → responde com o saldo
+        // da carteira, só nos grupos em que o comprovante cai direto na carteira.
+        if ($chatId && empty($media['data_base64']) && preg_match('/^\s*#saldo\s*$/iu', (string) ($payload['body'] ?? ''))) {
+            $this->replyBalance($chatId);
+
+            return response()->json(['ok' => true]);
+        }
 
         if (!$chatId || empty($media['data_base64'])) {
             return response()->json(['ok' => true]);
@@ -510,6 +531,68 @@ class WhatsappWebhookController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * Envia no grupo o saldo BRL/USD da carteira do cliente vinculado — mesmo valor da
+     * tela da carteira. Grupos sem IA ativa ou sem cliente vinculado são ignorados.
+     */
+    private function replyBalance(string $chatId): void
+    {
+        $group = WhatsappGroup::where('chat_id', $chatId)
+            ->where('ai_active', true)
+            ->whereNotNull('client_id')
+            ->first();
+        if (!$group) {
+            return;
+        }
+
+        try {
+            $balances = $this->walletService->displayedBalances($group->client_id);
+            $fmt = fn (float $v) => ($v < 0 ? '-' : '') . number_format(abs($v), 2, ',', '.');
+
+            $this->whatsappNodeService->sendText(
+                $chatId,
+                "*# Saldo*\n*R$*: {$fmt((float) $balances['BRL'])}\n*U$*: {$fmt((float) $balances['USD'])}"
+            );
+        } catch (\Throwable $e) {
+            Log::error('WhatsappWebhook: erro ao responder saldo', [
+                'chat_id' => $chatId,
+                'error'   => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Envia a lista de produtos (mesmo texto do "Copiar" da exportação) pelo número
+     * que recebeu o #lista. Instância desconhecida não responde — melhor ficar quieto
+     * do que responder por outro número.
+     */
+    private function replyProductList(string $instanceId, string $chatId): void
+    {
+        $configKey = match ($instanceId) {
+            'grupos'     => 'whatsapp_node_grupos',
+            'disparador' => 'whatsapp_node',
+            default      => null,
+        };
+        if (!$configKey) {
+            Log::warning('WhatsappWebhook: #lista de instância desconhecida', ['instance_id' => $instanceId]);
+            return;
+        }
+
+        try {
+            $texto = app(\App\Services\ProductExportListService::class)->textoWhatsapp();
+            if ($texto === '') {
+                return;
+            }
+
+            (new WhatsappNodeService($configKey))->sendText($chatId, $texto);
+        } catch (\Throwable $e) {
+            Log::error('WhatsappWebhook: erro ao enviar #lista', [
+                'chat_id' => $chatId,
+                'error'   => $e->getMessage(),
+            ]);
+        }
     }
 
     private function formatConfirmed(array $json): string
