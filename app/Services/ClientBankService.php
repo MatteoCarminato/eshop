@@ -5,6 +5,7 @@ namespace App\Services;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class ClientBankService
 {
@@ -144,7 +145,7 @@ class ClientBankService
      */
     private function findInStatements(array $items, string $nome, float $valor, Carbon $dataAi): ?string
     {
-        $nomeLower = mb_strtolower($nome);
+        $nomeNorm = $this->normalizarNome($nome);
 
         // O comprovante traz o horário truncado no minuto: o PIX ocorreu em algum segundo
         // dentro desse minuto. Entre vários candidatos (ex.: mesmo pagador mandando vários
@@ -166,9 +167,9 @@ class ClientBankService
                 continue;
             }
 
-            // Nome do pagador (match parcial, case-insensitive, tolerante a pequena divergência de grafia)
-            $desc = mb_strtolower($item['description'] ?? '');
-            if (!$this->nomesCorrespondem($nomeLower, $desc)) {
+            // Nome do pagador (match parcial, sem acento, case-insensitive, tolerante a pequena divergência de grafia)
+            $desc = $this->normalizarNome($item['description'] ?? '');
+            if (!$this->nomesCorrespondem($nomeNorm, $desc)) {
                 continue;
             }
 
@@ -198,6 +199,18 @@ class ClientBankService
         }
 
         return $melhorId;
+    }
+
+    /**
+     * Normaliza um nome para comparação: remove acentos (ex.: "Conceição" → "conceicao"),
+     * passa para minúsculas e colapsa espaços — comprovante e extrato nem sempre
+     * acentuam o nome da mesma forma.
+     */
+    private function normalizarNome(string $nome): string
+    {
+        $nome = mb_strtolower(Str::ascii($nome));
+
+        return trim(preg_replace('/\s+/', ' ', $nome));
     }
 
     /**
