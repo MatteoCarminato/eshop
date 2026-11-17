@@ -291,10 +291,11 @@ class ProductAdminController extends Controller
         $modo = self::MODOS_EXPORT[$dados['modo']];
 
         $products = Product::query()
-            ->select(['id', 'name', 'short_name', 'erp_code', 'recno', 'wholesale_price', 'stock', 'image_url', 'brand_id', 'product_subgroup_id'])
+            ->select(['id', 'name', 'short_name', 'erp_code', 'recno', 'wholesale_price', 'store_stock', 'image_url', 'brand_id', 'product_subgroup_id'])
             ->with(['productSubgroup:id,name', 'brand:id,name'])
             ->whereIn('id', $dados['ids'])
-            ->where('stock', '>', 0)
+            // Só o saldo da loja ARMANDO ATACADO, igual à grade e à tela de exportação.
+            ->where('store_stock', '>', 0)
             ->get();
 
         if ($products->isEmpty()) {
@@ -324,7 +325,7 @@ class ProductAdminController extends Controller
                 // RECNO ainda identifica a linha do ERP.
                 'codigo' => $p->erp_code ?: ($p->recno ? (string) $p->recno : null),
                 'preco' => $this->ajustarPreco((float) $p->wholesale_price * $cotacao, $dados['ajuste_tipo'], (float) $dados['ajuste_valor']),
-                'estoque' => (float) $p->stock,
+                'estoque' => (float) $p->store_stock,
                 'foto' => $p->image_url,
             ])
             ->sortBy(fn (array $i) => mb_strtolower($i['ordem'] . '|' . $i['nome']), SORT_NATURAL)

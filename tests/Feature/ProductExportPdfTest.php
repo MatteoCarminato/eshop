@@ -42,6 +42,7 @@ class ProductExportPdfTest extends TestCase
             'price' => $atacado + 100,
             'wholesale_price' => $atacado,
             'stock' => $stock,
+            'store_stock' => $stock,
             'active' => true,
         ]);
     }

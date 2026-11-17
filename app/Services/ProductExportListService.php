@@ -15,9 +15,11 @@ class ProductExportListService
     public function grupos(): Collection
     {
         $products = Product::query()
-            ->select(['id', 'name', 'short_name', 'wholesale_price', 'stock', 'product_subgroup_id'])
+            ->select(['id', 'name', 'short_name', 'wholesale_price', 'store_stock', 'product_subgroup_id'])
             ->with('productSubgroup:id,name,code')
-            ->where('stock', '>', 0)
+            // Estoque da loja ARMANDO ATACADO (`store_stock`), o mesmo da grade
+            // de produtos — `stock` soma todos os depósitos do ERP.
+            ->where('store_stock', '>', 0)
             ->get();
 
         // Agrupa em PHP (não no banco) pra manter a ordenação dos itens e
@@ -39,7 +41,7 @@ class ProductExportListService
                         // cadastrado — a tela sinaliza esses casos em vez de
                         // inventar um fallback para o PRECO3.
                         'preco' => round((float) $p->wholesale_price, 2),
-                        'estoque' => (float) $p->stock,
+                        'estoque' => (float) $p->store_stock,
                     ])
                     ->sortBy('nome', SORT_NATURAL | SORT_FLAG_CASE)
                     ->values()

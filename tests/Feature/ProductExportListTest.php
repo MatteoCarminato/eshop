@@ -55,6 +55,7 @@ class ProductExportListTest extends TestCase
             'price' => $atacado + 100,
             'wholesale_price' => $atacado,
             'stock' => $stock,
+            'store_stock' => $stock,
             'active' => true,
             'product_subgroup_id' => $sg?->id,
         ]);
@@ -75,6 +76,21 @@ class ProductExportListTest extends TestCase
         $this->assertSame('BLUE', $grupos[0]['produtos'][0]['nome']);
         $this->assertSame(885.0, $grupos[0]['produtos'][0]['preco']);
         $this->assertSame(1, $response->viewData('totalProdutos'));
+    }
+
+    public function test_estoque_e_so_o_da_loja_armando_atacado(): void
+    {
+        $sg = $this->subgroup('17 256GB LL', 1);
+        $naLoja = $this->product('BLUE', 885, 3, $sg);
+        $naLoja->update(['stock' => 10]);   // soma dos depósitos é maior que a loja
+        $foraDaLoja = $this->product('BLACK', 815, 0, $sg);
+        $foraDaLoja->update(['stock' => 1]); // saldo só em outro depósito: fica fora
+
+        $grupos = $this->get(route('products-admin.export'))->assertOk()->viewData('grupos');
+
+        $this->assertCount(1, $grupos[0]['produtos']);
+        $this->assertSame('BLUE', $grupos[0]['produtos'][0]['nome']);
+        $this->assertSame(3.0, $grupos[0]['produtos'][0]['estoque']);
     }
 
     public function test_agrupa_por_subgrupo_em_ordem_alfabetica(): void
