@@ -167,7 +167,7 @@ class ComprasPyImportService
     public function isSellable(Product $product): bool
     {
         return (bool) $product->active
-            && (float) $product->stock > 0
+            && (float) $product->store_stock > 0
             && (float) $product->web_price > (float) config('feeds.compraspy.minimum_price');
     }
 

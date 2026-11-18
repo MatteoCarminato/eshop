@@ -27,7 +27,7 @@ class OrbitaSitePriceTest extends TestCase
             'price' => 1000,
             'web_price' => 1200,
             'promo_price' => 0,
-            'stock' => 3,
+            'store_stock' => 3,
         ]);
 
         $this->assertSame(1200.0, $product->sitePrice());
@@ -40,7 +40,7 @@ class OrbitaSitePriceTest extends TestCase
             'price' => 1000,
             'web_price' => 1200,
             'promo_price' => 999,
-            'stock' => 3,
+            'store_stock' => 3,
         ]);
 
         $this->assertSame(999.0, $product->sitePrice());
@@ -52,14 +52,14 @@ class OrbitaSitePriceTest extends TestCase
         $semWeb = Product::factory()->create([
             'price' => 1000,
             'web_price' => 0,
-            'stock' => 5,
+            'store_stock' => 5,
             'slug' => 'sem-web',
         ]);
 
         $comWeb = Product::factory()->create([
             'price' => 0,
             'web_price' => 500,
-            'stock' => 5,
+            'store_stock' => 5,
             'slug' => 'com-web',
         ]);
 
@@ -70,14 +70,38 @@ class OrbitaSitePriceTest extends TestCase
         $this->assertNull($this->catalog()->findSellableBySlug('sem-web'));
     }
 
+    public function test_estoque_da_loja_e_so_o_da_armando_atacado(): void
+    {
+        // Saldo só em outro depósito do ERP: a loja não vende.
+        $foraDaLoja = Product::factory()->create([
+            'web_price' => 500,
+            'stock' => 4,
+            'store_stock' => 0,
+            'slug' => 'fora-da-loja',
+        ]);
+
+        $naLoja = Product::factory()->create([
+            'web_price' => 500,
+            'stock' => 4,
+            'store_stock' => 1,
+            'slug' => 'na-loja',
+        ]);
+
+        $slugs = collect($this->catalog()->search([])['products'])->pluck('slug');
+
+        $this->assertFalse($slugs->contains($foraDaLoja->slug));
+        $this->assertTrue($slugs->contains($naLoja->slug));
+        $this->assertNull($this->catalog()->findSellableBySlug('fora-da-loja'));
+    }
+
     public function test_ordenacao_e_faixa_usam_o_preco_efetivo_da_loja(): void
     {
         // Web alto, mas em promoção: na loja é o mais barato dos dois.
         Product::factory()->create([
-            'web_price' => 2000, 'promo_price' => 100, 'stock' => 1, 'slug' => 'em-promocao',
+            'web_price' => 2000, 'promo_price' => 100, 'store_stock' => 1, 'slug' => 'em-promocao',
         ]);
         Product::factory()->create([
-            'web_price' => 300, 'promo_price' => 0, 'stock' => 1, 'slug' => 'sem-promocao',
+            'web_price' => 300, 'promo_price' => 0, 'store_stock' => 1, 'slug' => 'sem-promocao',
         ]);
 
         $asc = collect($this->catalog()->search(['sort' => 'price_asc'])['products'])->pluck('slug');

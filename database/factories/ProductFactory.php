@@ -38,6 +38,9 @@ class ProductFactory extends Factory
             'sale_price' => null,
             'min_price' => null,
             'stock' => fake()->randomFloat(4, 0, 100),
+            // Saldo da loja ARMANDO ATACADO — o que a loja e os feeds usam. Igual
+            // ao total por padrão; o teste que precisar distinguir sobrescreve.
+            'store_stock' => fn (array $attributes) => $attributes['stock'],
             'slug' => Str::slug($name) . '-' . Str::random(6),
             'description' => fake()->optional()->paragraph(),
             'image_url' => null,

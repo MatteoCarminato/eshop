@@ -76,7 +76,7 @@ class ComprasPyFeedTest extends TestCase
 
     public function test_rota_e_publica_e_responde_xml(): void
     {
-        Product::factory()->create(['web_price' => 100, 'stock' => 3, 'active' => true]);
+        Product::factory()->create(['web_price' => 100, 'store_stock' => 3, 'active' => true]);
 
         $response = $this->get('/compraspy/feedseshop.xml');
 
@@ -95,7 +95,7 @@ class ComprasPyFeedTest extends TestCase
             'web_code' => 'W1618',
             'web_price' => 915,
             'promo_price' => 0,
-            'stock' => 49,
+            'store_stock' => 49,
             'image_url' => 'https://cdn.exemplo.com/iphone-17.webp',
             'description' => "<p>Tela  de 6,1&quot;\n  Super Retina</p>",
             'active' => true,
@@ -120,7 +120,7 @@ class ComprasPyFeedTest extends TestCase
             'name' => 'COM PROMO',
             'web_price' => 1000,
             'promo_price' => 850,
-            'stock' => 2,
+            'store_stock' => 2,
         ]);
 
         $this->assertSame('850.00 USD', $this->firstItem($this->feedXml())['preco']);
@@ -134,7 +134,7 @@ class ComprasPyFeedTest extends TestCase
             'name' => 'PROMO INVALIDA',
             'web_price' => 500,
             'promo_price' => 700,
-            'stock' => 2,
+            'store_stock' => 2,
         ]);
 
         $this->assertSame('500.00 USD', $this->firstItem($this->feedXml())['preco']);
@@ -142,11 +142,13 @@ class ComprasPyFeedTest extends TestCase
 
     public function test_so_entra_no_feed_o_que_a_loja_vende(): void
     {
-        Product::factory()->create(['name' => 'VENDAVEL', 'web_price' => 100, 'stock' => 5, 'active' => true]);
-        Product::factory()->create(['name' => 'INATIVO', 'web_price' => 100, 'stock' => 5, 'active' => false]);
-        Product::factory()->create(['name' => 'SEM ESTOQUE', 'web_price' => 100, 'stock' => 0, 'active' => true]);
-        Product::factory()->create(['name' => 'SEM PRECO WEB', 'web_price' => 0, 'stock' => 5, 'active' => true]);
-        Product::factory()->create(['name' => 'ABAIXO DO PISO', 'web_price' => 0.05, 'stock' => 5, 'active' => true]);
+        Product::factory()->create(['name' => 'VENDAVEL', 'web_price' => 100, 'store_stock' => 5, 'active' => true]);
+        Product::factory()->create(['name' => 'INATIVO', 'web_price' => 100, 'store_stock' => 5, 'active' => false]);
+        Product::factory()->create(['name' => 'SEM ESTOQUE', 'web_price' => 100, 'store_stock' => 0, 'active' => true]);
+        // Saldo só em outro depósito do ERP, nada na loja ARMANDO ATACADO.
+        Product::factory()->create(['name' => 'SO EM OUTRO DEPOSITO', 'web_price' => 100, 'stock' => 5, 'store_stock' => 0, 'active' => true]);
+        Product::factory()->create(['name' => 'SEM PRECO WEB', 'web_price' => 0, 'store_stock' => 5, 'active' => true]);
+        Product::factory()->create(['name' => 'ABAIXO DO PISO', 'web_price' => 0.05, 'store_stock' => 5, 'active' => true]);
 
         $this->assertSame(['VENDAVEL'], $this->titles($this->feedXml()));
     }
@@ -159,7 +161,7 @@ class ComprasPyFeedTest extends TestCase
             'name' => 'PROMO ABAIXO DO PISO',
             'web_price' => 100,
             'promo_price' => 0.01,
-            'stock' => 5,
+            'store_stock' => 5,
         ]);
 
         $this->assertSame([], $this->titles($this->feedXml()));
@@ -173,7 +175,7 @@ class ComprasPyFeedTest extends TestCase
             'erp_code' => '1618',
             'recno' => 4321,
             'web_price' => 100,
-            'stock' => 1,
+            'store_stock' => 1,
         ]);
 
         $this->assertSame('1618', $this->firstItem($this->feedXml())['codigo']);
@@ -193,7 +195,7 @@ class ComprasPyFeedTest extends TestCase
             'name' => 'IMAGEM RELATIVA',
             'image_url' => 'products/foto.webp',
             'web_price' => 100,
-            'stock' => 1,
+            'store_stock' => 1,
         ]);
 
         $this->assertSame(
@@ -207,7 +209,7 @@ class ComprasPyFeedTest extends TestCase
         Product::factory()->create([
             'name' => 'ESTOQUE FRACIONADO',
             'web_price' => 100,
-            'stock' => 3.7,
+            'store_stock' => 3.7,
         ]);
 
         $this->assertSame('3', $this->firstItem($this->feedXml())['estoque']);
@@ -229,7 +231,7 @@ class ComprasPyFeedTest extends TestCase
     {
         config(['feeds.compraspy.cache_ttl' => 3600]);
 
-        Product::factory()->create(['name' => 'PUBLICADO AGORA', 'web_price' => 100, 'stock' => 1]);
+        Product::factory()->create(['name' => 'PUBLICADO AGORA', 'web_price' => 100, 'store_stock' => 1]);
 
         $this->actingAs($this->userComModulos(['products.view', 'products.manage']))
             ->from(route('products-admin.index'))
@@ -281,7 +283,7 @@ class ComprasPyFeedTest extends TestCase
     {
         config(['feeds.compraspy.cache_ttl' => 600]);
 
-        Product::factory()->create(['name' => 'NO CACHE', 'web_price' => 100, 'stock' => 1]);
+        Product::factory()->create(['name' => 'NO CACHE', 'web_price' => 100, 'store_stock' => 1]);
 
         $this->artisan('compraspy:feed')
             ->expectsOutputToContain('Produtos: 1')

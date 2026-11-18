@@ -63,7 +63,7 @@ class ComprasPyImportTest extends TestCase
             'web_code' => 'W1618',
             'web_price' => 915,
             'promo_price' => 0,
-            'stock' => 49,
+            'store_stock' => 49,
             'active' => true,
             'image_url' => 'https://cdn.exemplo.com/iphone-17.webp',
             'description' => null,
@@ -145,7 +145,7 @@ class ComprasPyImportTest extends TestCase
 
     public function test_estoque_vai_1_para_produto_vendavel(): void
     {
-        $this->service()->pushProduct($this->product(['stock' => 49]));
+        $this->service()->pushProduct($this->product(['store_stock' => 49]));
 
         $this->assertSame(1, $this->itemEnviado()['stock']);
     }
@@ -159,7 +159,7 @@ class ComprasPyImportTest extends TestCase
     {
         $casos = [
             'pausado no painel' => ['active' => false],
-            'sem estoque no ERP' => ['stock' => 0],
+            'sem estoque no ERP' => ['store_stock' => 0],
             'preço abaixo do piso do feed' => ['web_price' => 0.05],
         ];
 

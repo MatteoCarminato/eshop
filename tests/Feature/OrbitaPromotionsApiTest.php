@@ -29,7 +29,7 @@ class OrbitaPromotionsApiTest extends TestCase
 
     public function test_sem_promocao_responde_lista_vazia(): void
     {
-        Product::factory()->create(['web_price' => 500, 'promo_price' => 0, 'stock' => 2]);
+        Product::factory()->create(['web_price' => 500, 'promo_price' => 0, 'store_stock' => 2]);
 
         $this->promotions()->assertOk()->assertJsonCount(0, 'data');
     }
@@ -37,13 +37,13 @@ class OrbitaPromotionsApiTest extends TestCase
     public function test_lista_so_os_promocionados_do_maior_desconto_pro_menor(): void
     {
         Product::factory()->create([
-            'web_price' => 1000, 'promo_price' => 900, 'stock' => 1, 'slug' => 'desconto-10',
+            'web_price' => 1000, 'promo_price' => 900, 'store_stock' => 1, 'slug' => 'desconto-10',
         ]);
         Product::factory()->create([
-            'web_price' => 1000, 'promo_price' => 500, 'stock' => 1, 'slug' => 'desconto-50',
+            'web_price' => 1000, 'promo_price' => 500, 'store_stock' => 1, 'slug' => 'desconto-50',
         ]);
         Product::factory()->create([
-            'web_price' => 1000, 'promo_price' => 0, 'stock' => 1, 'slug' => 'sem-promo',
+            'web_price' => 1000, 'promo_price' => 0, 'store_stock' => 1, 'slug' => 'sem-promo',
         ]);
 
         $data = $this->promotions(['limit' => 10])->assertOk()->json('data');
@@ -62,7 +62,7 @@ class OrbitaPromotionsApiTest extends TestCase
         // Erro de digitação: "promoção" mais caro que o Preço Web não é oferta
         // nem muda o preço da loja.
         $product = Product::factory()->create([
-            'web_price' => 500, 'promo_price' => 800, 'stock' => 1, 'slug' => 'promo-invalida',
+            'web_price' => 500, 'promo_price' => 800, 'store_stock' => 1, 'slug' => 'promo-invalida',
         ]);
 
         $this->promotions()->assertOk()->assertJsonCount(0, 'data');
@@ -72,7 +72,7 @@ class OrbitaPromotionsApiTest extends TestCase
 
     public function test_respeita_o_limite_pedido(): void
     {
-        Product::factory()->count(5)->create(['web_price' => 1000, 'promo_price' => 700, 'stock' => 1]);
+        Product::factory()->count(5)->create(['web_price' => 1000, 'promo_price' => 700, 'store_stock' => 1]);
 
         $this->promotions(['limit' => 2])->assertOk()->assertJsonCount(2, 'data');
         // Sem `limit`, o padrão do contrato é 4.

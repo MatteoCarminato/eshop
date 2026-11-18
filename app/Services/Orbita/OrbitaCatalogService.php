@@ -15,8 +15,9 @@ use Illuminate\Support\Collection;
  * Regra de negócio (documentada no próprio front, src/lib/api.ts): produto com
  * preço 0 ou sem estoque nunca pode aparecer na loja, nem em listagem/busca,
  * nem no detalhe. Por isso toda query aqui já filtra active + web_price > 0 +
- * stock > 0 — o front reaplica o mesmo filtro como cinto e suspensório, mas a
- * fonte de verdade é aqui.
+ * store_stock > 0 — o front reaplica o mesmo filtro como cinto e suspensório, mas a
+ * fonte de verdade é aqui. O estoque que vale é só o da loja ARMANDO ATACADO
+ * (`store_stock`); `stock` soma todos os depósitos do ERP.
  *
  * O preço da loja é o Preço Web (`web_price`), NÃO o `price` (PRECO3/varejo do
  * ERP): quem define o que o site cobra é o painel. A promoção também é do
@@ -54,7 +55,7 @@ class OrbitaCatalogService
             ->with(['brand', 'category', 'images'])
             ->where('active', true)
             ->where('web_price', '>', 0)
-            ->where('stock', '>', 0);
+            ->where('store_stock', '>', 0);
     }
 
     public function findSellableBySlug(string $slug): ?Product
@@ -340,7 +341,7 @@ class OrbitaCatalogService
         // aceita referenciar o alias de uma subquery correlata (withCount) direto
         // no HAVING nessa forma, diferente de MySQL/SQLite — e a tabela é pequena.
         return Category::withCount(['products' => function (Builder $q) {
-                $q->where('active', true)->where('web_price', '>', 0)->where('stock', '>', 0);
+                $q->where('active', true)->where('web_price', '>', 0)->where('store_stock', '>', 0);
             }])
             ->orderByDesc('products_count')
             ->get()

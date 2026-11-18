@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Cache;
  *   causa do feed não se justifica quando o catálogo local é o mesmo dado.
  * - Elegibilidade: a flag por produto `destino_xml` do painel legado não tem
  *   equivalente aqui; usamos a MESMA regra de vendável da loja
- *   (active + web_price > 0 + stock > 0, ver OrbitaCatalogService) para que o
+ *   (active + web_price > 0 + store_stock > 0, ver OrbitaCatalogService) para que o
  *   feed e a vitrine nunca divirjam — anúncio de produto que a loja não vende
  *   é clique perdido.
  * - Preço: `sitePrice()` (promoção do painel quando válida, senão Preço Web),
@@ -90,7 +90,7 @@ class ComprasPyFeedService
 
         return Product::query()
             ->where('active', true)
-            ->where('stock', '>', 0)
+            ->where('store_stock', '>', 0)
             ->where('web_price', '>', 0)
             ->where(function (Builder $query) use ($minimumPrice) {
                 // Com promoção válida, o piso vale sobre ela.
@@ -157,7 +157,7 @@ class ComprasPyFeedService
 
         // Estoque é decimal no banco (vem fracionado do ERP em alguns casos);
         // o feed sempre anunciou unidade inteira, então arredonda pra baixo.
-        $stock = max(0, (int) floor((float) $product->stock));
+        $stock = max(0, (int) floor((float) $product->store_stock));
 
         $this->appendText($dom, $item, 'title', $name);
         $this->appendText($dom, $item, 'link', $this->productUrl($storeUrl, $product));
