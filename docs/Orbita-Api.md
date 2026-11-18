@@ -20,7 +20,7 @@ O valor já configurado no `.env` do eshop é o mesmo que `orbita/web/.env.local
 | `GET /api/orbita/settings` | `OrbitaSiteController@settings` | ⚠️ Sempre `null` (front cai no fallback "LYNCE ST") |
 | `GET /api/orbita/banners` | `OrbitaSiteController@banners` | ⚠️ Sempre `[]` — sem admin de banners ainda |
 | `GET /api/orbita/popups` | `OrbitaSiteController@popups` | ⚠️ Sempre `[]` |
-| `GET /api/orbita/sellers` | `OrbitaSiteController@sellers` | ⚠️ Sempre `[]` |
+| `GET /api/orbita/sellers` | `OrbitaSiteController@sellers` | ⚠️ Um contato único com o WhatsApp de vendas (`WHATSAPP_CATALOGO`) |
 
 As rotas "⚠️" respondem `200` com lista/valor vazio (nunca `404`), porque o Orbita já trata isso como "seção não aparece" — devolver `404` quebraria a página inteira (só `getPromotedProducts` tem try/catch no front; os outros lançam e derrubam o layout/home).
 

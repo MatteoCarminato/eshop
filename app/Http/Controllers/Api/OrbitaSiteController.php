@@ -74,8 +74,28 @@ class OrbitaSiteController extends Controller
         return response()->json(['data' => []]);
     }
 
+    /**
+     * Ainda sem cadastro de vendedores: responde um contato único com o
+     * WhatsApp de vendas (o mesmo do catálogo em PDF, services.whatsapp.catalogo).
+     * Sem ele o carrinho do Orbita fica sem ninguém pra "Finalizar pelo
+     * WhatsApp". `name` null: o front mostra "Vendedor" e cumprimenta só com
+     * "Olá!". Número vazio no .env → lista vazia, como antes.
+     */
     public function sellers(): JsonResponse
     {
-        return response()->json(['data' => []]);
+        $phone = preg_replace('/\D/', '', (string) config('services.whatsapp.catalogo'));
+
+        if ($phone === '') {
+            return response()->json(['data' => []]);
+        }
+
+        return response()->json(['data' => [[
+            'id' => 'vendas',
+            'section' => 'Vendas',
+            'name' => null,
+            'phone' => $phone,
+            'photo' => null,
+            'order' => 0,
+        ]]]);
     }
 }
