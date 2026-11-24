@@ -12,14 +12,19 @@ use Illuminate\Support\Collection;
  */
 class ProductExportListService
 {
-    public function grupos(): Collection
+    /**
+     * @param  bool  $soPromo  só os produtos com Promo (wholesale_promo_price > 0)
+     *                         — e aí o `preco` de cada item é o da promo, não o atacado.
+     */
+    public function grupos(bool $soPromo = false): Collection
     {
         $products = Product::query()
-            ->select(['id', 'name', 'short_name', 'wholesale_price', 'store_stock', 'product_subgroup_id'])
+            ->select(['id', 'name', 'short_name', 'wholesale_price', 'wholesale_promo_price', 'store_stock', 'product_subgroup_id'])
             ->with('productSubgroup:id,name,code')
             // Estoque da loja ARMANDO ATACADO (`store_stock`), o mesmo da grade
             // de produtos — `stock` soma todos os depósitos do ERP.
             ->where('store_stock', '>', 0)
+            ->when($soPromo, fn ($q) => $q->where('wholesale_promo_price', '>', 0))
             ->get();
 
         // Agrupa em PHP (não no banco) pra manter a ordenação dos itens e
@@ -40,7 +45,7 @@ class ProductExportListService
                         // PREATAC. Fica 0 se o ERP não tiver preço de atacado
                         // cadastrado — a tela sinaliza esses casos em vez de
                         // inventar um fallback para o PRECO3.
-                        'preco' => round((float) $p->wholesale_price, 2),
+                        'preco' => round((float) ($soPromo ? $p->wholesale_promo_price : $p->wholesale_price), 2),
                         'estoque' => (float) $p->store_stock,
                     ])
                     ->sortBy('nome', SORT_NATURAL | SORT_FLAG_CASE)
@@ -84,9 +89,25 @@ class ProductExportListService
      */
     public function textoWhatsapp(?array $soGrupos = null): string
     {
+        return $this->formatarWhatsapp($this->grupos(), $soGrupos);
+    }
+
+    /**
+     * #promo: produtos com Promo e estoque, no mesmo formato da lista, com o
+     * preço da promo no lugar do atacado. Vazio quando não há promoção.
+     */
+    public function textoPromoWhatsapp(): string
+    {
+        $texto = $this->formatarWhatsapp($this->grupos(soPromo: true));
+
+        return $texto === '' ? '' : "*# Promoção*\n\n" . $texto;
+    }
+
+    private function formatarWhatsapp(Collection $grupos, ?array $soGrupos = null): string
+    {
         $negrito = fn (string $t) => '*' . trim($t) . '*';
 
-        return $this->grupos()
+        return $grupos
             ->when($soGrupos !== null, fn (Collection $g) => $g->filter(fn (array $x) => in_array($x['nome'], $soGrupos, true)))
             ->map(fn (array $g) => implode("\n", [
                 $negrito($g['nome']),

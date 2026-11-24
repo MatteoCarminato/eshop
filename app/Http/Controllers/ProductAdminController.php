@@ -60,11 +60,16 @@ class ProductAdminController extends Controller
         // Web (PRECOWEB) é independente: sem `espelha` e, de propósito, sem
         // `erp` — o preço web é do site e não volta pro ERP.
         'web_price' => ['label' => 'Web', 'tom' => '', 'grade' => true, 'edit' => true],
+        // Promo de atacado (U$): é o preço que o #promo do WhatsApp manda — o
+        // produto entra lá quando tem valor aqui (> 0) e estoque. Só do site,
+        // sem `erp`, e diferente de `promo_price` (promoção da loja Orbita/
+        // ComprasPY, editada no cadastro) e de `sale_price` (PREVEN, abaixo).
+        'wholesale_promo_price' => ['label' => 'Promo', 'tom' => 'sale', 'grade' => true, 'edit' => true],
         // Promo (PREVEN) e Mínimo (PREMIN) ficam fora da grade: no ERP elas são
         // sempre iguais ao atacado, e agora o atacado as grava junto — na tela
         // seriam três colunas repetindo o mesmo número. Seguem sincronizadas,
         // espelhadas e aceitas pelo endpoint.
-        'sale_price' => ['label' => 'Promo', 'tom' => 'sale', 'grade' => false, 'edit' => true, 'erp' => 'PREVEN'],
+        'sale_price' => ['label' => 'Promo ERP', 'tom' => 'sale', 'grade' => false, 'edit' => true, 'erp' => 'PREVEN'],
         'min_price' => ['label' => 'Mínimo', 'tom' => 'min', 'grade' => false, 'edit' => true, 'erp' => 'PREMIN'],
         // Varejo (PRECO3) continua sendo sincronizado do ERP e aceito pelo
         // endpoint, mas fora da grade: o preço que o negócio usa é o atacado.

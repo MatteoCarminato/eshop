@@ -66,6 +66,13 @@ class WhatsappWebhookController extends Controller
             return response()->json(['ok' => true]);
         }
 
+        // "#promo" → produtos com Promo (coluna da grade /products-admin) e estoque, direto, sem menu.
+        if ($isTextoRecebido && preg_match('/^\s*#promo\s*$/iu', $body)) {
+            $this->replyPromoList((string) $request->input('instance_id'), $payload['chat_id']);
+
+            return response()->json(['ok' => true]);
+        }
+
         if ($isTextoRecebido
             && preg_match('/^\s*(\d{1,3})\s*$/', $body, $m)
             && $this->replyProductListChoice((string) $request->input('instance_id'), $payload['chat_id'], (int) $m[1])
@@ -666,6 +673,33 @@ class WhatsappWebhookController extends Controller
         }
 
         return true;
+    }
+
+    /**
+     * #promo: lista dos produtos em promoção (Promo > 0 e com estoque), pelo
+     * número que recebeu. Sem promoção ativa, avisa em vez de ficar quieto.
+     */
+    private function replyPromoList(string $instanceId, string $chatId): void
+    {
+        $configKey = $this->productListConfigKey($instanceId);
+        if (!$configKey) {
+            Log::warning('WhatsappWebhook: #promo de instância desconhecida', ['instance_id' => $instanceId]);
+            return;
+        }
+
+        try {
+            $texto = app(\App\Services\ProductExportListService::class)->textoPromoWhatsapp();
+
+            (new WhatsappNodeService($configKey))->sendText(
+                $chatId,
+                $texto !== '' ? $texto : 'Nenhum produto em promoção no momento.'
+            );
+        } catch (\Throwable $e) {
+            Log::error('WhatsappWebhook: erro ao enviar #promo', [
+                'chat_id' => $chatId,
+                'error'   => $e->getMessage(),
+            ]);
+        }
     }
 
     private function formatConfirmed(array $json): string
