@@ -281,8 +281,10 @@ class ProductAdminController extends Controller
             'ajuste_tipo' => ['required', Rule::in(['pct', 'fixo'])],
             'ajuste_valor' => ['required', 'numeric', 'between:-100000,100000'],
             'moeda' => ['required', Rule::in(['usd', 'brl'])],
-            // Quantos reais vale 1 dólar. Só obrigatória quando a lista sai em R$.
-            'cotacao' => ['nullable', 'required_if:moeda,brl', 'numeric', 'gt:0', 'max:1000'],
+            // Quantos reais vale 1 dólar. Só obrigatória quando a lista sai em R$;
+            // em U$ (ou sem preço) a tela manda 0, que é descartado aqui em vez
+            // de reprovar o gt:0 e devolver um 302 mudo.
+            'cotacao' => ['exclude_unless:moeda,brl', 'required', 'numeric', 'gt:0', 'max:1000'],
         ]);
 
         // Sem preço na linha a moeda não importa — a tela já manda 'usd' nesse caso.

@@ -7,6 +7,18 @@
         <div class="container-fluid">
             @include('admin.products.partials.style-admin')
 
+            @if (session('error') || $errors->any())
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    @if (session('error'))
+                        <div>{{ session('error') }}</div>
+                    @endif
+                    @foreach ($errors->all() as $erro)
+                        <div>{{ $erro }}</div>
+                    @endforeach
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+                </div>
+            @endif
+
             <div class="pa">
                 <div class="pa-head">
                     <div class="pa-crumb">
