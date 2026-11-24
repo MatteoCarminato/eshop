@@ -53,14 +53,41 @@ class ProductExportListService
     }
 
     /**
+     * Nomes dos subgrupos com estoque, na ordem da lista — é o menu do #lista.
+     *
+     * @return list<string>
+     */
+    public function nomesDosGrupos(): array
+    {
+        return $this->grupos()->pluck('nome')->all();
+    }
+
+    /**
+     * Menu numerado do #lista: um item por subgrupo e "TODOS" por último.
+     * A resposta com o número cai em textoWhatsapp([nome]) — ou sem filtro, no TODOS.
+     *
+     * @param  list<string>  $nomes  resultado de nomesDosGrupos()
+     */
+    public function menuWhatsapp(array $nomes): string
+    {
+        $linhas = array_map(fn (string $n, int $i) => '[' . ($i + 1) . '] ' . $n, $nomes, array_keys($nomes));
+        $linhas[] = '[' . (count($nomes) + 1) . '] TODOS';
+
+        return "*# Lista*\nResponda com o número do grupo:\n\n" . implode("\n", $linhas);
+    }
+
+    /**
      * Mesmo formato do montarTexto() da tela: subgrupo em negrito, depois
      * "NOME *U$ 1.215,00*" por item; blocos separados por duas linhas em branco.
+     *
+     * @param  list<string>|null  $soGrupos  só esses subgrupos (pelo nome); null = todos
      */
-    public function textoWhatsapp(): string
+    public function textoWhatsapp(?array $soGrupos = null): string
     {
         $negrito = fn (string $t) => '*' . trim($t) . '*';
 
         return $this->grupos()
+            ->when($soGrupos !== null, fn (Collection $g) => $g->filter(fn (array $x) => in_array($x['nome'], $soGrupos, true)))
             ->map(fn (array $g) => implode("\n", [
                 $negrito($g['nome']),
                 ...array_map(

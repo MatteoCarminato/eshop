@@ -13,6 +13,7 @@ use App\Services\WalletService;
 use App\Services\WhatsappNodeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -50,16 +51,25 @@ class WhatsappWebhookController extends Controller
         }
         Log::info('WhatsappWebhook: payload recebido', ['event' => $event, 'payload' => $debugPayload]);
 
-        // Mensagem que é só "#lista" (#lista, #LISTA, #Lista...) em grupo ou conversa privada, em qualquer número do eshop → manda a
-        // lista de produtos da tela de exportação, pelo mesmo número que recebeu.
-        if (in_array($event, ['group.message', 'message.received'], true)
+        // Mensagem que é só "#lista" (#lista, #LISTA, #Lista...) em grupo ou conversa privada, em qualquer número do eshop → manda o
+        // menu numerado dos grupos (subgrupos com estoque + TODOS), pelo mesmo número que recebeu. A resposta só com o número, na
+        // mesma conversa e dentro de LISTA_MENU_TTL, manda a lista de produtos daquele grupo (ou de todos).
+        $isTextoRecebido = in_array($event, ['group.message', 'message.received'], true)
             && !($payload['from_me'] ?? false)
             && empty($payload['media']['data_base64'])
-            && !empty($payload['chat_id'])
-            && preg_match('/^\s*#lista\s*$/iu', (string) ($payload['body'] ?? ''))
-        ) {
-            $this->replyProductList((string) $request->input('instance_id'), $payload['chat_id']);
+            && !empty($payload['chat_id']);
+        $body = (string) ($payload['body'] ?? '');
 
+        if ($isTextoRecebido && preg_match('/^\s*#lista\s*$/iu', $body)) {
+            $this->replyProductListMenu((string) $request->input('instance_id'), $payload['chat_id']);
+
+            return response()->json(['ok' => true]);
+        }
+
+        if ($isTextoRecebido
+            && preg_match('/^\s*(\d{1,3})\s*$/', $body, $m)
+            && $this->replyProductListChoice((string) $request->input('instance_id'), $payload['chat_id'], (int) $m[1])
+        ) {
             return response()->json(['ok' => true]);
         }
 
@@ -563,36 +573,99 @@ class WhatsappWebhookController extends Controller
         }
     }
 
+    /** Por quanto tempo (segundos) o menu do #lista espera a resposta com o número. */
+    private const LISTA_MENU_TTL = 600;
+
     /**
-     * Envia a lista de produtos (mesmo texto do "Copiar" da exportação) pelo número
-     * que recebeu o #lista. Instância desconhecida não responde — melhor ficar quieto
-     * do que responder por outro número.
+     * Config do número (instância) que recebeu o #lista — a resposta sai sempre por ele.
+     * Instância desconhecida não responde: melhor ficar quieto do que responder por outro número.
      */
-    private function replyProductList(string $instanceId, string $chatId): void
+    private function productListConfigKey(string $instanceId): ?string
     {
-        $configKey = match ($instanceId) {
+        return match ($instanceId) {
             'grupos'     => 'whatsapp_node_grupos',
             'disparador' => 'whatsapp_node',
             default      => null,
         };
+    }
+
+    private function productListCacheKey(string $instanceId, string $chatId): string
+    {
+        return "whatsapp:lista-menu:{$instanceId}:{$chatId}";
+    }
+
+    /**
+     * #lista: manda o menu numerado dos grupos com estoque (+ TODOS) e guarda, por
+     * conversa, a ordem que foi mostrada — a resposta com o número é lida contra
+     * ela, não contra o estoque do momento da resposta.
+     */
+    private function replyProductListMenu(string $instanceId, string $chatId): void
+    {
+        $configKey = $this->productListConfigKey($instanceId);
         if (!$configKey) {
             Log::warning('WhatsappWebhook: #lista de instância desconhecida', ['instance_id' => $instanceId]);
             return;
         }
 
         try {
-            $texto = app(\App\Services\ProductExportListService::class)->textoWhatsapp();
-            if ($texto === '') {
+            $service = app(\App\Services\ProductExportListService::class);
+            $nomes = $service->nomesDosGrupos();
+            if ($nomes === []) {
                 return;
             }
 
-            (new WhatsappNodeService($configKey))->sendText($chatId, $texto);
+            (new WhatsappNodeService($configKey))->sendText($chatId, $service->menuWhatsapp($nomes));
+            Cache::put($this->productListCacheKey($instanceId, $chatId), $nomes, self::LISTA_MENU_TTL);
         } catch (\Throwable $e) {
-            Log::error('WhatsappWebhook: erro ao enviar #lista', [
+            Log::error('WhatsappWebhook: erro ao enviar menu do #lista', [
                 'chat_id' => $chatId,
                 'error'   => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Resposta com número a um menu do #lista ainda aberto nessa conversa: manda a
+     * lista do grupo escolhido (o último número = TODOS) no mesmo texto do "Copiar"
+     * da exportação. Devolve false quando não há menu aberto — aí o número é uma
+     * mensagem qualquer e segue o fluxo normal do webhook.
+     */
+    private function replyProductListChoice(string $instanceId, string $chatId, int $opcao): bool
+    {
+        $configKey = $this->productListConfigKey($instanceId);
+        $cacheKey = $this->productListCacheKey($instanceId, $chatId);
+        $nomes = $configKey ? Cache::get($cacheKey) : null;
+        if (!is_array($nomes) || $nomes === []) {
+            return false;
+        }
+
+        try {
+            $node = new WhatsappNodeService($configKey);
+            $total = count($nomes) + 1;
+
+            if ($opcao < 1 || $opcao > $total) {
+                // Menu continua aberto: a pessoa pode tentar de novo.
+                $node->sendText($chatId, "Opção inválida — responda com um número de 1 a {$total}.");
+                return true;
+            }
+
+            Cache::forget($cacheKey);
+
+            $service = app(\App\Services\ProductExportListService::class);
+            $texto = $opcao === $total
+                ? $service->textoWhatsapp()
+                : $service->textoWhatsapp([$nomes[$opcao - 1]]);
+
+            $node->sendText($chatId, $texto !== '' ? $texto : 'Esse grupo está sem produtos com estoque agora.');
+        } catch (\Throwable $e) {
+            Log::error('WhatsappWebhook: erro ao enviar #lista', [
+                'chat_id' => $chatId,
+                'opcao'   => $opcao,
+                'error'   => $e->getMessage(),
+            ]);
+        }
+
+        return true;
     }
 
     private function formatConfirmed(array $json): string
